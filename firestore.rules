@@ -35,6 +35,15 @@ service cloud.firestore {
         isKoordinatorAcara();
     }
 
+    function canManageEvent(eventId) {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          get(/databases/$(database)/documents/events/$(eventId)).data.coordinator_id == request.auth.uid
+        );
+    }
+
     function isSelf(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -79,7 +88,8 @@ service cloud.firestore {
 
       allow read: if isSelf(userId) ||
         isSuperAdmin() ||
-        isKoordinatorDivisi();
+        isKoordinatorDivisi() ||
+        isKoordinatorAcara();
 
       allow update: if isSelf(userId) && selfProfileUpdateIsSafe();
 
@@ -109,8 +119,37 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if isSignedIn();
-      allow write: if false; // TODO: buka saat fase CRUD acara.
+      allow read: if isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (isKoordinatorAcara() && resource.data.coordinator_id == request.auth.uid);
+
+      allow create: if isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          request.resource.data.created_by == request.auth.uid &&
+          request.resource.data.coordinator_id == request.auth.uid
+        );
+
+      allow update: if isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          resource.data.coordinator_id == request.auth.uid &&
+          request.resource.data.coordinator_id == request.auth.uid
+        );
+
+      allow delete: if false; // TODO: evaluasi delete acara setelah workflow task tersedia.
+
+      match /event_members/{memberId} {
+        allow read: if canManageEvent(eventId);
+
+        allow create, update: if canManageEvent(eventId) &&
+          request.resource.data.event_id == eventId &&
+          request.resource.data.user_id == memberId;
+
+        allow delete: if canManageEvent(eventId);
+      }
     }
 
     match /tasks/{taskId} {

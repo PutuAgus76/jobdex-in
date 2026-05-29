@@ -1,0 +1,17 @@
+import { Badge } from "@/components/ui/badge";
+import { EVENT_STATUS_LABELS } from "@/lib/event-status";
+import type { EventStatus } from "@/types";
+
+type EventStatusBadgeProps = {
+  status?: EventStatus | null;
+};
+
+export function EventStatusBadge({ status }: EventStatusBadgeProps) {
+  if (!status) {
+    return <Badge>Tanpa status</Badge>;
+  }
+
+  const variant = status === "selesai" ? "success" : status === "dibatalkan" ? "warning" : "info";
+
+  return <Badge variant={variant}>{EVENT_STATUS_LABELS[status]}</Badge>;
+}

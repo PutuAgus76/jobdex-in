@@ -23,6 +23,43 @@ export type UserProfile = {
   updated_at?: unknown;
 };
 
+export type EventStatus =
+  | "persiapan"
+  | "berlangsung"
+  | "selesai"
+  | "dibatalkan";
+
+export type Event = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string;
+  event_date: unknown;
+  coordinator_id: string;
+  status: EventStatus;
+  progress_percentage: number;
+  created_by: string;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+export type EventMember = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  role_in_event: string;
+  added_by: string;
+  added_at?: unknown;
+};
+
+export type EventInput = {
+  name: string;
+  description: string;
+  event_date: string;
+  coordinator_id: string;
+  status: EventStatus;
+};
+
 export type Organization = {
   id: string;
   name: string;

@@ -1,5 +1,5 @@
 import { USER_ROLES } from "@/lib/roles";
-import type { UserProfile, UserRole } from "@/types";
+import type { Event, UserProfile, UserRole } from "@/types";
 
 function getRole(input: UserProfile | UserRole | null | undefined) {
   if (!input) {
@@ -45,6 +45,21 @@ export function canCreateEvent(
   input: UserProfile | UserRole | null | undefined,
 ) {
   return isKoordinator(input);
+}
+
+export function canManageEvent(
+  profile: UserProfile | null | undefined,
+  event: Event | null | undefined,
+) {
+  if (!profile || !event) {
+    return false;
+  }
+
+  return (
+    isSuperAdmin(profile) ||
+    isKoordinatorDivisi(profile) ||
+    (isKoordinatorAcara(profile) && event.coordinator_id === profile.id)
+  );
 }
 
 export function canCreateTask(input: UserProfile | UserRole | null | undefined) {

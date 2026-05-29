@@ -259,3 +259,60 @@ Cara test nonaktifkan anggota:
 5. Setelah masuk dashboard, user diarahkan ke `/dashboard/unauthorized`.
 
 Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar edit anggota bekerja.
+
+## Manajemen Acara Fase 6
+
+Halaman `/dashboard/events` tersedia untuk:
+
+- `super_admin`
+- `koordinator_divisi`
+- `koordinator_acara`
+
+Anggota biasa belum mendapat akses penuh ke manajemen acara. Jika anggota membuka `/dashboard/events`, aplikasi menampilkan placeholder bahwa acara yang melibatkan mereka akan tersedia pada fase berikutnya.
+
+Fitur yang tersedia:
+
+- Melihat daftar acara dari collection `events`
+- Search acara berdasarkan nama
+- Filter status acara
+- Filter tanggal sederhana: semua, akan datang, sudah lewat
+- Tambah acara
+- Edit acara
+- Ubah status acara melalui form edit
+- Detail acara di `/dashboard/events/[eventId]`
+- Tambah anggota acara dari collection `users`
+- Hapus anggota dari acara
+- Event member disimpan di `events/{eventId}/event_members/{userId}` agar tidak duplikat
+- Progress acara menampilkan field `progress_percentage`, default `0`
+
+Cara test sebagai super admin:
+
+1. Login sebagai `super_admin`.
+2. Buka `/dashboard/events`.
+3. Klik `Tambah Acara`.
+4. Isi nama, deskripsi, tanggal, koordinator, dan status.
+5. Simpan, lalu buka detail acara.
+6. Tambah dan hapus anggota acara.
+
+Cara test sebagai koordinator divisi:
+
+1. Login sebagai `koordinator_divisi`.
+2. Buka `/dashboard/events`.
+3. Buat atau edit acara.
+4. Buka detail acara dan kelola anggota acara.
+
+Cara test sebagai koordinator acara:
+
+1. Login sebagai `koordinator_acara`.
+2. Buka `/dashboard/events`.
+3. Buat acara baru dengan koordinator dirinya sendiri.
+4. Pastikan hanya acara yang dia koordinasi yang tampil.
+5. Buka detail acara dan kelola anggota acara pada acara tersebut.
+
+Cara test sebagai anggota biasa:
+
+1. Login sebagai `anggota`.
+2. Buka `/dashboard/events`.
+3. Aplikasi menampilkan placeholder, bukan manajemen semua acara.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD acara dan event members bekerja.
