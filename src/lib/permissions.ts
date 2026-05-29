@@ -1,5 +1,5 @@
 import { USER_ROLES } from "@/lib/roles";
-import type { Event, UserProfile, UserRole } from "@/types";
+import type { Event, Task, UserProfile, UserRole } from "@/types";
 
 function getRole(input: UserProfile | UserRole | null | undefined) {
   if (!input) {
@@ -64,6 +64,34 @@ export function canManageEvent(
 
 export function canCreateTask(input: UserProfile | UserRole | null | undefined) {
   return isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input);
+}
+
+export function canManageTask(
+  profile: UserProfile | null | undefined,
+  task: Task | null | undefined,
+) {
+  if (!profile || !task) {
+    return false;
+  }
+
+  return (
+    isSuperAdmin(profile) ||
+    isKoordinatorDivisi(profile) ||
+    (isKoordinatorAcara(profile) &&
+      task.type === "acara" &&
+      task.coordinator_id === profile.id)
+  );
+}
+
+export function canReadTask(
+  profile: UserProfile | null | undefined,
+  task: Task | null | undefined,
+) {
+  if (!profile || !task) {
+    return false;
+  }
+
+  return canManageTask(profile, task) || task.pic_id === profile.id;
 }
 
 export function canApproveTask(

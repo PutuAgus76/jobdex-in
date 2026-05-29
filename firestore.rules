@@ -44,6 +44,39 @@ service cloud.firestore {
         );
     }
 
+    function canReadTaskData(data) {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          data.type == "acara" &&
+          data.coordinator_id == request.auth.uid
+        ) ||
+        data.pic_id == request.auth.uid;
+    }
+
+    function canCreateTaskData(data) {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          data.type == "acara" &&
+          data.coordinator_id == request.auth.uid &&
+          data.created_by == request.auth.uid
+        );
+    }
+
+    function canUpdateTaskData() {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          resource.data.type == "acara" &&
+          resource.data.coordinator_id == request.auth.uid &&
+          request.resource.data.coordinator_id == request.auth.uid
+        );
+    }
+
     function isSelf(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -153,8 +186,16 @@ service cloud.firestore {
     }
 
     match /tasks/{taskId} {
-      allow read: if isSignedIn();
-      allow write: if false; // TODO: buka saat fase CRUD task.
+      allow read: if isSignedIn() && canReadTaskData(resource.data);
+
+      allow create: if isSignedIn() &&
+        canCreateTaskData(request.resource.data) &&
+        request.resource.data.organization_id == "main_org" &&
+        request.resource.data.is_archived == false;
+
+      allow update: if isSignedIn() && canUpdateTaskData();
+
+      allow delete: if false;
 
       match /status_logs/{logId} {
         allow read: if isSignedIn();

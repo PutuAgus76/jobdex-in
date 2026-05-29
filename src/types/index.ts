@@ -60,6 +60,72 @@ export type EventInput = {
   status: EventStatus;
 };
 
+export type TaskType = "divisi" | "acara";
+
+export type TaskStatus =
+  | "belum_dimulai"
+  | "sedang_dikerjakan"
+  | "butuh_bantuan"
+  | "stuck"
+  | "menunggu_materi"
+  | "draft_selesai"
+  | "perlu_revisi"
+  | "revisi_dikerjakan"
+  | "menunggu_approval"
+  | "approved"
+  | "ditunda";
+
+export type TaskPriority = "rendah" | "sedang" | "tinggi" | "kritis";
+
+export type ApprovalStatus = "pending" | "approved" | "need_revision";
+
+export type Task = {
+  id: string;
+  organization_id: string;
+  type: TaskType;
+  division_id?: string;
+  event_id?: string;
+  name: string;
+  description: string;
+  pic_id: string;
+  coordinator_id: string;
+  deadline: unknown;
+  status: TaskStatus;
+  priority: TaskPriority;
+  copywriting: string;
+  copywriting_docs_url: string;
+  design_reference_url: string;
+  drive_reference_url: string;
+  color_palette: string[];
+  visual_direction: string;
+  revision_notes: string;
+  stuck_notes: string;
+  result_design_url: string;
+  approval_status: ApprovalStatus;
+  is_archived: boolean;
+  created_by: string;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+export type TaskInput = {
+  type: TaskType;
+  event_id: string;
+  name: string;
+  description: string;
+  pic_id: string;
+  coordinator_id: string;
+  deadline: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  copywriting: string;
+  copywriting_docs_url: string;
+  design_reference_url: string;
+  drive_reference_url: string;
+  color_palette: string[];
+  visual_direction: string;
+};
+
 export type Organization = {
   id: string;
   name: string;

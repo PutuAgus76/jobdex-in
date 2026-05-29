@@ -3,28 +3,32 @@
 import Link from "next/link";
 import { EventMembersManager } from "@/components/events/event-members-manager";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
+import { EventTasksSection } from "@/components/tasks/event-tasks-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { formatEventDate } from "@/lib/firebase/events";
-import type { Event, EventMember, UserProfile } from "@/types";
+import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 type EventDetailProps = {
   event: Event;
   users: UserProfile[];
   eventMembers: EventMember[];
+  tasks: Task[];
   canManage: boolean;
   onAddMember: (userId: string, roleInEvent: string) => Promise<void>;
   onRemoveMember: (userId: string) => Promise<void>;
+  onCreateTask: (input: TaskInput) => Promise<void>;
 };
 
 export function EventDetail({
   event,
   users,
   eventMembers,
+  tasks,
   canManage,
   onAddMember,
   onRemoveMember,
+  onCreateTask,
 }: EventDetailProps) {
   const usersById = new Map(users.map((user) => [user.id, user]));
   const coordinator = usersById.get(event.coordinator_id);
@@ -98,9 +102,12 @@ export function EventDetail({
         onRemove={onRemoveMember}
       />
 
-      <EmptyState
-        title="Job desk acara belum tersedia"
-        description="Daftar job desk dan task detail akan dibangun pada fase berikutnya."
+      <EventTasksSection
+        event={event}
+        tasks={tasks}
+        users={users}
+        canManage={canManage}
+        onCreateTask={onCreateTask}
       />
     </div>
   );

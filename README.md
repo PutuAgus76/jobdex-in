@@ -316,3 +316,63 @@ Cara test sebagai anggota biasa:
 3. Aplikasi menampilkan placeholder, bukan manajemen semua acara.
 
 Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD acara dan event members bekerja.
+
+## Job Desk / Task Fase 7
+
+Halaman `/dashboard/tasks` sekarang menjadi manajemen job desk untuk:
+
+- Job Desk Divisi
+- Job Desk Acara
+
+Fitur yang tersedia:
+
+- Melihat task dari collection `tasks`
+- Tambah task
+- Edit task
+- Archive task dengan `is_archived: true`
+- Detail task di `/dashboard/tasks/[taskId]`
+- Table view dan card view
+- Search nama task
+- Filter tipe, status, prioritas, PIC, acara, dan deadline
+- Assignment PIC dan koordinator dari collection `users`
+- Pilihan event untuk task tipe `acara`
+- Field copywriting, link Google Docs, referensi desain, Google Drive, color palette, arahan visual, deadline, dan deskripsi
+- Detail acara `/dashboard/events/[eventId]` menampilkan section `Job Desk Acara`
+
+Cara test sebagai super admin:
+
+1. Login sebagai `super_admin`.
+2. Buka `/dashboard/tasks`.
+3. Klik `Tambah Job Desk`.
+4. Buat task tipe `divisi` dan tipe `acara`.
+5. Coba table/card view, filter, edit, archive, dan detail task.
+
+Cara test sebagai koordinator divisi:
+
+1. Login sebagai `koordinator_divisi`.
+2. Buka `/dashboard/tasks`.
+3. Buat job desk divisi atau acara.
+4. Edit/archive task yang berada di bawah koordinasi.
+
+Cara test sebagai koordinator acara:
+
+1. Login sebagai `koordinator_acara`.
+2. Pastikan ada acara yang dia koordinasi.
+3. Buka `/dashboard/tasks` atau detail acara.
+4. Buat task tipe `acara` untuk acara yang dia koordinasi.
+
+Cara test sebagai anggota:
+
+1. Login sebagai `anggota`.
+2. Buka `/dashboard/tasks`.
+3. Anggota hanya melihat task dengan `pic_id` miliknya.
+4. Anggota belum bisa membuat, edit, atau archive task pada fase ini.
+
+Cara test task dari detail event:
+
+1. Buka `/dashboard/events/[eventId]`.
+2. Lihat section `Job Desk Acara`.
+3. Klik `Tambah Job Desk`.
+4. Task otomatis dibuat sebagai tipe `acara` untuk event tersebut.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD task bekerja.

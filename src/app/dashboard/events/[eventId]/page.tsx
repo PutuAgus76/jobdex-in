@@ -13,8 +13,9 @@ import {
 } from "@/lib/firebase/event-members";
 import { getEventById } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
+import { createTask, getTasksByEvent } from "@/lib/firebase/tasks";
 import { canManageEvent, isAnggota } from "@/lib/permissions";
-import type { Event, EventMember, UserProfile } from "@/types";
+import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 export default function EventDetailPage() {
   const params = useParams<{ eventId: string }>();
@@ -23,6 +24,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<Event | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [eventMembers, setEventMembers] = useState<EventMember[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const eventId = params.eventId;
@@ -48,14 +50,16 @@ export default function EventDetailPage() {
         return;
       }
 
-      const [usersData, membersData] = await Promise.all([
+      const [usersData, membersData, taskData] = await Promise.all([
         getMembers(),
         getEventMembers(eventId),
+        getTasksByEvent(eventId),
       ]);
 
       setEvent(eventData);
       setUsers(usersData);
       setEventMembers(membersData);
+      setTasks(taskData);
     } catch {
       setError("Gagal memuat detail acara. Periksa izin akses dan Firestore Rules.");
     } finally {
@@ -90,6 +94,15 @@ export default function EventDetailPage() {
     await loadDetail();
   }
 
+  async function handleCreateTask(input: TaskInput) {
+    if (!userProfile) {
+      return;
+    }
+
+    await createTask(input, userProfile.id);
+    await loadDetail();
+  }
+
   if (loading) {
     return <LoadingState title="Memuat detail acara..." />;
   }
@@ -117,9 +130,11 @@ export default function EventDetailPage() {
       event={event}
       users={users}
       eventMembers={eventMembers}
+      tasks={tasks}
       canManage={Boolean(userProfile && canManageEvent(userProfile, event))}
       onAddMember={handleAddMember}
       onRemoveMember={handleRemoveMember}
+      onCreateTask={handleCreateTask}
     />
   );
 }
