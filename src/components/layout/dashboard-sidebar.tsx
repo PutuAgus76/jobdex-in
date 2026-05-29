@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { dashboardNavItems } from "@/lib/constants";
+import { USER_ROLE_LABELS } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { user, userProfile } = useAuth();
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
@@ -39,10 +42,20 @@ export function DashboardSidebar() {
       </nav>
       <div className="border-t border-slate-200 p-4">
         <div className="rounded-[8px] bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-950">Fase 1</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Layout dan halaman placeholder siap untuk pengembangan fitur.
+          <p className="text-sm font-semibold text-slate-950">
+            {userProfile?.name ?? user?.displayName ?? "Anggota"}
           </p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            {userProfile?.role
+              ? USER_ROLE_LABELS[userProfile.role]
+              : "Profil belum lengkap"}
+          </p>
+          <Link
+            href="/dashboard/profile"
+            className="mt-3 inline-flex text-xs font-semibold text-slate-950"
+          >
+            Lihat profile
+          </Link>
         </div>
       </div>
     </aside>

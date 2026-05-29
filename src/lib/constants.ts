@@ -28,6 +28,10 @@ export const dashboardNavItems: DashboardNavItem[] = [
     href: "/dashboard/references",
   },
   {
+    label: "Profile",
+    href: "/dashboard/profile",
+  },
+  {
     label: "Pengaturan",
     href: "/dashboard/settings",
   },

@@ -8,7 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
-import { createUserProfile } from "@/lib/firebase/firestore";
+import { createUserProfile } from "@/lib/firebase/users";
 import type { RegisterInput } from "@/types";
 
 export function normalizeWhatsAppNumber(value: string) {

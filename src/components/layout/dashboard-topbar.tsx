@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
+import { USER_ROLE_LABELS } from "@/lib/roles";
 
 export function DashboardTopbar() {
   const router = useRouter();
-  const { profile, user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -37,10 +38,15 @@ export function DashboardTopbar() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="hidden text-right text-sm sm:block">
             <p className="font-semibold text-slate-950">
-              {profile?.name ?? user?.displayName ?? "Anggota"}
+              {userProfile?.name ?? user?.displayName ?? "Anggota"}
             </p>
-            <p className="text-xs text-slate-500">{user?.email}</p>
+            <p className="text-xs text-slate-500">
+              {userProfile?.role ? USER_ROLE_LABELS[userProfile.role] : user?.email}
+            </p>
           </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard/profile">Profile</Link>
+          </Button>
           <Button asChild variant="secondary" size="sm">
             <Link href="/">Landing</Link>
           </Button>

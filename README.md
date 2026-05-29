@@ -80,3 +80,67 @@ Dashboard menggunakan guard client-side sederhana:
 
 - User belum login yang membuka `/dashboard` diarahkan ke `/login`.
 - User yang sudah login dan membuka `/login` atau `/register` diarahkan ke `/dashboard`.
+
+## Role dan Profile Fase 3
+
+Role dasar:
+
+- `super_admin`
+- `koordinator_divisi`
+- `koordinator_acara`
+- `anggota`
+
+User register tetap dibuat sebagai `anggota`. Dashboard mengambil Firebase user dan dokumen Firestore `users/{uid}` melalui AuthProvider. Jika user sudah login tetapi dokumen profile belum ada atau belum lengkap, user diarahkan ke `/dashboard/complete-profile`.
+
+Route tambahan:
+
+- `/dashboard/profile` - melihat profile user dari Firestore
+- `/dashboard/complete-profile` - membuat atau melengkapi dokumen profile user
+- `/dashboard/unauthorized` - placeholder akses ditolak
+
+## Setup Data Awal Firestore
+
+Buat collection dan document berikut secara manual di Firebase Console.
+
+Collection `organizations`, document ID `main_org`:
+
+```json
+{
+  "id": "main_org",
+  "name": "JobDex.in Organization",
+  "slug": "jobdex-main",
+  "whatsapp_group_id": "",
+  "logo_url": "",
+  "created_at": "server timestamp",
+  "updated_at": "server timestamp"
+}
+```
+
+Collection `divisions`, document ID `humas_media_kreatif`:
+
+```json
+{
+  "id": "humas_media_kreatif",
+  "organization_id": "main_org",
+  "name": "Humas dan Media Kreatif",
+  "description": "Divisi publikasi, dokumentasi, desain, dan media kreatif.",
+  "coordinator_id": "",
+  "created_at": "server timestamp",
+  "updated_at": "server timestamp"
+}
+```
+
+Di Firestore Console, gunakan tipe `timestamp` untuk field `created_at` dan `updated_at`.
+
+## Menjadikan User Pertama Super Admin
+
+Setelah register user pertama:
+
+1. Buka Firebase Console.
+2. Masuk ke Firestore Database.
+3. Buka collection `users`.
+4. Pilih document dengan ID UID user pertama.
+5. Ubah field `role` dari `anggota` menjadi `super_admin`.
+6. Pastikan field `is_active` bernilai `true`.
+
+Jangan lakukan perubahan role dari frontend pada fase ini.
