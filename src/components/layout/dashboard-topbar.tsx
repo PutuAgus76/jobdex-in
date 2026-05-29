@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { dashboardNavItems } from "@/lib/constants";
+import { getDashboardNavigation } from "@/lib/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RoleBadge } from "@/components/ui/role-badge";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
-import { USER_ROLE_LABELS } from "@/lib/roles";
 
 export function DashboardTopbar() {
   const router = useRouter();
   const { user, userProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navItems = getDashboardNavigation(userProfile);
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -40,9 +41,9 @@ export function DashboardTopbar() {
             <p className="font-semibold text-slate-950">
               {userProfile?.name ?? user?.displayName ?? "Anggota"}
             </p>
-            <p className="text-xs text-slate-500">
-              {userProfile?.role ? USER_ROLE_LABELS[userProfile.role] : user?.email}
-            </p>
+            <div className="mt-1 flex justify-end">
+              <RoleBadge role={userProfile?.role} />
+            </div>
           </div>
           <Button asChild variant="ghost" size="sm">
             <Link href="/dashboard/profile">Profile</Link>
@@ -61,7 +62,7 @@ export function DashboardTopbar() {
         </div>
       </div>
       <nav className="flex gap-2 overflow-x-auto border-t border-slate-200 px-4 py-3 sm:px-6 lg:hidden">
-        {dashboardNavItems.map((item) => (
+        {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}

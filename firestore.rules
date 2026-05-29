@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasCurrentUserDoc() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function currentUserRole() {
+      return hasCurrentUserDoc()
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : null;
+    }
+
+    function isSuperAdmin() {
+      return currentUserRole() == "super_admin";
+    }
+
+    function isKoordinatorDivisi() {
+      return currentUserRole() == "koordinator_divisi";
+    }
+
+    function isKoordinatorAcara() {
+      return currentUserRole() == "koordinator_acara";
+    }
+
+    function isKoordinator() {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        isKoordinatorAcara();
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow create: if isSelf(userId) &&
+        request.resource.data.role == "anggota" &&
+        request.resource.data.id == request.auth.uid;
+
+      allow read: if isSelf(userId) ||
+        isSuperAdmin() ||
+        isKoordinatorDivisi();
+
+      allow update: if isSelf(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.id == resource.data.id;
+
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /organizations/{organizationId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSuperAdmin() &&
+        organizationId == "main_org";
+
+      allow delete: if false;
+    }
+
+    match /divisions/{divisionId} {
+      allow read: if isSignedIn();
+
+      allow create, update: if isSuperAdmin() &&
+        divisionId == "humas_media_kreatif" &&
+        request.resource.data.organization_id == "main_org";
+
+      allow delete: if false;
+    }
+
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if false; // TODO: buka saat fase CRUD acara.
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isSignedIn();
+      allow write: if false; // TODO: buka saat fase CRUD task.
+
+      match /status_logs/{logId} {
+        allow read: if isSignedIn();
+        allow write: if false; // TODO: buka saat workflow status dibuat.
+      }
+    }
+
+    match /design_references/{referenceId} {
+      allow read: if isSignedIn();
+      allow write: if false; // TODO: buka saat CRUD referensi dibuat.
+    }
+
+    match /task_uploads/{uploadId} {
+      allow read: if isSignedIn();
+      allow write: if false; // TODO: buka saat upload Cloudinary dibuat.
+    }
+
+    match /whatsapp_logs/{logId} {
+      allow read: if isKoordinator();
+      allow write: if false; // TODO: backend notification only.
+    }
+
+    match /ai_logs/{logId} {
+      allow read: if isKoordinator();
+      allow write: if false; // TODO: backend AI logging only.
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

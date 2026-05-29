@@ -1,0 +1,77 @@
+import {
+  canAccessAI,
+  canCreateEvent,
+  canManageMembers,
+  isAnggota,
+  isSuperAdmin,
+} from "@/lib/permissions";
+import type { DashboardNavItem, UserProfile } from "@/types";
+
+type DashboardNavConfig = DashboardNavItem & {
+  visible: (profile: UserProfile | null) => boolean;
+};
+
+const allUsers = () => true;
+
+export const dashboardNavigation: DashboardNavConfig[] = [
+  {
+    label: "Dashboard",
+    href: "/dashboard",
+    visible: allUsers,
+  },
+  {
+    label: "Job Desk",
+    href: "/dashboard/tasks",
+    visible: allUsers,
+  },
+  {
+    label: "Acara",
+    href: "/dashboard/events",
+    visible: (profile) => canCreateEvent(profile),
+  },
+  {
+    label: "Anggota",
+    href: "/dashboard/members",
+    visible: (profile) => canManageMembers(profile),
+  },
+  {
+    label: "Referensi",
+    href: "/dashboard/references",
+    visible: allUsers,
+  },
+  {
+    label: "AI Assistant",
+    href: "/dashboard/ai",
+    visible: (profile) => canAccessAI(profile),
+  },
+  {
+    label: "Setup",
+    href: "/dashboard/setup",
+    visible: (profile) => isSuperAdmin(profile),
+  },
+  {
+    label: "Pengaturan",
+    href: "/dashboard/settings",
+    visible: (profile) => isSuperAdmin(profile),
+  },
+  {
+    label: "Profile",
+    href: "/dashboard/profile",
+    visible: allUsers,
+  },
+];
+
+export function getDashboardNavigation(profile: UserProfile | null) {
+  return dashboardNavigation
+    .filter((item) => item.visible(profile))
+    .map((item) => {
+      if (item.href === "/dashboard/tasks" && isAnggota(profile)) {
+        return {
+          ...item,
+          label: "Job Desk Saya",
+        };
+      }
+
+      return item;
+    });
+}

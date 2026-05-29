@@ -144,3 +144,59 @@ Setelah register user pertama:
 6. Pastikan field `is_active` bernilai `true`.
 
 Jangan lakukan perubahan role dari frontend pada fase ini.
+
+## Dashboard dan Setup Fase 4
+
+Fase 4 menambahkan navigasi dashboard berdasarkan role, summary card awal dari Firestore, halaman setup data awal, role badge, empty state, loading state, dan route guard berbasis permission.
+
+Route tambahan:
+
+- `/dashboard/ai` - placeholder AI Assistant untuk super admin dan koordinator
+- `/dashboard/setup` - initial data bootstrap khusus super admin
+
+Menu berdasarkan role:
+
+- Semua user: Dashboard, Job Desk/Job Desk Saya, Referensi, Profile
+- Super Admin: semua menu termasuk Anggota, AI Assistant, Setup, Pengaturan
+- Koordinator Divisi: Job Desk, Acara, Anggota, Referensi, AI Assistant, Profile
+- Koordinator Acara: Job Desk, Acara, Referensi, AI Assistant, Profile
+- Anggota: Dashboard, Job Desk Saya, Referensi, Profile
+
+## Initial Data Bootstrap
+
+Untuk membuat data awal dari aplikasi:
+
+1. Login sebagai user dengan role `super_admin`.
+2. Buka `/dashboard/setup`.
+3. Periksa status `organizations/main_org` dan `divisions/humas_media_kreatif`.
+4. Klik `Buat Data Awal JobDex.in`.
+5. Jika sukses, kedua status akan menjadi `Ada`.
+
+Aksi ini idempotent. Jika dokumen sudah ada, aplikasi tidak membuat duplikat.
+
+## Firestore Security Rules
+
+Rules awal tersedia di:
+
+```txt
+firestore.rules
+```
+
+Cara memasang lewat Firebase Console:
+
+1. Buka Firebase Console.
+2. Pilih project `jobdex-in`.
+3. Masuk ke Firestore Database.
+4. Buka tab `Rules`.
+5. Salin isi `firestore.rules`.
+6. Paste ke editor Rules.
+7. Klik `Publish`.
+
+Rules fase ini mengizinkan:
+
+- User login membaca data utama.
+- User membuat profile sendiri saat register dengan role default `anggota`.
+- User membaca dan update profile sendiri tanpa mengubah role.
+- Super admin dan koordinator divisi membaca daftar user.
+- Super admin membuat/update `organizations/main_org` dan `divisions/humas_media_kreatif`.
+- CRUD task, event, referensi, upload, WhatsApp log, dan AI log masih dibatasi.
