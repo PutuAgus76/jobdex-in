@@ -12,7 +12,8 @@ export default function UnauthorizedPage() {
           Unauthorized
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-          Akunmu belum memiliki izin untuk membuka halaman atau aksi tersebut.
+          Akunmu belum memiliki izin untuk membuka halaman atau aksi tersebut,
+          atau status akunmu sedang nonaktif.
         </p>
       </section>
 

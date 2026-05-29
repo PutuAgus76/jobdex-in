@@ -39,6 +39,39 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function changedOnly(allowedFields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(allowedFields);
+    }
+
+    function immutableUserIdentity() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        request.resource.data.created_at == resource.data.created_at;
+    }
+
+    function selfProfileUpdateIsSafe() {
+      return immutableUserIdentity() &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.is_active == resource.data.is_active &&
+        request.resource.data.division_id == resource.data.division_id &&
+        changedOnly(["name", "whatsapp_number", "avatar_url", "updated_at"]);
+    }
+
+    function coordinatorMemberUpdateIsSafe() {
+      return immutableUserIdentity() &&
+        resource.data.role != "super_admin" &&
+        request.resource.data.role == resource.data.role &&
+        changedOnly([
+          "name",
+          "whatsapp_number",
+          "division_id",
+          "is_active",
+          "updated_at"
+        ]);
+    }
+
     match /users/{userId} {
       allow create: if isSelf(userId) &&
         request.resource.data.role == "anggota" &&
@@ -48,11 +81,12 @@ service cloud.firestore {
         isSuperAdmin() ||
         isKoordinatorDivisi();
 
-      allow update: if isSelf(userId) &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.id == resource.data.id;
+      allow update: if isSelf(userId) && selfProfileUpdateIsSafe();
 
-      allow update, delete: if isSuperAdmin();
+      allow update: if isKoordinatorDivisi() && coordinatorMemberUpdateIsSafe();
+
+      allow update: if isSuperAdmin();
+      allow delete: if false;
     }
 
     match /organizations/{organizationId} {

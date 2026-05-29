@@ -9,28 +9,16 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { createUserProfile } from "@/lib/firebase/users";
+import {
+  isValidWhatsAppNumber,
+  normalizeWhatsAppNumber,
+} from "@/lib/whatsapp";
 import type { RegisterInput } from "@/types";
 
-export function normalizeWhatsAppNumber(value: string) {
-  const digits = value.replace(/[^\d+]/g, "").replace(/^\+/, "");
-
-  if (digits.startsWith("08")) {
-    return `62${digits.slice(1)}`;
-  }
-
-  if (digits.startsWith("8")) {
-    return `62${digits}`;
-  }
-
-  return digits;
-}
+export { isValidWhatsAppNumber, normalizeWhatsAppNumber };
 
 export function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-export function isValidWhatsAppNumber(value: string) {
-  return /^628[1-9][0-9]{7,12}$/.test(value);
 }
 
 export function getFirebaseAuthErrorMessage(error: unknown) {

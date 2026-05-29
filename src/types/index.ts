@@ -55,6 +55,14 @@ export type RegisterInput = {
   whatsapp_number: string;
 };
 
+export type MemberUpdateInput = {
+  name: string;
+  whatsapp_number: string;
+  role?: UserRole;
+  division_id: string;
+  is_active: boolean;
+};
+
 export type AuthContextValue = {
   user: import("firebase/auth").User | null;
   userProfile: UserProfile | null;

@@ -200,3 +200,62 @@ Rules fase ini mengizinkan:
 - Super admin dan koordinator divisi membaca daftar user.
 - Super admin membuat/update `organizations/main_org` dan `divisions/humas_media_kreatif`.
 - CRUD task, event, referensi, upload, WhatsApp log, dan AI log masih dibatasi.
+
+## Manajemen Anggota Fase 5
+
+Halaman `/dashboard/members` tersedia untuk:
+
+- `super_admin`
+- `koordinator_divisi`
+
+Fitur yang tersedia:
+
+- Melihat daftar anggota dari collection `users`
+- Search berdasarkan nama atau email
+- Filter berdasarkan role
+- Filter berdasarkan status aktif/nonaktif
+- Filter berdasarkan division ID
+- Detail anggota
+- Edit nama, nomor WhatsApp, role, divisi, dan status aktif
+- Soft deactivate dengan field `is_active: false`
+
+Catatan akses:
+
+- Super admin bisa mengubah role semua anggota.
+- Koordinator divisi tidak bisa mengubah role pada fase ini.
+- Koordinator divisi tidak bisa mengedit atau menonaktifkan user dengan role `super_admin`.
+- Tidak ada delete permanen user.
+- User dengan `is_active: false` diarahkan ke `/dashboard/unauthorized`.
+
+Cara test sebagai super admin:
+
+1. Login dengan user role `super_admin`.
+2. Buka `/dashboard/members`.
+3. Pastikan tabel anggota tampil.
+4. Coba search, filter role, filter status, dan filter divisi.
+5. Klik `Detail` untuk melihat data anggota.
+6. Klik `Edit`, ubah role/status/divisi/nomor WhatsApp, lalu simpan.
+
+Cara test sebagai koordinator divisi:
+
+1. Ubah role user test menjadi `koordinator_divisi`.
+2. Login dan buka `/dashboard/members`.
+3. Pastikan halaman dapat diakses.
+4. Coba edit nama, nomor WhatsApp, divisi, atau status anggota non-super-admin.
+5. Pastikan role select terkunci.
+
+Cara test sebagai anggota biasa atau koordinator acara:
+
+1. Login sebagai `anggota` atau `koordinator_acara`.
+2. Buka `/dashboard/members`.
+3. Aplikasi akan mengarahkan ke `/dashboard/unauthorized`.
+
+Cara test nonaktifkan anggota:
+
+1. Login sebagai super admin.
+2. Buka `/dashboard/members`.
+3. Klik `Nonaktifkan` pada anggota lain.
+4. Login sebagai anggota tersebut.
+5. Setelah masuk dashboard, user diarahkan ke `/dashboard/unauthorized`.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar edit anggota bekerja.
