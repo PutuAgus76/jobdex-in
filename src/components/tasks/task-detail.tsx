@@ -4,16 +4,23 @@ import Link from "next/link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaskActionButtons } from "@/components/tasks/task-action-buttons";
+import { TaskActivityLog } from "@/components/tasks/task-activity-log";
+import { TaskApprovalBadge } from "@/components/tasks/task-approval-badge";
 import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
+import { TaskWorkflowPanel } from "@/components/tasks/task-workflow-panel";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import { TASK_STATUS_LABELS } from "@/lib/task-status";
-import type { Event, Task, UserProfile } from "@/types";
+import type { Event, Task, TaskStatusLog, UserProfile } from "@/types";
 
 type TaskDetailProps = {
   task: Task;
   usersById: Map<string, UserProfile>;
   eventsById: Map<string, Event>;
+  logs: TaskStatusLog[];
+  currentUser: UserProfile;
+  onChanged: () => Promise<void>;
 };
 
 function formatDateTime(value: unknown) {
@@ -27,7 +34,14 @@ function formatDateTime(value: unknown) {
   }).format((value as { toDate: () => Date }).toDate());
 }
 
-export function TaskDetail({ task, usersById, eventsById }: TaskDetailProps) {
+export function TaskDetail({
+  task,
+  usersById,
+  eventsById,
+  logs,
+  currentUser,
+  onChanged,
+}: TaskDetailProps) {
   const rows = [
     ["Tipe task", task.type],
     ["Acara", task.event_id ? eventsById.get(task.event_id)?.name ?? "Acara tidak ditemukan" : "-"],
@@ -48,6 +62,7 @@ export function TaskDetail({ task, usersById, eventsById }: TaskDetailProps) {
           <div className="flex flex-wrap gap-2">
             <TaskStatusBadge status={task.status} />
             <TaskPriorityBadge priority={task.priority} />
+            <TaskApprovalBadge status={task.approval_status} />
           </div>
           <h1 className="mt-3 text-3xl font-bold text-slate-950">{task.name}</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
@@ -58,6 +73,14 @@ export function TaskDetail({ task, usersById, eventsById }: TaskDetailProps) {
           <Link href="/dashboard/tasks">Kembali</Link>
         </Button>
       </div>
+
+      <TaskActionButtons
+        task={task}
+        currentUser={currentUser}
+        onChanged={onChanged}
+      />
+
+      <TaskWorkflowPanel task={task} usersById={usersById} />
 
       <Card>
         <CardHeader>
@@ -118,13 +141,15 @@ export function TaskDetail({ task, usersById, eventsById }: TaskDetailProps) {
       <section className="grid gap-4 lg:grid-cols-2">
         <EmptyState
           title="Upload hasil desain tersedia di fase berikutnya"
-          description="Integrasi Cloudinary dan preview hasil desain belum dikerjakan pada Fase 7."
+          description="Integrasi Cloudinary dan preview hasil desain belum dikerjakan pada Fase 8."
         />
         <EmptyState
-          title="Update status lanjutan tersedia di fase berikutnya"
-          description="Workflow approval, revisi, status log, dan notifikasi akan masuk fase berikutnya."
+          title="Notifikasi otomatis tersedia di fase berikutnya"
+          description="WhatsApp notification dan reminder deadline belum dikerjakan pada Fase 8."
         />
       </section>
+
+      <TaskActivityLog logs={logs} usersById={usersById} />
     </div>
   );
 }

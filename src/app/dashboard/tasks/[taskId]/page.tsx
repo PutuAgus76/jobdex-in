@@ -8,9 +8,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
+import { getTaskStatusLogs } from "@/lib/firebase/task-status-logs";
 import { getTaskById } from "@/lib/firebase/tasks";
 import { canReadTask } from "@/lib/permissions";
-import type { Event, Task, UserProfile } from "@/types";
+import type { Event, Task, TaskStatusLog, UserProfile } from "@/types";
 
 export default function TaskDetailPage() {
   const params = useParams<{ taskId: string }>();
@@ -19,6 +20,7 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState<Task | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [logs, setLogs] = useState<TaskStatusLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const taskId = params.taskId;
@@ -44,14 +46,16 @@ export default function TaskDetailPage() {
         return;
       }
 
-      const [usersData, eventsData] = await Promise.all([
+      const [usersData, eventsData, logData] = await Promise.all([
         getMembers().catch(() => [userProfile]),
         getEventsForProfile(userProfile).catch(() => []),
+        getTaskStatusLogs(taskId).catch(() => []),
       ]);
 
       setTask(taskData);
       setUsers(usersData.length ? usersData : [userProfile]);
       setEvents(eventsData);
+      setLogs(logData);
     } catch {
       setError("Gagal memuat detail task. Periksa izin akses dan Firestore Rules.");
     } finally {
@@ -83,5 +87,18 @@ export default function TaskDetailPage() {
     );
   }
 
-  return <TaskDetail task={task} usersById={usersById} eventsById={eventsById} />;
+  if (!userProfile) {
+    return null;
+  }
+
+  return (
+    <TaskDetail
+      task={task}
+      usersById={usersById}
+      eventsById={eventsById}
+      logs={logs}
+      currentUser={userProfile}
+      onChanged={loadDetail}
+    />
+  );
 }

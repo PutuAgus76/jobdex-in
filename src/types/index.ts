@@ -102,10 +102,22 @@ export type Task = {
   stuck_notes: string;
   result_design_url: string;
   approval_status: ApprovalStatus;
+  approved_by?: string;
+  approved_at?: unknown;
   is_archived: boolean;
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
+};
+
+export type TaskStatusLog = {
+  id: string;
+  task_id: string;
+  from_status: TaskStatus;
+  to_status: TaskStatus;
+  changed_by: string;
+  note: string;
+  created_at?: unknown;
 };
 
 export type TaskInput = {

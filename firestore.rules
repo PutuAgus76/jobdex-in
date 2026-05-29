@@ -77,6 +77,35 @@ service cloud.firestore {
         );
     }
 
+    function canPicUpdateTaskWorkflow() {
+      return resource.data.pic_id == request.auth.uid &&
+        request.resource.data.pic_id == resource.data.pic_id &&
+        request.resource.data.coordinator_id == resource.data.coordinator_id &&
+        request.resource.data.created_by == resource.data.created_by &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        request.resource.data.type == resource.data.type &&
+        request.resource.data.event_id == resource.data.event_id &&
+        request.resource.data.division_id == resource.data.division_id &&
+        changedOnly(["status", "stuck_notes", "updated_at"]);
+    }
+
+    function canCreateStatusLog(taskId) {
+      let task = get(/databases/$(database)/documents/tasks/$(taskId)).data;
+      return canReadTaskData(task) &&
+        (
+          isSuperAdmin() ||
+          isKoordinatorDivisi() ||
+          (
+            isKoordinatorAcara() &&
+            task.type == "acara" &&
+            task.coordinator_id == request.auth.uid
+          ) ||
+          task.pic_id == request.auth.uid
+        ) &&
+        request.resource.data.task_id == taskId &&
+        request.resource.data.changed_by == request.auth.uid;
+    }
+
     function isSelf(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -193,13 +222,16 @@ service cloud.firestore {
         request.resource.data.organization_id == "main_org" &&
         request.resource.data.is_archived == false;
 
-      allow update: if isSignedIn() && canUpdateTaskData();
+      allow update: if isSignedIn() &&
+        (canUpdateTaskData() || canPicUpdateTaskWorkflow());
 
       allow delete: if false;
 
       match /status_logs/{logId} {
-        allow read: if isSignedIn();
-        allow write: if false; // TODO: buka saat workflow status dibuat.
+        allow read: if isSignedIn() &&
+          canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+        allow create: if isSignedIn() && canCreateStatusLog(taskId);
+        allow update, delete: if false;
       }
     }
 

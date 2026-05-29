@@ -1,0 +1,160 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import type { Task, TaskStatus, TaskStatusLog } from "@/types";
+
+export async function getTaskStatusLogs(taskId: string) {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "tasks", taskId, "status_logs"),
+      orderBy("created_at", "desc"),
+    ),
+  );
+
+  return snapshot.docs.map((item) => ({
+    id: item.id,
+    ...item.data(),
+  })) as TaskStatusLog[];
+}
+
+export async function updateTaskStatusWithLog({
+  task,
+  toStatus,
+  changedBy,
+  note,
+  stuckNotes,
+}: {
+  task: Task;
+  toStatus: TaskStatus;
+  changedBy: string;
+  note: string;
+  stuckNotes?: string;
+}) {
+  const taskRef = doc(db, "tasks", task.id);
+  const logRef = doc(collection(db, "tasks", task.id, "status_logs"));
+  const batch = writeBatch(db);
+  const updatePayload: Record<string, unknown> = {
+    status: toStatus,
+    updated_at: serverTimestamp(),
+  };
+
+  if (toStatus === "stuck" || toStatus === "butuh_bantuan") {
+    updatePayload.stuck_notes = stuckNotes ?? note;
+  }
+
+  batch.update(taskRef, updatePayload);
+  batch.set(logRef, {
+    id: logRef.id,
+    task_id: task.id,
+    from_status: task.status,
+    to_status: toStatus,
+    changed_by: changedBy,
+    note,
+    created_at: serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+export async function requestTaskRevision({
+  task,
+  changedBy,
+  revisionNotes,
+}: {
+  task: Task;
+  changedBy: string;
+  revisionNotes: string;
+}) {
+  const taskRef = doc(db, "tasks", task.id);
+  const logRef = doc(collection(db, "tasks", task.id, "status_logs"));
+  const batch = writeBatch(db);
+
+  batch.update(taskRef, {
+    status: "perlu_revisi",
+    approval_status: "need_revision",
+    revision_notes: revisionNotes,
+    updated_at: serverTimestamp(),
+  });
+  batch.set(logRef, {
+    id: logRef.id,
+    task_id: task.id,
+    from_status: task.status,
+    to_status: "perlu_revisi",
+    changed_by: changedBy,
+    note: revisionNotes,
+    created_at: serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+export async function approveTask({
+  task,
+  changedBy,
+}: {
+  task: Task;
+  changedBy: string;
+}) {
+  const taskRef = doc(db, "tasks", task.id);
+  const logRef = doc(collection(db, "tasks", task.id, "status_logs"));
+  const batch = writeBatch(db);
+
+  batch.update(taskRef, {
+    status: "approved",
+    approval_status: "approved",
+    approved_by: changedBy,
+    approved_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
+  batch.set(logRef, {
+    id: logRef.id,
+    task_id: task.id,
+    from_status: task.status,
+    to_status: "approved",
+    changed_by: changedBy,
+    note: "Task disetujui.",
+    created_at: serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+export async function appendTaskStatusLog({
+  task,
+  toStatus,
+  changedBy,
+  note,
+}: {
+  task: Task;
+  toStatus: TaskStatus;
+  changedBy: string;
+  note: string;
+}) {
+  await addDoc(collection(db, "tasks", task.id, "status_logs"), {
+    task_id: task.id,
+    from_status: task.status,
+    to_status: toStatus,
+    changed_by: changedBy,
+    note,
+    created_at: serverTimestamp(),
+  });
+}
+
+export async function updateTaskStatusOnly(
+  taskId: string,
+  toStatus: TaskStatus,
+) {
+  await updateDoc(doc(db, "tasks", taskId), {
+    status: toStatus,
+    updated_at: serverTimestamp(),
+  });
+}

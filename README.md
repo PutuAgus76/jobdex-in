@@ -376,3 +376,50 @@ Cara test task dari detail event:
 4. Task otomatis dibuat sebagai tipe `acara` untuk event tersebut.
 
 Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD task bekerja.
+
+## Workflow Task Fase 8
+
+Detail task `/dashboard/tasks/[taskId]` sekarang memiliki workflow panel, action buttons, approval badge, dan activity log.
+
+Fitur yang tersedia:
+
+- Update status task dari detail task
+- Catatan opsional saat update status
+- Catatan kendala wajib untuk status `stuck` atau `butuh_bantuan`
+- Status log append-only di `tasks/{taskId}/status_logs`
+- Minta revisi oleh koordinator
+- Approve oleh koordinator
+- Field `stuck_notes`, `revision_notes`, `approved_by`, dan `approved_at`
+- Dashboard summary mulai menghitung status workflow seperti stuck, butuh bantuan, perlu revisi, menunggu approval, dan approved
+
+Cara test sebagai PIC/anggota:
+
+1. Login sebagai user yang menjadi `pic_id` sebuah task.
+2. Buka `/dashboard/tasks/[taskId]`.
+3. Klik `Update Status`.
+4. Ubah status sesuai transisi yang tersedia.
+5. Coba `Butuh Bantuan` atau `Tandai Stuck` dan isi catatan kendala.
+6. Cek section `Activity Log`.
+
+Cara test sebagai koordinator:
+
+1. Login sebagai koordinator task.
+2. Buka detail task yang dikoordinasi.
+3. Klik `Minta Revisi`, isi catatan revisi, lalu simpan.
+4. Pastikan status menjadi `perlu_revisi` dan approval menjadi `Need Revision`.
+5. Klik `Approve`, konfirmasi, lalu pastikan status dan approval menjadi approved.
+
+Cara test sebagai super admin:
+
+1. Login sebagai `super_admin`.
+2. Buka detail task mana pun.
+3. Super admin dapat update status, minta revisi, dan approve semua task.
+
+Cara cek status logs:
+
+1. Buka Firebase Console.
+2. Masuk ke Firestore Database.
+3. Buka `tasks/{taskId}/status_logs`.
+4. Pastikan setiap perubahan status membuat dokumen log baru.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar workflow task dan status logs bekerja.
