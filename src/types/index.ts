@@ -195,6 +195,20 @@ export type WhatsAppLog = {
   created_at?: unknown;
 };
 
+export type AILog = {
+  id: string;
+  organization_id: string;
+  asked_by: string;
+  question: string;
+  context_summary: string;
+  answer: string;
+  model_used: string;
+  source?: "web" | "whatsapp";
+  whatsapp_sender?: string;
+  whatsapp_group_id?: string;
+  created_at?: unknown;
+};
+
 export type TaskInput = {
   type: TaskType;
   event_id: string;

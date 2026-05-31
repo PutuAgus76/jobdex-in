@@ -287,7 +287,7 @@ service cloud.firestore {
 
     match /ai_logs/{logId} {
       allow read: if isKoordinator();
-      allow write: if false; // TODO: backend AI logging only.
+      allow write: if false; // Log AI ditulis server API via Admin SDK.
     }
 
     match /{document=**} {

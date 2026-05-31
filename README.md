@@ -591,3 +591,218 @@ Validasi form:
 - Color palette harus hex, contoh `#185FA5, #378ADD, #E6F1FB`.
 
 Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD arsip referensi berjalan sesuai role.
+
+## Gemini AI Assistant Fase 10B
+
+Halaman `/dashboard/ai` sekarang menjadi AI Assistant berbasis Gemini untuk role:
+
+- `super_admin`
+- `koordinator_divisi`
+- `koordinator_acara`
+
+Anggota biasa akan diarahkan ke `/dashboard/unauthorized`.
+
+Alur request:
+
+```txt
+Frontend -> API Route Next.js -> Firestore Admin SDK -> Context ringkas -> Gemini API -> Jawaban
+```
+
+Endpoint utama:
+
+```txt
+POST /api/ai/query
+POST /api/ai/send-whatsapp
+```
+
+Environment server-side yang dibutuhkan:
+
+```env
+GEMINI_API_KEY=
+AI_DAILY_LIMIT=75
+```
+
+`GEMINI_API_KEY` hanya digunakan di server route dan tidak boleh dibuat sebagai `NEXT_PUBLIC_...`.
+`AI_DAILY_LIMIT` juga dibaca server-side saja. Jika kosong atau invalid, aplikasi memakai fallback 20 pertanyaan per user per hari.
+
+Fitur yang tersedia:
+
+- Chat sederhana dengan AI Assistant
+- Quick prompt:
+  - Ringkas progress hari ini
+  - Siapa yang stuck?
+  - Siapa yang belum mulai?
+  - Apa yang menunggu approval?
+  - Deadline terdekat
+  - Buat pesan update WA
+- Jawaban berdasarkan task, event, user name, dan referensi desain ringkas
+- Jawaban bisa disalin
+- Jawaban bisa dikirim ke grup WhatsApp
+- Query dan jawaban tersimpan di `ai_logs`
+- Rate limit sederhana per user per hari, bisa diatur lewat `AI_DAILY_LIMIT`
+
+Data yang dikirim ke Gemini sudah diringkas dan tidak menyertakan token, secret, nomor WhatsApp, email pribadi, Firebase UID, atau raw response Wablas.
+
+Cara test sebagai super admin:
+
+1. Login sebagai `super_admin`.
+2. Buka `/dashboard/ai`.
+3. Klik quick prompt `Ringkas progress hari ini`.
+4. Pastikan AI memberi ringkasan berdasarkan data task.
+5. Klik `Salin Jawaban`.
+6. Klik `Kirim ke WhatsApp` untuk mengirim ringkasan ke grup.
+
+Cara test sebagai koordinator:
+
+1. Login sebagai `koordinator_divisi` atau `koordinator_acara`.
+2. Buka `/dashboard/ai`.
+3. Tanyakan `Task apa saja yang stuck?`.
+4. Untuk koordinator acara, data dibatasi ke task acara yang dia koordinasi.
+
+Cara test sebagai anggota:
+
+1. Login sebagai `anggota`.
+2. Buka `/dashboard/ai`.
+3. Aplikasi mengarahkan ke `/dashboard/unauthorized`.
+
+Cara test pertanyaan AI:
+
+1. Buat beberapa task dengan status berbeda: `stuck`, `butuh_bantuan`, `menunggu_approval`.
+2. Buka `/dashboard/ai`.
+3. Tanyakan `Task apa saja yang butuh bantuan?`.
+4. Pastikan AI tidak mengarang jika data kosong.
+
+Cara cek `ai_logs`:
+
+1. Buka Firebase Console.
+2. Masuk ke Firestore Database.
+3. Buka collection `ai_logs`.
+4. Pastikan field `asked_by`, `question`, `context_summary`, `answer`, `model_used`, dan `created_at` tersedia.
+5. Pastikan tidak ada API key atau secret yang tersimpan.
+
+Firestore rules untuk `ai_logs`:
+
+- Koordinator dan super admin bisa membaca log.
+- Client tidak bisa write langsung.
+- Write dilakukan oleh server API menggunakan Firebase Admin SDK.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar pembacaan `ai_logs` sesuai role.
+
+## Persistent AI Chat dan WhatsApp Inbound Bot Fase 10B.2
+
+AI Assistant `/dashboard/ai` sekarang memakai `ai_logs` sebagai chat history.
+
+Fitur tambahan:
+
+- Riwayat chat tetap muncul setelah refresh halaman
+- Maksimal 50 log terbaru ditampilkan
+- Chat dikelompokkan berdasarkan tanggal: `Hari ini`, `Kemarin`, atau tanggal spesifik
+- Bubble user dan AI tampil seperti chat
+- Tombol `Refresh Riwayat`
+- Composer sticky di bawah area chat
+- Enter untuk kirim, Shift+Enter untuk baris baru
+- Loading bubble saat AI menjawab
+- Tombol `Salin Jawaban` dan `Kirim ke WhatsApp` tetap tersedia
+
+Webhook Wablas untuk AI Bot tersedia di:
+
+```txt
+POST /api/webhooks/wablas/gemini
+```
+
+Environment tambahan:
+
+```env
+WABLAS_WEBHOOK_SECRET=isi_secret_random
+```
+
+Webhook memakai query secret:
+
+```txt
+/api/webhooks/wablas/gemini?secret=ISI_SECRET
+```
+
+Contoh URL development dengan tunnel:
+
+```txt
+https://xxxx.ngrok-free.app/api/webhooks/wablas/gemini?secret=ISI_SECRET
+```
+
+Contoh URL production Vercel:
+
+```txt
+https://jobdex-in.vercel.app/api/webhooks/wablas/gemini?secret=ISI_SECRET
+```
+
+Setup di dashboard Wablas:
+
+1. Buka Device Setting.
+2. Isi webhook URL di atas.
+3. Aktifkan `Get Incoming Message`.
+4. Aktifkan `Get Webhook` jika diperlukan oleh device.
+5. Pastikan `WABLAS_GROUP_ID` berisi group id target.
+
+Cara pakai bot di WhatsApp group:
+
+```txt
+!jobdex siapa yang stuck?
+!jobdex ringkas progress hari ini
+!jobdex apa yang menunggu approval?
+```
+
+Bot hanya memproses pesan yang diawali `!jobdex`. Pesan lain diabaikan agar grup tidak spam.
+
+Cara test chat history web:
+
+1. Login sebagai koordinator atau super admin.
+2. Buka `/dashboard/ai`.
+3. Kirim pertanyaan.
+4. Refresh halaman.
+5. Pastikan pertanyaan dan jawaban tetap tampil dari `ai_logs`.
+
+Cara test date grouping:
+
+1. Buka `/dashboard/ai`.
+2. Pastikan chat memiliki separator tanggal.
+3. Log lama akan tampil dengan tanggal spesifik.
+
+Cara test WhatsApp bot:
+
+1. Pastikan webhook URL sudah terpasang di Wablas.
+2. Kirim pesan ke grup:
+
+   ```txt
+   !jobdex siapa yang stuck?
+   ```
+
+3. Bot membalas dengan format:
+
+   ```txt
+   [JobDex.in AI]
+
+   Pertanyaan:
+   ...
+
+   Jawaban:
+   ...
+   ```
+
+4. Cek Firestore `ai_logs`, pastikan `source = "whatsapp"`.
+5. Cek Firestore `whatsapp_logs`, pastikan balasan bot tercatat.
+
+Cara test ignore non-trigger:
+
+1. Kirim pesan biasa tanpa `!jobdex`.
+2. Bot tidak membalas.
+
+Cara test keamanan webhook:
+
+1. Akses `/api/webhooks/wablas/gemini` tanpa query `secret`.
+2. Response harus `401`.
+3. Akses dengan secret salah juga harus `401`.
+
+Catatan payload Wablas:
+
+- Parser webhook dibuat defensif karena field payload Wablas bisa berbeda antar setting.
+- Parser mencoba membaca `message`, `text`, `body`, `phone`, `sender`, `from`, `name`, `pushName`, `isGroup`, `group_id`, dan `chat_id`.
+- Untuk MVP, bot hanya memproses pesan dari group target `WABLAS_GROUP_ID`.
