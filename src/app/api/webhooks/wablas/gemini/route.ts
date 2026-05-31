@@ -177,7 +177,7 @@ function extractCandidates(payload: unknown): Record<string, string> {
     const p = participants[idx];
     if (p && typeof p === "object") {
       const pRecord = p as Record<string, unknown>;
-      return getStr(pRecord.sender || pRecord.jid);
+      return getStr(pRecord.sender);
     }
     return "";
   };
@@ -190,7 +190,7 @@ function extractCandidates(payload: unknown): Record<string, string> {
   for (const p of participants) {
     if (p && typeof p === "object") {
       const pRecord = p as Record<string, unknown>;
-      const s = getStr(pRecord.sender || pRecord.jid);
+      const s = getStr(pRecord.sender);
       if (s) allSenders.push(s);
     }
   }
@@ -201,8 +201,30 @@ function extractCandidates(payload: unknown): Record<string, string> {
 
 function cleanPhone(val: unknown): string {
   if (typeof val !== "string" && typeof val !== "number") return "";
-  const str = String(val).split("@")[0].replace(/[^\d]/g, "");
-  return str;
+  const str = String(val).trim();
+
+  // Explicitly reject @lid domain
+  if (str.toLowerCase().includes("@lid")) {
+    return "";
+  }
+
+  // JID domain verification if @ is present
+  if (str.includes("@")) {
+    const domain = str.split("@")[1]?.toLowerCase();
+    if (domain !== "s.whatsapp.net" && domain !== "c.us") {
+      return "";
+    }
+  }
+
+  // Clean numbers
+  const cleaned = str.split("@")[0].replace(/[^\d]/g, "");
+
+  // Safe phone length validation
+  if (cleaned.length >= 7 && cleaned.length <= 15) {
+    return cleaned;
+  }
+
+  return "";
 }
 
 function getSenderCandidates(payload: unknown) {
@@ -226,9 +248,17 @@ function getSenderCandidates(payload: unknown) {
       if (p && typeof p === "object") {
         const pRecord = p as Record<string, unknown>;
         const s = cleanPhone(pRecord.sender);
-        if (s && s !== "6287798799068") groupSenders.push(s);
-        const j = cleanPhone(pRecord.jid);
-        if (j && j !== "6287798799068") groupJids.push(j);
+        if (s && s !== "6287798799068") {
+          groupSenders.push(s);
+        }
+        
+        const jidStr = String(pRecord.jid || "").toLowerCase();
+        if (jidStr && !jidStr.includes("@lid")) {
+          const j = cleanPhone(pRecord.jid);
+          if (j && j !== "6287798799068") {
+            groupJids.push(j);
+          }
+        }
       }
     }
   };
@@ -293,43 +323,8 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await parseRequestBody(request);
-
-  // LOG DEBUG PRE-VALIDATION to Firestore Collection "wablas_incoming_debug"
-  try {
-    const debugRef = getAdminDb().collection("wablas_incoming_debug").doc();
-    const sanitizedBody = sanitizePayload(payload);
-    const candidates = extractCandidates(payload);
-    const incomingTemp = parseWablasIncomingPayload(payload);
-    
-    const available_top_level_keys = Object.keys(payload || {});
-    const available_data_keys = payload && typeof payload === "object" && (payload as Record<string, unknown>).data && typeof (payload as Record<string, unknown>).data === "object"
-      ? Object.keys((payload as Record<string, unknown>).data as Record<string, unknown>)
-      : [];
-
-    await debugRef.set({
-      created_at: FieldValue.serverTimestamp(),
-      raw_body_sanitized: JSON.parse(JSON.stringify(sanitizedBody)),
-      extracted_candidates: candidates,
-      selected_sender: incomingTemp.sender || "",
-      group_id: incomingTemp.groupId || "",
-      message_text: incomingTemp.message || "",
-      available_top_level_keys,
-      available_data_keys,
-    });
-  } catch (debugError) {
-    console.error("Failed to write wablas incoming debug log:", debugError);
-  }
-
   const incoming = parseWablasIncomingPayload(payload);
   const question = extractJobDexQuestion(incoming.message);
-
-  if (!incoming.message || !question) {
-    return NextResponse.json({ ok: true, ignored: true });
-  }
-
-  if (!isTargetGroup(incoming.groupId, incoming.sender)) {
-    return NextResponse.json({ ok: true, ignored: true });
-  }
 
   // --- RESOLVE SENDER FROM CANDIDATES & LOOKUP FIRESTORE ---
   const candidates = getSenderCandidates(payload);
@@ -342,24 +337,128 @@ export async function POST(request: NextRequest) {
 
   let senderUserProfile: UserProfile | null = null;
   let resolvedSenderNumber = incoming.sender;
+  let senderSource = "fallback";
 
-  for (const phone of orderedPhoneCandidates) {
+  // Priority 1: group.participants[].sender
+  for (const phone of candidates.groupSenders) {
     const userSnapshot = await getAdminDb()
       .collection("users")
       .where("whatsapp_number", "==", phone)
       .limit(1)
       .get();
-
     if (!userSnapshot.empty) {
       senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
       resolvedSenderNumber = phone;
+      senderSource = "group.participants[].sender";
       break;
     }
   }
 
-  // Fallback if no user is registered, but candidate list is available
-  if (!senderUserProfile && orderedPhoneCandidates.length > 0) {
-    resolvedSenderNumber = orderedPhoneCandidates[0];
+  // Priority 2: group.participants[].jid
+  if (!senderUserProfile) {
+    for (const phone of candidates.groupJids) {
+      const userSnapshot = await getAdminDb()
+        .collection("users")
+        .where("whatsapp_number", "==", phone)
+        .limit(1)
+        .get();
+      if (!userSnapshot.empty) {
+        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
+        resolvedSenderNumber = phone;
+        senderSource = "group.participants[].jid";
+        break;
+      }
+    }
+  }
+
+  // Priority 3: participant / author / key.participant
+  if (!senderUserProfile) {
+    for (const phone of candidates.directFields) {
+      const userSnapshot = await getAdminDb()
+        .collection("users")
+        .where("whatsapp_number", "==", phone)
+        .limit(1)
+        .get();
+      if (!userSnapshot.empty) {
+        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
+        resolvedSenderNumber = phone;
+        senderSource = "participant / author / key.participant";
+        break;
+      }
+    }
+  }
+
+  // Priority 4: root sender
+  if (!senderUserProfile) {
+    for (const phone of candidates.rootSenders) {
+      const userSnapshot = await getAdminDb()
+        .collection("users")
+        .where("whatsapp_number", "==", phone)
+        .limit(1)
+        .get();
+      if (!userSnapshot.empty) {
+        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
+        resolvedSenderNumber = phone;
+        senderSource = "root.sender";
+        break;
+      }
+    }
+  }
+
+  // Fallback if no user found
+  if (!senderUserProfile) {
+    if (candidates.groupSenders.length > 0) {
+      resolvedSenderNumber = candidates.groupSenders[0];
+      senderSource = "group.participants[].sender";
+    } else if (candidates.groupJids.length > 0) {
+      resolvedSenderNumber = candidates.groupJids[0];
+      senderSource = "group.participants[].jid";
+    } else if (candidates.directFields.length > 0) {
+      resolvedSenderNumber = candidates.directFields[0];
+      senderSource = "participant / author / key.participant";
+    } else if (candidates.rootSenders.length > 0) {
+      resolvedSenderNumber = candidates.rootSenders[0];
+      senderSource = "root.sender";
+    }
+  }
+
+  // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug"
+  try {
+    const debugRef = getAdminDb().collection("wablas_incoming_debug").doc();
+    const sanitizedBody = sanitizePayload(payload);
+    const candidatesDump = extractCandidates(payload);
+    
+    const available_top_level_keys = Object.keys(payload || {});
+    const available_data_keys = payload && typeof payload === "object" && (payload as Record<string, unknown>).data && typeof (payload as Record<string, unknown>).data === "object"
+      ? Object.keys((payload as Record<string, unknown>).data as Record<string, unknown>)
+      : [];
+
+    await debugRef.set({
+      created_at: FieldValue.serverTimestamp(),
+      raw_body_sanitized: JSON.parse(JSON.stringify(sanitizedBody)),
+      extracted_candidates: candidatesDump,
+      raw_sender_candidates: orderedPhoneCandidates,
+      selected_sender: incoming.sender || "",
+      normalized_sender: resolvedSenderNumber,
+      matched_user_id: senderUserProfile?.id ?? "",
+      matched_user_name: senderUserProfile?.name ?? "",
+      matched_user_role: senderUserProfile?.role ?? "",
+      sender_source: senderSource,
+      group_id: incoming.groupId || "",
+      message_text: incoming.message || "",
+      available_top_level_keys,
+      available_data_keys,
+    });
+  } catch (debugError) {
+    console.error("Failed to write wablas incoming debug log:", debugError);
+  }
+
+  if (!incoming.message || !question) {
+    return NextResponse.json({ ok: true, ignored: true });
+  }
+
+  if (!isTargetGroup(incoming.groupId, incoming.sender)) {
+    return NextResponse.json({ ok: true, ignored: true });
   }
 
   const senderLabel = senderUserProfile 
