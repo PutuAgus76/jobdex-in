@@ -25,10 +25,10 @@ export function TasksTable({
   onArchive,
 }: TasksTableProps) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+    <div className="overflow-hidden jd-table">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1040px] text-left text-sm">
-          <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
+          <thead className="text-xs uppercase">
             <tr>
               <th className="px-4 py-3">Nama task</th>
               <th className="px-4 py-3">Tipe</th>

@@ -20,10 +20,10 @@ export function EventsTable({
   onEdit,
 }: EventsTableProps) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+    <div className="overflow-hidden jd-table">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-          <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
+          <thead className="text-xs uppercase">
             <tr>
               <th className="px-4 py-3 font-semibold">Nama acara</th>
               <th className="px-4 py-3 font-semibold">Tanggal</th>

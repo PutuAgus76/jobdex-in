@@ -4,11 +4,33 @@
 :root {
   --background: #f8fafc;
   --foreground: #172033;
+  --jd-bg: #f8fafc;
+  --jd-fg: #020617;
+  --jd-muted: #64748b;
+  --jd-card: #ffffff;
+  --jd-card-2: #f1f5f9;
+  --jd-border: #e2e8f0;
+  --jd-primary: #020617;
+  --jd-primary-hover: #1e293b;
+  --jd-primary-fg: #ffffff;
+  --jd-accent: #22c55e;
+  --jd-accent-2: #38bdf8;
 }
 
 .dark {
   --background: #020617;
   --foreground: #f8fafc;
+  --jd-bg: #020617;
+  --jd-fg: #f8fafc;
+  --jd-muted: #cbd5e1;
+  --jd-card: #0f172a;
+  --jd-card-2: #111827;
+  --jd-border: #1e293b;
+  --jd-primary: #f8fafc;
+  --jd-primary-hover: #e2e8f0;
+  --jd-primary-fg: #020617;
+  --jd-accent: #34d399;
+  --jd-accent-2: #38bdf8;
 }
 
 @theme inline {
@@ -39,4 +61,307 @@ html.dark {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* ========================================================
+   JobDex.in - Global CSS Components (Prefix: jd-)
+   ======================================================== */
+
+/* 1. BUTTON SYSTEM */
+.jd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  border: 1px solid transparent;
+  text-decoration: none !important;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.jd-btn:hover {
+  transform: translateY(-1px);
+}
+
+.jd-btn:disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.jd-btn-sm {
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.jd-btn-md {
+  min-height: 2.5rem;
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+}
+
+.jd-btn-lg {
+  min-height: 3rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+}
+
+.jd-btn-dark {
+  background-color: #020617 !important;
+  color: #ffffff !important;
+  border-color: #020617 !important;
+}
+
+.jd-btn-dark:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+.dark .jd-btn-dark {
+  background-color: #f8fafc !important;
+  color: #020617 !important;
+  border-color: #f8fafc !important;
+}
+
+.dark .jd-btn-dark:hover {
+  background-color: #e2e8f0 !important;
+  color: #020617 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.jd-btn-light {
+  background-color: #ffffff !important;
+  color: #020617 !important;
+  border-color: #ffffff !important;
+}
+
+.jd-btn-light:hover {
+  background-color: #e2e8f0 !important;
+  color: #020617 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.jd-btn-outline {
+  background-color: transparent !important;
+  color: var(--jd-fg) !important;
+  border-color: var(--jd-border) !important;
+}
+
+.jd-btn-outline:hover {
+  background-color: var(--jd-card-2) !important;
+  color: var(--jd-fg) !important;
+}
+
+.jd-btn-hero-outline {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+.jd-btn-hero-outline:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.jd-btn-ghost {
+  background-color: transparent !important;
+  color: var(--jd-fg) !important;
+  border-color: transparent !important;
+}
+
+.jd-btn-ghost:hover {
+  background-color: var(--jd-card-2) !important;
+  color: var(--jd-fg) !important;
+}
+
+.jd-btn-danger {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+.jd-btn-danger:hover {
+  background-color: #b91c1c !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+}
+
+.jd-btn-success {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+}
+
+.jd-btn-success:hover {
+  background-color: #047857 !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+}
+
+.jd-btn *,
+.jd-btn-dark *,
+.jd-btn-light *,
+.jd-btn-outline *,
+.jd-btn-hero-outline *,
+.jd-btn-ghost *,
+.jd-btn-danger *,
+.jd-btn-success * {
+  color: inherit !important;
+}
+
+/* 2. SIDEBAR SYSTEM */
+.jd-sidebar {
+  background-color: var(--jd-card) !important;
+  color: var(--jd-fg) !important;
+  border-color: var(--jd-border) !important;
+}
+
+.jd-sidebar-item {
+  color: #334155 !important;
+  border-radius: 8px;
+  transition: background-color 160ms ease, color 160ms ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.jd-sidebar-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #020617 !important;
+}
+
+.dark .jd-sidebar-item {
+  color: #cbd5e1 !important;
+}
+
+.dark .jd-sidebar-item:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.jd-sidebar-active {
+  background-color: #020617 !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.jd-sidebar-active:hover {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.dark .jd-sidebar-active {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.dark .jd-sidebar-active:hover {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+.jd-sidebar-active *,
+.jd-sidebar-item * {
+  color: inherit !important;
+}
+
+/* 3. VISUAL CONTAINERS & CONTROLS */
+.jd-surface {
+  background-color: var(--jd-card) !important;
+  color: var(--jd-fg) !important;
+  border: 1px solid var(--jd-border) !important;
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.05);
+}
+
+.dark .jd-surface {
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+
+.jd-muted-surface {
+  background-color: var(--jd-card-2) !important;
+  color: var(--jd-fg) !important;
+  border: 1px solid var(--jd-border) !important;
+  border-radius: 12px;
+}
+
+.jd-input {
+  background-color: var(--jd-card) !important;
+  color: var(--jd-fg) !important;
+  border: 1px solid var(--jd-border) !important;
+  border-radius: 10px;
+  outline: none !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.jd-input:focus {
+  border-color: #94a3b8 !important;
+}
+
+.dark .jd-input:focus {
+  border-color: #475569 !important;
+}
+
+.jd-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.dark .jd-input::placeholder {
+  color: #64748b !important;
+}
+
+.jd-table {
+  background-color: var(--jd-card) !important;
+  color: var(--jd-fg) !important;
+  border: 1px solid var(--jd-border) !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.jd-table th {
+  background-color: var(--jd-card-2) !important;
+  color: var(--jd-muted) !important;
+}
+
+.jd-table td {
+  border-color: var(--jd-border) !important;
+}
+
+/* 4. LANDING PAGE PREMIUM LAYOUTS */
+.jd-hero {
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 32%),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.14), transparent 28%),
+    linear-gradient(135deg, #020617 0%, #061527 52%, #020617 100%) !important;
+  color: #ffffff !important;
+}
+
+.jd-glass {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.jd-soft-glow {
+  position: relative;
+}
+
+.jd-soft-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(52, 211, 153, 0.16), transparent);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: -1;
 }

@@ -20,33 +20,23 @@ type ButtonVariant =
 type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-slate-950 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200",
-  secondary:
-    "bg-slate-100 text-slate-950 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700",
-  outline:
-    "border border-slate-200 bg-white text-slate-950 hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-50 dark:hover:bg-slate-800",
-  ghost:
-    "text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800",
-  light:
-    "bg-white text-slate-950 hover:bg-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200",
-  dark:
-    "bg-slate-950 text-white hover:bg-slate-800 dark:border dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800",
-  warning:
-    "bg-amber-600 text-white hover:bg-amber-700 dark:bg-amber-500 dark:text-slate-950 dark:hover:bg-amber-400",
-  success:
-    "bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:text-slate-950 dark:hover:bg-emerald-400",
-  destructive:
-    "bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:text-white dark:hover:bg-red-600",
-  heroPrimary:
-    "bg-white text-slate-950 hover:bg-slate-200 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200",
-  heroOutline:
-    "border border-white/20 bg-transparent text-white hover:bg-white/10 dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:bg-white/10",
+  primary: "jd-btn jd-btn-dark",
+  dark: "jd-btn jd-btn-dark",
+  light: "jd-btn jd-btn-light",
+  heroPrimary: "jd-btn jd-btn-light",
+  heroOutline: "jd-btn jd-btn-hero-outline",
+  outline: "jd-btn jd-btn-outline",
+  secondary: "jd-btn jd-btn-outline",
+  ghost: "jd-btn jd-btn-ghost",
+  destructive: "jd-btn jd-btn-danger",
+  success: "jd-btn jd-btn-success",
+  warning: "jd-btn jd-btn-outline", // warning fallback to outline
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-5 text-base",
+  sm: "jd-btn-sm",
+  md: "jd-btn-md",
+  lg: "jd-btn-lg",
 };
 
 function sanitizeClassName(className?: string): string {
@@ -74,9 +64,8 @@ export function buttonStyles({
 } = {}) {
   const sanitizedClassName = sanitizeClassName(className);
   return cn(
-    "inline-flex items-center justify-center rounded-[8px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:pointer-events-none disabled:opacity-50 dark:focus-visible:outline-slate-100",
-    sizeClasses[size],
     variantClasses[variant],
+    sizeClasses[size],
     sanitizedClassName,
   );
 }

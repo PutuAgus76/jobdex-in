@@ -29,42 +29,50 @@ const features = [
   {
     icon: FolderKanban,
     title: "Job Desk Divisi",
-    description: "Kelola tugas rutin Humas dan Media Kreatif dalam satu dashboard.",
+    description:
+      "Kelola tugas rutin Humas dan Media Kreatif dalam satu dashboard.",
   },
   {
     icon: GalleryHorizontalEnd,
     title: "Job Desk Acara",
-    description: "Pisahkan kebutuhan publikasi, dokumentasi, desain, dan PIC setiap acara.",
+    description:
+      "Pisahkan kebutuhan publikasi, dokumentasi, desain, dan PIC setiap acara.",
   },
   {
     icon: Workflow,
     title: "Status Workflow",
-    description: "Pantau belum mulai, sedang dikerjakan, stuck, revisi, approval, hingga approved.",
+    description:
+      "Pantau belum mulai, sedang dikerjakan, stuck, revisi, approval, hingga approved.",
   },
   {
     icon: UploadCloud,
     title: "Upload Hasil Desain",
-    description: "Upload hasil desain ke Cloudinary dan tampilkan preview di detail task.",
+    description:
+      "Upload hasil desain ke Cloudinary dan tampilkan preview di detail task.",
   },
   {
     icon: MessageCircle,
     title: "Notifikasi WhatsApp",
-    description: "Kirim update status, upload, revisi, approve, dan ringkasan ke grup.",
+    description:
+      "Kirim update status, upload, revisi, approve, dan ringkasan ke grup.",
   },
   {
     icon: Bot,
     title: "AI Assistant",
-    description: "Tanyakan progress, kendala, deadline, atau ringkasan lewat dashboard dan WhatsApp.",
+    description:
+      "Tanyakan progress, kendala, deadline, atau ringkasan lewat dashboard dan WhatsApp.",
   },
   {
     icon: Archive,
     title: "Arsip Referensi",
-    description: "Simpan link Drive, color palette, style notes, dan desain tahun sebelumnya.",
+    description:
+      "Simpan link Drive, color palette, style notes, dan desain tahun sebelumnya.",
   },
   {
     icon: FileCheck2,
     title: "Approval & Revisi",
-    description: "Koordinator bisa meminta revisi atau menyetujui task dengan activity log.",
+    description:
+      "Koordinator bisa meminta revisi atau menyetujui task dengan activity log.",
   },
 ];
 
@@ -95,7 +103,9 @@ export default function Home() {
                 JD
               </span>
               <div>
-                <p className="text-lg font-bold text-slate-950 dark:text-white">JobDex.in</p>
+                <p className="text-lg font-bold text-slate-950 dark:text-white">
+                  JobDex.in
+                </p>
                 <p className="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
                   Humas & Media Kreatif
                 </p>
@@ -106,7 +116,7 @@ export default function Home() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/login">Login</Link>
               </Button>
-              <Button asChild variant="primary" size="sm">
+              <Button asChild className="jd-btn-dark">
                 <Link href="/dashboard">Masuk Dashboard</Link>
               </Button>
             </div>
@@ -114,7 +124,7 @@ export default function Home() {
         </Container>
       </div>
 
-      <section className="dark relative bg-[radial-gradient(circle_at_top_left,#1e293b_0,#020617_38%,#020617_100%)] text-white">
+      <section className="dark relative jd-hero text-white">
         <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(34,197,94,0.10),transparent_28%,rgba(56,189,248,0.12)_72%,transparent)]" />
         <Container className="relative grid gap-12 py-16 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:py-24">
           <div className="max-w-3xl">
@@ -130,9 +140,9 @@ export default function Home() {
               update WhatsApp, dan merangkum progress dengan AI.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild variant="heroPrimary" size="lg" className="gap-2">
+              <Button asChild size="lg" className="jd-btn-light gap-2">
                 <Link href="/dashboard">
-                  Masuk ke Dashboard
+                  Masuk ke Dashboardnya
                   <Send className="size-4" />
                 </Link>
               </Button>
@@ -142,18 +152,27 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-[8px] border border-white/10 bg-white/10 p-3 shadow-2xl backdrop-blur">
+          <div className="p-3 jd-glass jd-soft-glow rounded-[8px]">
             <div className="rounded-[8px] border border-white/10 bg-slate-950/90 p-4">
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
-                  <p className="font-semibold text-white">Dashboard Koordinasi</p>
-                  <p className="mt-1 text-xs text-slate-400">Progress minggu ini</p>
+                  <p className="font-semibold text-white">
+                    Dashboard Koordinasi
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Progress minggu ini
+                  </p>
                 </div>
-                <Badge className="bg-emerald-400/15 text-emerald-200">Live MVP</Badge>
+                <Badge className="bg-emerald-400/15 text-emerald-200">
+                  Live MVP
+                </Badge>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {stats.map(([value, label]) => (
-                  <div key={label} className="rounded-[8px] border border-white/10 bg-white/[0.06] p-4">
+                  <div
+                    key={label}
+                    className="rounded-[8px] border border-white/10 bg-white/[0.06] p-4"
+                  >
                     <p className="text-3xl font-bold text-white">{value}</p>
                     <p className="mt-1 text-sm text-slate-400">{label}</p>
                   </div>
@@ -162,10 +181,21 @@ export default function Home() {
               <div className="mt-4 space-y-3">
                 {[
                   ["Poster PKKMB", "stuck", "Butuh redaksi final"],
-                  ["Feed Open Recruitment", "menunggu approval", "Preview sudah upload"],
-                  ["Dokumentasi Seminar", "sedang dikerjakan", "Deadline dekat"],
+                  [
+                    "Feed Open Recruitment",
+                    "menunggu approval",
+                    "Preview sudah upload",
+                  ],
+                  [
+                    "Dokumentasi Seminar",
+                    "sedang dikerjakan",
+                    "Deadline dekat",
+                  ],
                 ].map(([task, status, note]) => (
-                  <div key={task} className="rounded-[8px] border border-white/10 bg-white/[0.05] p-3">
+                  <div
+                    key={task}
+                    className="rounded-[8px] border border-white/10 bg-white/[0.05] p-3"
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-white">{task}</p>
                       <span className="rounded-full bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
@@ -187,14 +217,20 @@ export default function Home() {
             <div>
               <Badge variant="warning">Masalah yang sering muncul</Badge>
               <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-                Kerja kreatif kampus bergerak cepat. Dokumentasinya harus ikut rapi.
+                Kerja kreatif kampus bergerak cepat. Dokumentasinya harus ikut
+                rapi.
               </h2>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {problems.map((problem) => (
-                <div key={problem} className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/70">
+                <div
+                  key={problem}
+                  className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/70"
+                >
                   <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{problem}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {problem}
+                  </p>
                 </div>
               ))}
             </div>
@@ -219,12 +255,19 @@ export default function Home() {
               const Icon = feature.icon;
 
               return (
-                <div key={feature.title} className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80">
+                <div
+                  key={feature.title}
+                  className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+                >
                   <div className="flex size-11 items-center justify-center rounded-[8px] bg-slate-950 text-white dark:bg-white dark:text-slate-950">
                     <Icon className="size-5" />
                   </div>
-                  <h3 className="mt-4 font-semibold text-slate-950 dark:text-white">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{feature.description}</p>
+                  <h3 className="mt-4 font-semibold text-slate-950 dark:text-white">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                    {feature.description}
+                  </p>
                 </div>
               );
             })}
@@ -241,17 +284,22 @@ export default function Home() {
                 Dari brief sampai approved, statusnya jelas.
               </h2>
               <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                Koordinator bisa melihat siapa yang memegang task, kapan deadline,
-                apa kendalanya, dan kapan desain siap disetujui.
+                Koordinator bisa melihat siapa yang memegang task, kapan
+                deadline, apa kendalanya, dan kapan desain siap disetujui.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {workflowSteps.map((step, index) => (
-                <div key={step} className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                <div
+                  key={step}
+                  className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+                >
                   <span className="flex size-8 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white dark:bg-white dark:text-slate-950">
                     {index + 1}
                   </span>
-                  <p className="mt-4 text-sm font-semibold text-slate-800 dark:text-slate-100">{step}</p>
+                  <p className="mt-4 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    {step}
+                  </p>
                 </div>
               ))}
             </div>
@@ -259,31 +307,49 @@ export default function Home() {
         </Container>
       </section>
 
-      <section className="dark bg-[linear-gradient(135deg,#020617,#111827_48%,#020617)] py-16 text-white">
+      <section className="dark jd-hero py-16 text-white">
         <Container>
           <div className="grid gap-8 lg:grid-cols-2">
             <div className="rounded-[8px] border border-white/10 bg-white/10 p-6 backdrop-blur">
               <Bot className="size-10 text-sky-300" />
-              <h2 className="mt-5 text-3xl font-bold">AI Assistant untuk ringkasan progress.</h2>
+              <h2 className="mt-5 text-3xl font-bold">
+                AI Assistant untuk ringkasan progress.
+              </h2>
               <p className="mt-4 text-sm leading-7 text-slate-300">
                 Tanyakan siapa yang stuck, task mana yang menunggu approval,
-                deadline terdekat, atau minta dibuatkan update singkat untuk grup.
+                deadline terdekat, atau minta dibuatkan update singkat untuk
+                grup.
               </p>
               <div className="mt-5 rounded-[8px] border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
-                <p className="font-semibold text-white">!jobdex siapa yang stuck?</p>
-                <p className="mt-2">Bot WhatsApp membaca data JobDex.in dan membalas ringkas ke grup.</p>
+                <p className="font-semibold text-white">
+                  !jobdex siapa yang stuck?
+                </p>
+                <p className="mt-2">
+                  Bot WhatsApp membaca data JobDex.in dan membalas ringkas ke
+                  grup.
+                </p>
               </div>
             </div>
             <div className="rounded-[8px] border border-white/10 bg-white/10 p-6 backdrop-blur">
               <MessageCircle className="size-10 text-emerald-300" />
-              <h2 className="mt-5 text-3xl font-bold">WhatsApp tetap dipakai, tapi lebih terarah.</h2>
+              <h2 className="mt-5 text-3xl font-bold">
+                WhatsApp tetap dipakai, tapi lebih terarah.
+              </h2>
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                Update status, upload hasil desain, revisi, approve, dan ringkasan
-                AI bisa dikirim otomatis ke grup koordinasi.
+                Update status, upload hasil desain, revisi, approve, dan
+                ringkasan AI bisa dikirim otomatis ke grup koordinasi.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {["Status otomatis", "Upload notification", "Ringkasan AI", "Webhook bot"].map((item) => (
-                  <div key={item} className="rounded-[8px] border border-white/10 bg-white/[0.06] p-3 text-sm font-semibold text-white">
+                {[
+                  "Status otomatis",
+                  "Upload notification",
+                  "Ringkasan AI",
+                  "Webhook bot",
+                ].map((item) => (
+                  <div
+                    key={item}
+                    className="rounded-[8px] border border-white/10 bg-white/[0.06] p-3 text-sm font-semibold text-white"
+                  >
                     {item}
                   </div>
                 ))}
@@ -311,13 +377,21 @@ export default function Home() {
               <div className="flex items-center gap-3">
                 <Palette className="size-9 text-sky-600 dark:text-sky-300" />
                 <div>
-                  <p className="font-semibold text-slate-950 dark:text-white">PKKMB 2025 - Poster</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Style notes, Drive, dan palette.</p>
+                  <p className="font-semibold text-slate-950 dark:text-white">
+                    PKKMB 2025 - Poster
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Style notes, Drive, dan palette.
+                  </p>
                 </div>
               </div>
               <div className="mt-5 flex gap-2">
                 {["#0F172A", "#185FA5", "#22C55E", "#E6F1FB"].map((color) => (
-                  <span key={color} className="size-10 rounded-[8px] border border-slate-200 dark:border-slate-700" style={{ backgroundColor: color }} />
+                  <span
+                    key={color}
+                    className="size-10 rounded-[8px] border border-slate-200 dark:border-slate-700"
+                    style={{ backgroundColor: color }}
+                  />
                 ))}
               </div>
             </div>
@@ -336,7 +410,8 @@ export default function Home() {
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
                   JobDex.in membantu organisasi bergerak lebih tenang: pekerjaan
-                  jelas, progress terbaca, dan update grup tidak lagi manual semuanya.
+                  jelas, progress terbaca, dan update grup tidak lagi manual
+                  semuanya.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -355,7 +430,10 @@ export default function Home() {
       <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
         <Container className="flex flex-col gap-2 py-6 text-sm text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
           <p>JobDex.in MVP</p>
-          <p>Untuk Humas dan Media Kreatif organisasi mahasiswa - {new Date().getFullYear()}</p>
+          <p>
+            Untuk Humas dan Media Kreatif organisasi mahasiswa -{" "}
+            {new Date().getFullYear()}
+          </p>
         </Container>
       </footer>
     </main>
