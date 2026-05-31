@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { getDashboardNavigation } from "@/lib/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
 
@@ -30,6 +31,16 @@ export function DashboardTopbar() {
   const { user, userProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navItems = getDashboardNavigation(userProfile);
+  const bottomPaths = [
+    "/dashboard",
+    "/dashboard/tasks",
+    "/dashboard/events",
+    "/dashboard/references",
+    "/dashboard/ai"
+  ];
+  const extraItems = navItems.filter((item) => !bottomPaths.includes(item.href));
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -92,7 +103,7 @@ export function DashboardTopbar() {
               onClick={() => setMenuOpen(!menuOpen)}
               className="gap-1 px-2.5"
             >
-              <span className="text-xs">Akun</span>
+              <span className="text-xs">Menu</span>
               <span className="text-[10px] opacity-60">▼</span>
             </Button>
 
@@ -102,7 +113,7 @@ export function DashboardTopbar() {
                   className="fixed inset-0 z-10" 
                   onClick={() => setMenuOpen(false)}
                 />
-                <div className="absolute right-0 mt-2 w-48 z-20 rounded-[8px] p-2 space-y-1 jd-surface shadow-xl">
+                <div className="absolute right-0 mt-2 w-52 z-20 rounded-[8px] p-2 space-y-1 jd-surface shadow-xl">
                   <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
                     <p className="text-xs font-bold text-slate-950 dark:text-slate-50 truncate">
                       {userProfile?.name ?? user?.displayName ?? "Anggota"}
@@ -111,9 +122,18 @@ export function DashboardTopbar() {
                       {userProfile?.role?.replace("_", " ") ?? "Anggota"}
                     </p>
                   </div>
-                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-left h-9 px-2" onClick={() => setMenuOpen(false)}>
-                    <Link href="/dashboard/profile">Profile Saya</Link>
-                  </Button>
+                  {extraItems.map((item) => (
+                    <Button 
+                      key={item.href} 
+                      asChild 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full justify-start text-left h-9 px-2" 
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Link href={item.href}>{item.label}</Link>
+                    </Button>
+                  ))}
                   <Button asChild variant="ghost" size="sm" className="w-full justify-start text-left h-9 px-2" onClick={() => setMenuOpen(false)}>
                     <Link href="/">Landing Page</Link>
                   </Button>

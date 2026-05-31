@@ -17,6 +17,9 @@ import {
   extractJobDexQuestion,
   parseWablasIncomingPayload,
 } from "@/lib/server/wablas-webhook-parser";
+import { normalizeWhatsAppNumber } from "@/lib/whatsapp";
+import { parseWhatsAppCommand } from "@/lib/server/whatsapp-command-parser";
+import { buildWhatsAppCommandPreview } from "@/lib/server/whatsapp-command-preview";
 import type { UserProfile } from "@/types";
 
 export const runtime = "nodejs";
@@ -129,6 +132,61 @@ export async function POST(request: NextRequest) {
   const senderLabel = incoming.senderName || incoming.sender || "WhatsApp";
 
   try {
+    const lowerQuestion = question.toLowerCase().trim();
+    const isStructured =
+      lowerQuestion.startsWith("tambah jobdesk") ||
+      lowerQuestion.startsWith("tambah acara") ||
+      lowerQuestion.startsWith("tambah banyak jobdesk") ||
+      lowerQuestion.startsWith("approve task");
+
+    if (isStructured) {
+      // 1. Resolve sender profile from Firestore using normalizeWhatsAppNumber
+      const normalizedSender = normalizeWhatsAppNumber(incoming.sender);
+      const userSnapshot = await getAdminDb()
+        .collection("users")
+        .where("whatsapp_number", "==", normalizedSender)
+        .limit(1)
+        .get();
+
+      let senderUserProfile: UserProfile | null = null;
+      if (!userSnapshot.empty) {
+        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
+      }
+
+      // 2. Parse command
+      const parsedCommand = parseWhatsAppCommand(incoming.message);
+
+      // 3. Build command preview
+      const previewResult = await buildWhatsAppCommandPreview(parsedCommand, senderUserProfile);
+
+      // 4. Save preview log to Firestore collection ai_command_previews
+      const previewLogRef = getAdminDb().collection("ai_command_previews").doc();
+      await previewLogRef.set({
+        id: previewLogRef.id,
+        source: "whatsapp",
+        raw_message: incoming.message,
+        parsed_intent: parsedCommand.intent,
+        parsed_fields: parsedCommand.fields || {},
+        preview_text: previewResult.previewText,
+        whatsapp_sender: senderLabel,
+        whatsapp_group_id: incoming.groupId || "",
+        created_at: FieldValue.serverTimestamp(),
+      });
+
+      // 5. Send preview reply to WhatsApp group
+      const replyMessage = previewResult.previewText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // --- Fallback: Standard Gemini AI Assistant ---
     const { contextSummary } = await buildAIContext({
       profile: getBotProfile(),
     });
