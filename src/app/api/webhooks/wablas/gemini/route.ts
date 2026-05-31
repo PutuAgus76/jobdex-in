@@ -2,7 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AI_SYSTEM_PROMPT } from "@/lib/ai-prompts";
 import { buildAIContext } from "@/lib/server/ai-context";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
-import { askGemini, GEMINI_MODEL } from "@/lib/server/gemini";
+import {
+  askGemini,
+  GEMINI_EMPTY_ANSWER_FALLBACK,
+  GEMINI_MODEL,
+} from "@/lib/server/gemini";
 import {
   getWhatsAppRecipient,
   getWhatsAppRecipientType,
@@ -177,7 +181,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorReply = [
       "[JobDex.in AI]",
-      "Maaf, AI sedang tidak bisa menjawab. Coba lagi nanti.",
+      GEMINI_EMPTY_ANSWER_FALLBACK,
     ].join("\n");
 
     try {

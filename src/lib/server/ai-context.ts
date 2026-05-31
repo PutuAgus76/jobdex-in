@@ -13,6 +13,12 @@ type BuildAIContextInput = {
 type UserNameMap = Map<string, string>;
 type EventNameMap = Map<string, string>;
 
+const JOBDEX_APP_CONTEXT = [
+  "TENTANG JOBDEX.IN:",
+  "JobDex.in adalah aplikasi web untuk mengelola job desk organisasi mahasiswa, khususnya divisi Humas dan Media Kreatif/Pubdok.",
+  "Aplikasi ini membantu mencatat anggota, acara, job desk divisi, job desk acara, status pengerjaan, kendala, revisi, approval, upload hasil desain, arsip referensi desain, notifikasi WhatsApp, dan ringkasan progress menggunakan AI.",
+].join("\n");
+
 function formatDate(value: unknown) {
   if (!value || typeof value !== "object" || !("toDate" in value)) {
     return "-";
@@ -194,6 +200,8 @@ export async function buildAIContext({ profile, eventId }: BuildAIContextInput) 
     ),
   ];
   const contextSummary = [
+    JOBDEX_APP_CONTEXT,
+    "",
     "STATISTIK:",
     ...statistics,
     "",

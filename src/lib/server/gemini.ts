@@ -1,6 +1,8 @@
 import "server-only";
 
 export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_EMPTY_ANSWER_FALLBACK =
+  "Maaf, AI belum bisa menjawab pertanyaan itu. Coba tanyakan tentang progress task, acara, atau status anggota.";
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -72,9 +74,5 @@ export async function askGemini({
     .join("")
     .trim();
 
-  if (!answer) {
-    throw new Error("Gemini tidak mengembalikan jawaban.");
-  }
-
-  return answer;
+  return answer || GEMINI_EMPTY_ANSWER_FALLBACK;
 }
