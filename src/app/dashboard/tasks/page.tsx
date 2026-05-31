@@ -144,8 +144,8 @@ export default function TasksPage() {
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <Badge variant="info">Job Desk</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">Job Desk</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">Job Desk</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Kelola job desk divisi dan job desk acara. Upload dan workflow
             approval akan tersedia di fase berikutnya.
           </p>
@@ -183,14 +183,14 @@ export default function TasksPage() {
       />
 
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           Menampilkan {filteredTasks.length} dari {tasks.length} job desk.
         </p>
         <TaskViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
       ) : null}
 
       {loading ? (

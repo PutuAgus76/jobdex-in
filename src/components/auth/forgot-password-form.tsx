@@ -46,7 +46,7 @@ export function ForgotPasswordForm() {
       <div>
         <label
           htmlFor="email"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Email
         </label>
@@ -61,13 +61,13 @@ export function ForgotPasswordForm() {
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       ) : null}
 
       {successMessage ? (
-        <p className="rounded-[8px] bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-[8px] bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
           {successMessage}
         </p>
       ) : null}

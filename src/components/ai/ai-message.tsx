@@ -30,15 +30,15 @@ export function AIMessage({
         className={cn(
           "max-w-[86%] rounded-[8px] border p-4 shadow-sm",
           isAssistant
-            ? "border-slate-200 bg-white"
-            : "border-slate-900 bg-slate-950 text-white",
+            ? "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            : "border-slate-900 bg-slate-950 text-white dark:border-slate-700 dark:bg-slate-800",
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <p
             className={cn(
               "text-xs font-semibold uppercase tracking-wide",
-              isAssistant ? "text-slate-500" : "text-slate-300",
+              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-slate-300",
             )}
           >
             {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
@@ -52,7 +52,7 @@ export function AIMessage({
         <div
           className={cn(
             "mt-2 whitespace-pre-wrap text-sm leading-6",
-            isAssistant ? "text-slate-700" : "text-white",
+            isAssistant ? "text-slate-700 dark:text-slate-300" : "text-white",
           )}
         >
           {content}

@@ -37,22 +37,22 @@ export function TaskCard({
       <CardContent>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">PIC</dt>
-            <dd className="font-semibold text-slate-950">
+            <dt className="text-slate-500 dark:text-slate-400">PIC</dt>
+            <dd className="font-semibold text-slate-950 dark:text-slate-50">
               {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Deadline</dt>
-            <dd className="font-semibold text-slate-950">{formatTaskDate(task.deadline)}</dd>
+            <dt className="text-slate-500 dark:text-slate-400">Deadline</dt>
+            <dd className="font-semibold text-slate-950 dark:text-slate-50">{formatTaskDate(task.deadline)}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Tipe</dt>
-            <dd className="font-semibold capitalize text-slate-950">{task.type}</dd>
+            <dt className="text-slate-500 dark:text-slate-400">Tipe</dt>
+            <dd className="font-semibold capitalize text-slate-950 dark:text-slate-50">{task.type}</dd>
           </div>
           <div className="flex justify-between gap-3">
-            <dt className="text-slate-500">Acara/Divisi</dt>
-            <dd className="text-right font-semibold text-slate-950">
+            <dt className="text-slate-500 dark:text-slate-400">Acara/Divisi</dt>
+            <dd className="text-right font-semibold text-slate-950 dark:text-slate-50">
               {task.type === "acara"
                 ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"
                 : task.division_id || "humas_media_kreatif"}
@@ -68,7 +68,7 @@ export function TaskCard({
               <Button type="button" size="sm" variant="secondary" onClick={() => onEdit(task)}>
                 Edit
               </Button>
-              <Button type="button" size="sm" className="bg-amber-600 hover:bg-amber-700" onClick={() => onArchive(task)}>
+              <Button type="button" size="sm" variant="warning" onClick={() => onArchive(task)}>
                 Archive
               </Button>
             </>

@@ -25,10 +25,10 @@ export function TasksTable({
   onArchive,
 }: TasksTableProps) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1040px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3">Nama task</th>
               <th className="px-4 py-3">Tipe</th>
@@ -40,22 +40,22 @@ export function TasksTable({
               <th className="px-4 py-3">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {tasks.map((task) => (
-              <tr key={task.id} className="align-top">
-                <td className="px-4 py-4 font-semibold text-slate-950">{task.name}</td>
-                <td className="px-4 py-4 capitalize text-slate-600">{task.type}</td>
-                <td className="px-4 py-4 text-slate-600">
+              <tr key={task.id} className="align-top hover:bg-slate-50 dark:hover:bg-slate-950">
+                <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
+                <td className="px-4 py-4 capitalize text-slate-600 dark:text-slate-300">{task.type}</td>
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {task.type === "acara"
                     ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"
                     : task.division_id || "humas_media_kreatif"}
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                 </td>
                 <td className="px-4 py-4"><TaskStatusBadge status={task.status} /></td>
                 <td className="px-4 py-4"><TaskPriorityBadge priority={task.priority} /></td>
-                <td className="px-4 py-4 text-slate-600">{formatTaskDate(task.deadline)}</td>
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="secondary">
@@ -66,7 +66,7 @@ export function TasksTable({
                         <Button type="button" size="sm" variant="secondary" onClick={() => onEdit(task)}>
                           Edit
                         </Button>
-                        <Button type="button" size="sm" className="bg-amber-600 hover:bg-amber-700" onClick={() => onArchive(task)}>
+                        <Button type="button" size="sm" variant="warning" onClick={() => onArchive(task)}>
                           Archive
                         </Button>
                       </>

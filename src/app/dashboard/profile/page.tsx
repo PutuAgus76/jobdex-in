@@ -44,10 +44,10 @@ export default function ProfilePage() {
     <div className="space-y-6">
       <section>
         <Badge variant="info">Profil</Badge>
-        <h1 className="mt-3 text-3xl font-bold text-slate-950">
+        <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
           Profil anggota
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
           Data dasar akun yang tersimpan di Firestore collection users.
         </p>
       </section>
@@ -57,14 +57,14 @@ export default function ProfilePage() {
           <CardTitle>Informasi akun</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="divide-y divide-slate-200">
+          <dl className="divide-y divide-slate-200 dark:divide-slate-800">
             {profileRows.map(([label, value]) => (
               <div
                 key={label}
                 className="grid gap-1 py-4 sm:grid-cols-[180px_1fr] sm:gap-4"
               >
-                <dt className="text-sm font-medium text-slate-500">{label}</dt>
-                <dd className="text-sm font-semibold text-slate-950">
+                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</dt>
+                <dd className="text-sm font-semibold text-slate-950 dark:text-slate-50">
                   {value}
                 </dd>
               </div>

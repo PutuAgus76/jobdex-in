@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
@@ -108,23 +109,25 @@ export function TaskUploadSection({
         </CardHeader>
         <CardContent className="space-y-4">
           {latestUpload ? (
-            <div className="overflow-hidden rounded-[8px] border border-slate-200 bg-slate-50">
-              <img
+            <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60">
+              <Image
                 src={latestUpload.thumbnail_url || latestUpload.upload_url}
                 alt={`Preview hasil desain ${task.name}`}
+                width={1000}
+                height={700}
                 className="max-h-[420px] w-full object-contain"
               />
             </div>
           ) : (
-            <div className="rounded-[8px] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+            <div className="rounded-[8px] border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-6 text-sm text-slate-500 dark:text-slate-400">
               Belum ada hasil desain. Upload pertama akan muncul sebagai preview terbaru.
             </div>
           )}
 
-          <div className="flex flex-col gap-3 rounded-[8px] border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-semibold text-slate-950">Upload Hasil Desain</p>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="font-semibold text-slate-950 dark:text-slate-50">Upload Hasil Desain</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 JPG, JPEG, PNG, atau WEBP. Maksimal {formatFileSize(10 * 1024 * 1024)}.
               </p>
             </div>
@@ -157,7 +160,7 @@ export function TaskUploadSection({
           />
 
           {message ? (
-            <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
               {message}
             </p>
           ) : null}
@@ -167,7 +170,7 @@ export function TaskUploadSection({
             </p>
           ) : null}
           {error ? (
-            <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
               {error}
             </p>
           ) : null}

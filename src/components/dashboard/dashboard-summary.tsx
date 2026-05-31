@@ -68,8 +68,8 @@ export function DashboardSummary({ profile }: DashboardSummaryProps) {
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="text-xl font-bold text-slate-950">{summary.title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+        <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">{summary.title}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
           {summary.description}
         </p>
       </section>

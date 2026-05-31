@@ -6,7 +6,7 @@ type ColorPalettePreviewProps = {
 
 export function ColorPalettePreview({ colors }: ColorPalettePreviewProps) {
   if (!colors.length) {
-    return <span className="text-sm text-slate-500">-</span>;
+    return <span className="text-sm text-slate-500 dark:text-slate-400">-</span>;
   }
 
   return (
@@ -15,7 +15,7 @@ export function ColorPalettePreview({ colors }: ColorPalettePreviewProps) {
         <span
           key={color}
           title={color}
-          className="size-6 rounded-[6px] border border-slate-200"
+          className="size-6 rounded-[6px] border border-slate-200 dark:border-slate-800"
           style={{ backgroundColor: color }}
         />
       ))}

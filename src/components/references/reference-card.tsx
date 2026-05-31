@@ -25,7 +25,9 @@ export function ReferenceCard({
   return (
     <Card className="overflow-hidden">
       {reference.thumbnail_url ? (
-        <div className="h-44 border-b border-slate-200 bg-slate-100">
+        <div className="h-44 border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-950">
+          {/* Manual thumbnail URLs can come from arbitrary hosts; avoid broad Next image allowlists. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={reference.thumbnail_url}
             alt={reference.title}
@@ -33,7 +35,7 @@ export function ReferenceCard({
           />
         </div>
       ) : (
-        <div className="flex h-44 items-center justify-center border-b border-slate-200 bg-slate-100 text-sm font-semibold text-slate-500">
+        <div className="flex h-44 items-center justify-center border-b border-slate-200 bg-slate-100 text-sm font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-400">
           Tanpa thumbnail
         </div>
       )}
@@ -45,13 +47,13 @@ export function ReferenceCard({
           </Badge>
         </div>
         <div>
-          <h2 className="text-base font-bold text-slate-950">{reference.title}</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {reference.event_name || "Tanpa nama acara"} · {reference.year}
+          <h2 className="text-base font-bold text-slate-950 dark:text-slate-50">{reference.title}</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {reference.event_name || "Tanpa nama acara"} - {reference.year}
           </p>
         </div>
         <ColorPalettePreview colors={reference.color_palette ?? []} />
-        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-slate-600">
+        <p className="line-clamp-2 min-h-10 text-sm leading-5 text-slate-600 dark:text-slate-300">
           {reference.style_notes || reference.notes || "Tidak ada catatan."}
         </p>
         <div className="flex flex-wrap gap-2">

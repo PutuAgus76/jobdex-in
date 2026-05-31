@@ -33,24 +33,24 @@ export function TaskWorkflowPanel({ task, usersById }: TaskWorkflowPanelProps) {
       <CardContent>
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <dt className="text-sm font-medium text-slate-500">Status sekarang</dt>
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Status sekarang</dt>
             <dd className="mt-2"><TaskStatusBadge status={task.status} /></dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-slate-500">Approval</dt>
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Approval</dt>
             <dd className="mt-2"><TaskApprovalBadge status={task.approval_status} /></dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-slate-500">Deadline</dt>
-            <dd className="mt-2 text-sm font-semibold text-slate-950">{formatTaskDate(task.deadline)}</dd>
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Deadline</dt>
+            <dd className="mt-2 text-sm font-semibold text-slate-950 dark:text-slate-50">{formatTaskDate(task.deadline)}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-slate-500">Approved by</dt>
-            <dd className="mt-2 text-sm font-semibold text-slate-950">{approvedBy}</dd>
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Approved by</dt>
+            <dd className="mt-2 text-sm font-semibold text-slate-950 dark:text-slate-50">{approvedBy}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-slate-500">Approved at</dt>
-            <dd className="mt-2 text-sm font-semibold text-slate-950">{formatDateTime(task.approved_at)}</dd>
+            <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">Approved at</dt>
+            <dd className="mt-2 text-sm font-semibold text-slate-950 dark:text-slate-50">{formatDateTime(task.approved_at)}</dd>
           </div>
         </dl>
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -64,9 +64,9 @@ export function TaskWorkflowPanel({ task, usersById }: TaskWorkflowPanelProps) {
 
 function NoteBlock({ title, value }: { title: string; value?: string }) {
   return (
-    <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-semibold text-slate-950">{title}</p>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+    <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
+      <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">{title}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">
         {value || "-"}
       </p>
     </div>

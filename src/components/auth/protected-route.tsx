@@ -56,12 +56,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (loading || profileLoading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-slate-950 px-4 text-center">
         <div>
-          <p className="text-sm font-semibold text-slate-950">
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
             Memeriksa sesi...
           </p>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Kamu akan diarahkan ke login jika belum masuk.
           </p>
         </div>
@@ -71,12 +71,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!profileIsComplete && !isCompleteProfilePage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-slate-950 px-4 text-center">
         <div>
-          <p className="text-sm font-semibold text-slate-950">
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
             Mengarahkan ke lengkapi profil...
           </p>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Data profil diperlukan sebelum membuka dashboard.
           </p>
         </div>
@@ -86,12 +86,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (profileIsComplete && userProfile?.is_active === false && !isUnauthorizedPage) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 text-center">
+      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-slate-950 px-4 text-center">
         <div>
-          <p className="text-sm font-semibold text-slate-950">
+          <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
             Akun Anda dinonaktifkan.
           </p>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Kamu akan diarahkan ke halaman akses dibatasi.
           </p>
         </div>

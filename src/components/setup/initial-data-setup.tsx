@@ -66,10 +66,10 @@ export function InitialDataSetup() {
             <CardTitle>organizations/main_org</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-slate-950">
+            <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">
               {status?.organizationExists ? "Ada" : "Belum ada"}
             </p>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Dokumen organisasi default untuk instance JobDex.in.
             </p>
           </CardContent>
@@ -80,10 +80,10 @@ export function InitialDataSetup() {
             <CardTitle>divisions/humas_media_kreatif</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-slate-950">
+            <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">
               {status?.divisionExists ? "Ada" : "Belum ada"}
             </p>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
               Dokumen divisi default Humas dan Media Kreatif.
             </p>
           </CardContent>
@@ -91,13 +91,13 @@ export function InitialDataSetup() {
       </section>
 
       {message ? (
-        <p className="rounded-[8px] bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-[8px] bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
           {message}
         </p>
       ) : null}
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       ) : null}

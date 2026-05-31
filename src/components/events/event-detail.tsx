@@ -38,10 +38,10 @@ export function EventDetail({
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <section>
           <EventStatusBadge status={event.status} />
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
             {event.name}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             {event.description || "Tidak ada deskripsi."}
           </p>
         </section>
@@ -56,7 +56,7 @@ export function EventDetail({
             <CardTitle>Tanggal acara</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-950">
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
               {formatEventDate(event.event_date)}
             </p>
           </CardContent>
@@ -66,7 +66,7 @@ export function EventDetail({
             <CardTitle>Koordinator</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-950">
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
               {coordinator?.name ?? "Koordinator belum ditemukan"}
             </p>
           </CardContent>
@@ -76,7 +76,7 @@ export function EventDetail({
             <CardTitle>Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-950">
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
               {event.progress_percentage ?? 0}%
             </p>
           </CardContent>
@@ -86,7 +86,7 @@ export function EventDetail({
             <CardTitle>Anggota</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-semibold text-slate-950">
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
               {eventMembers.length} orang
             </p>
           </CardContent>

@@ -3,8 +3,8 @@
 export function AILoadingMessage() {
   return (
     <div className="flex justify-start">
-      <div className="max-w-[82%] rounded-[8px] border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="max-w-[82%] rounded-[8px] border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           AI Assistant
         </p>
         <div className="mt-3 flex gap-1.5">

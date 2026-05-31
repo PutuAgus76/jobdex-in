@@ -36,14 +36,14 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-[8px] bg-white shadow-xl">
-        <div className="border-b border-slate-200 p-5">
+      <div className="w-full max-w-2xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
+        <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-950">
+              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
                 Detail anggota
               </h2>
-              <p className="mt-1 text-sm text-slate-500">{member.email}</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Tutup
@@ -55,14 +55,14 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
             <RoleBadge role={member.role} />
             <MemberStatusBadge isActive={member.is_active} />
           </div>
-          <dl className="divide-y divide-slate-200">
+          <dl className="divide-y divide-slate-200 dark:divide-slate-800">
             {rows.map(([label, value]) => (
               <div
                 key={label}
                 className="grid gap-1 py-3 sm:grid-cols-[170px_1fr]"
               >
-                <dt className="text-sm font-medium text-slate-500">{label}</dt>
-                <dd className="text-sm font-semibold text-slate-950">{value}</dd>
+                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</dt>
+                <dd className="text-sm font-semibold text-slate-950 dark:text-slate-50">{value}</dd>
               </div>
             ))}
           </dl>

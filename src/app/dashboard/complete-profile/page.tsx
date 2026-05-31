@@ -76,7 +76,7 @@ export default function CompleteProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle>Lengkapi profil</CardTitle>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
             Profil Firestore diperlukan sebelum membuka dashboard JobDex.in.
           </p>
         </CardHeader>
@@ -85,7 +85,7 @@ export default function CompleteProfilePage() {
             <div>
               <label
                 htmlFor="name"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Nama lengkap
               </label>
@@ -99,7 +99,7 @@ export default function CompleteProfilePage() {
             <div>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Email
               </label>
@@ -114,7 +114,7 @@ export default function CompleteProfilePage() {
             <div>
               <label
                 htmlFor="whatsapp"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Nomor WhatsApp
               </label>
@@ -127,7 +127,7 @@ export default function CompleteProfilePage() {
             </div>
 
             {error ? (
-              <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+              <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
                 {error}
               </p>
             ) : null}

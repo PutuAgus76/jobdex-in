@@ -31,7 +31,7 @@ export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
   }
 
   return (
-    <form className="sticky bottom-0 rounded-[8px] border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur" onSubmit={handleSubmit}>
+    <form className="sticky bottom-0 rounded-[8px] border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95" onSubmit={handleSubmit}>
       <textarea
         id="ai-question"
         value={question}
@@ -39,10 +39,10 @@ export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
         onChange={(event) => setQuestion(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Contoh: Task apa saja yang sedang stuck?"
-        className="min-h-20 w-full resize-y rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:bg-slate-100"
+        className="min-h-20 w-full resize-y rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:placeholder:text-slate-500 dark:focus:border-slate-500 dark:focus:ring-slate-800 dark:disabled:bg-slate-800"
       />
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-500">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Enter untuk kirim, Shift+Enter untuk baris baru.</p>
         <Button type="submit" disabled={disabled || !question.trim()}>
           {disabled ? "AI berpikir..." : "Kirim"}
         </Button>

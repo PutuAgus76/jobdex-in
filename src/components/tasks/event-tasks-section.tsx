@@ -32,8 +32,8 @@ export function EventTasksSection({
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-xl font-bold text-slate-950">Job Desk Acara</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Job Desk Acara</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Task dengan event_id yang terhubung ke acara ini.
           </p>
         </div>
@@ -50,10 +50,10 @@ export function EventTasksSection({
           description="Tambahkan job desk acara untuk mulai membagi pekerjaan publikasi, dokumentasi, dan desain."
         />
       ) : (
-        <div className="overflow-hidden rounded-[8px] border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Nama task</th>
                   <th className="px-4 py-3">PIC</th>
@@ -63,16 +63,16 @@ export function EventTasksSection({
                   <th className="px-4 py-3">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {tasks.map((task) => (
                   <tr key={task.id}>
-                    <td className="px-4 py-4 font-semibold text-slate-950">{task.name}</td>
-                    <td className="px-4 py-4 text-slate-600">
+                    <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
+                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                       {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                     </td>
                     <td className="px-4 py-4"><TaskStatusBadge status={task.status} /></td>
                     <td className="px-4 py-4"><TaskPriorityBadge priority={task.priority} /></td>
-                    <td className="px-4 py-4 text-slate-600">{formatTaskDate(task.deadline)}</td>
+                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
                     <td className="px-4 py-4">
                       <Button asChild size="sm" variant="secondary">
                         <Link href={`/dashboard/tasks/${task.id}`}>Detail</Link>

@@ -66,8 +66,8 @@ export function TaskDetail({
             <TaskPriorityBadge priority={task.priority} />
             <TaskApprovalBadge status={task.approval_status} />
           </div>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">{task.name}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">{task.name}</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             {task.description || "Tidak ada deskripsi."}
           </p>
         </section>
@@ -89,11 +89,11 @@ export function TaskDetail({
           <CardTitle>Informasi task</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="divide-y divide-slate-200">
+          <dl className="divide-y divide-slate-200 dark:divide-slate-800">
             {rows.map(([label, value]) => (
               <div key={label} className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]">
-                <dt className="text-sm font-medium text-slate-500">{label}</dt>
-                <dd className="text-sm font-semibold text-slate-950">{value}</dd>
+                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</dt>
+                <dd className="text-sm font-semibold text-slate-950 dark:text-slate-50">{value}</dd>
               </div>
             ))}
           </dl>
@@ -119,17 +119,17 @@ export function TaskDetail({
           <CardContent className="space-y-4 text-sm">
             <Block label="Arahan visual/supergrafis" value={task.visual_direction} />
             <div>
-              <p className="font-semibold text-slate-950">Color palette</p>
+              <p className="font-semibold text-slate-950 dark:text-slate-50">Color palette</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {task.color_palette?.length ? (
                   task.color_palette.map((color) => (
-                    <span key={color} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                      <span className="size-4 rounded-full border border-slate-200" style={{ backgroundColor: color }} />
+                    <span key={color} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="size-4 rounded-full border border-slate-200 dark:border-slate-800" style={{ backgroundColor: color }} />
                       {color}
                     </span>
                   ))
                 ) : (
-                  <span className="text-slate-500">-</span>
+                  <span className="text-slate-500 dark:text-slate-400">-</span>
                 )}
               </div>
             </div>
@@ -156,8 +156,8 @@ export function TaskDetail({
 function Block({ label, value }: { label: string; value?: string }) {
   return (
     <div>
-      <p className="font-semibold text-slate-950">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-600">{value || "-"}</p>
+      <p className="font-semibold text-slate-950 dark:text-slate-50">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-600 dark:text-slate-300">{value || "-"}</p>
     </div>
   );
 }
@@ -165,13 +165,13 @@ function Block({ label, value }: { label: string; value?: string }) {
 function LinkBlock({ label, href }: { label: string; href?: string }) {
   return (
     <div>
-      <p className="font-semibold text-slate-950">{label}</p>
+      <p className="font-semibold text-slate-950 dark:text-slate-50">{label}</p>
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-sky-700 hover:text-sky-900">
+        <a href={href} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-200">
           {href}
         </a>
       ) : (
-        <p className="mt-1 text-slate-500">-</p>
+        <p className="mt-1 text-slate-500 dark:text-slate-400">-</p>
       )}
     </div>
   );

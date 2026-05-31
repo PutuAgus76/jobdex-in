@@ -179,11 +179,11 @@ export function AIChat() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4">
+      <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
         <div className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <p className="text-sm font-semibold text-slate-950">Quick prompt</p>
-            <p className="mt-1 text-sm text-slate-500">Pilih pertanyaan cepat untuk membaca progres terbaru.</p>
+            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">Quick prompt</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Pilih pertanyaan cepat untuk membaca progres terbaru.</p>
           </div>
           <Button type="button" variant="secondary" size="sm" onClick={loadHistory} disabled={historyLoading}>
             {historyLoading ? "Memuat..." : "Refresh Riwayat"}
@@ -192,9 +192,9 @@ export function AIChat() {
         <AIQuickPrompts disabled={loading} onSelect={ask} />
       </div>
 
-      <section className="max-h-[62vh] min-h-[420px] space-y-4 overflow-y-auto rounded-[8px] border border-slate-200 bg-slate-50 p-4">
+      <section className="max-h-[62vh] min-h-[420px] space-y-4 overflow-y-auto rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
         {historyLoading ? (
-          <div className="rounded-[8px] border border-slate-200 bg-white p-4 text-sm text-slate-500">
+          <div className="rounded-[8px] border border-slate-200 bg-white p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
             Memuat riwayat chat...
           </div>
         ) : groupedLogs.length ? (
@@ -236,17 +236,17 @@ export function AIChat() {
       </section>
 
       {copyMessage ? (
-        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
           {copyMessage}
         </p>
       ) : null}
       {whatsAppMessage ? (
-        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
           {whatsAppMessage}
         </p>
       ) : null}
       {error ? (
-        <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
           {error}
         </p>
       ) : null}

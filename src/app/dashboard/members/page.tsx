@@ -127,17 +127,17 @@ function MembersManagement() {
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <Badge variant="info">Manajemen Anggota</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
             Manajemen Anggota
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Kelola profil dasar, role, divisi, dan status aktif anggota
             organisasi.
           </p>
         </div>
-        <div className="rounded-[8px] border border-slate-200 bg-white px-4 py-3">
-          <p className="text-xs font-medium text-slate-500">Total anggota</p>
-          <p className="text-2xl font-bold text-slate-950">{members.length}</p>
+        <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Total anggota</p>
+          <p className="text-2xl font-bold text-slate-950 dark:text-slate-50">{members.length}</p>
         </div>
       </section>
 
@@ -154,7 +154,7 @@ function MembersManagement() {
       />
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       ) : null}

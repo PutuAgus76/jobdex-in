@@ -20,10 +20,10 @@ export function EventsTable({
   onEdit,
 }: EventsTableProps) {
   return (
-    <div className="overflow-hidden rounded-[8px] border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] border-collapse text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
             <tr>
               <th className="px-4 py-3 font-semibold">Nama acara</th>
               <th className="px-4 py-3 font-semibold">Tanggal</th>
@@ -34,29 +34,29 @@ export function EventsTable({
               <th className="px-4 py-3 font-semibold">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {events.map((event) => (
-              <tr key={event.id} className="align-top">
+              <tr key={event.id} className="align-top hover:bg-slate-50 dark:hover:bg-slate-950">
                 <td className="px-4 py-4">
-                  <p className="font-semibold text-slate-950">{event.name}</p>
-                  <p className="mt-1 line-clamp-2 max-w-xs text-xs text-slate-500">
+                  <p className="font-semibold text-slate-950 dark:text-slate-50">{event.name}</p>
+                  <p className="mt-1 line-clamp-2 max-w-xs text-xs text-slate-500 dark:text-slate-400">
                     {event.description || "-"}
                   </p>
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {formatEventDate(event.event_date)}
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {usersById.get(event.coordinator_id)?.name ??
                     "Koordinator belum ditemukan"}
                 </td>
                 <td className="px-4 py-4">
                   <EventStatusBadge status={event.status} />
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {event.progress_percentage ?? 0}%
                 </td>
-                <td className="px-4 py-4 text-slate-600">
+                <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
                   {memberCounts[event.id] ?? 0}
                 </td>
                 <td className="px-4 py-4">

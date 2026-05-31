@@ -57,7 +57,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="email"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Email
         </label>
@@ -73,7 +73,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="password"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
         >
           Password
         </label>
@@ -88,13 +88,13 @@ export function LoginForm() {
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-sm">
-        <Link href="/forgot-password" className="font-semibold text-slate-950">
+        <Link href="/forgot-password" className="font-semibold text-slate-950 dark:text-slate-50">
           Lupa password?
         </Link>
       </div>

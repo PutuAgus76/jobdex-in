@@ -4,19 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function RegisterPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] dark:bg-slate-950 px-4 py-10">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Register akun</CardTitle>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
             Buat akun anggota baru. Role default akan disimpan sebagai anggota.
           </p>
         </CardHeader>
         <CardContent>
           <RegisterForm />
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
             Sudah punya akun?{" "}
-            <Link href="/login" className="font-semibold text-slate-950">
+            <Link href="/login" className="font-semibold text-slate-950 dark:text-slate-50">
               Login
             </Link>
           </p>

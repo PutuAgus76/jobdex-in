@@ -14,14 +14,14 @@ export function LoadingState({
   return (
     <div
       className={cn(
-        "flex min-h-48 items-center justify-center rounded-[8px] border border-slate-200 bg-white px-4 text-center",
+        "flex min-h-48 items-center justify-center rounded-[8px] border border-slate-200 bg-white px-4 text-center dark:border-slate-800 dark:bg-slate-900",
         className,
       )}
     >
       <div>
-        <div className="mx-auto size-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-950" />
-        <p className="mt-4 text-sm font-semibold text-slate-950">{title}</p>
-        <p className="mt-2 text-sm text-slate-500">{description}</p>
+        <div className="mx-auto size-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-950 dark:border-slate-800 dark:border-t-slate-50" />
+        <p className="mt-4 text-sm font-semibold text-slate-950 dark:text-slate-50">{title}</p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{description}</p>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ type EventFormDialogProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
+  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
 
 export function EventFormDialog(props: EventFormDialogProps) {
   if (!props.open) {
@@ -88,14 +88,14 @@ function EventForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-[8px] bg-white shadow-xl">
-        <div className="border-b border-slate-200 p-5">
+      <div className="w-full max-w-2xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
+        <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-950">
+              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
                 {event ? "Edit acara" : "Tambah acara"}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Progress acara tetap memakai nilai tersimpan pada fase ini.
               </p>
             </div>
@@ -109,7 +109,7 @@ function EventForm({
           <div>
             <label
               htmlFor="event-name"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Nama acara
             </label>
@@ -123,7 +123,7 @@ function EventForm({
           <div>
             <label
               htmlFor="event-description"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Deskripsi
             </label>
@@ -131,7 +131,7 @@ function EventForm({
               id="event-description"
               value={description}
               onChange={(item) => setDescription(item.target.value)}
-              className="min-h-28 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+              className="min-h-28 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
             />
           </div>
 
@@ -139,7 +139,7 @@ function EventForm({
             <div>
               <label
                 htmlFor="event-date"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Tanggal acara
               </label>
@@ -154,7 +154,7 @@ function EventForm({
             <div>
               <label
                 htmlFor="event-status"
-                className="mb-2 block text-sm font-medium text-slate-700"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
               >
                 Status
               </label>
@@ -176,7 +176,7 @@ function EventForm({
           <div>
             <label
               htmlFor="event-coordinator"
-              className="mb-2 block text-sm font-medium text-slate-700"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
             >
               Koordinator acara
             </label>
@@ -195,7 +195,7 @@ function EventForm({
           </div>
 
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
               {error}
             </p>
           ) : null}

@@ -10,8 +10,8 @@ export default function AIAssistantPage() {
     <PermissionGuard canAccess={canAccessAI}>
       <div className="space-y-6">
         <section>
-          <h1 className="text-3xl font-bold text-slate-950">AI Assistant</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-50">AI Assistant</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Tanya progress job desk, kendala, deadline, dan ringkasan acara
             berdasarkan data JobDex.in.
           </p>

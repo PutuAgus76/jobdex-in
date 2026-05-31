@@ -26,7 +26,7 @@ export function TaskUploadHistory({
 }: TaskUploadHistoryProps) {
   if (!uploads.length) {
     return (
-      <div className="rounded-[8px] border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+      <div className="rounded-[8px] border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4 text-sm text-slate-500 dark:text-slate-400">
         Belum ada hasil desain yang diupload.
       </div>
     );
@@ -38,13 +38,13 @@ export function TaskUploadHistory({
         <CardTitle>Riwayat upload</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="divide-y divide-slate-200">
+        <div className="divide-y divide-slate-200 dark:divide-slate-800">
           {uploads.map((upload) => (
             <div
               key={upload.id}
               className="grid gap-2 py-3 text-sm md:grid-cols-[90px_1fr_120px]"
             >
-              <span className="font-semibold text-slate-950">
+              <span className="font-semibold text-slate-950 dark:text-slate-50">
                 Versi {upload.version_number}
               </span>
               <div>
@@ -56,12 +56,12 @@ export function TaskUploadHistory({
                 >
                   {upload.file_name}
                 </a>
-                <p className="mt-1 text-slate-500">
+                <p className="mt-1 text-slate-500 dark:text-slate-400">
                   {usersById.get(upload.uploaded_by)?.name ?? "User tidak ditemukan"} ·{" "}
                   {formatDateTime(upload.uploaded_at)}
                 </p>
               </div>
-              <span className="text-slate-500">{formatFileSize(upload.file_size)}</span>
+              <span className="text-slate-500 dark:text-slate-400">{formatFileSize(upload.file_size)}</span>
             </div>
           ))}
         </div>

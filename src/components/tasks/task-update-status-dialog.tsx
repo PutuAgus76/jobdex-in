@@ -15,7 +15,7 @@ type TaskUpdateStatusDialogProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
+  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
 
 export function TaskUpdateStatusDialog({
   open,
@@ -71,12 +71,12 @@ export function TaskUpdateStatusDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-xl rounded-[8px] bg-white shadow-xl">
-        <div className="border-b border-slate-200 p-5">
+      <div className="w-full max-w-xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
+        <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-950">Update Status</h2>
-              <p className="mt-1 text-sm text-slate-500">{task.name}</p>
+              <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Update Status</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.name}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Tutup
@@ -85,7 +85,7 @@ export function TaskUpdateStatusDialog({
         </div>
         <form className="grid gap-4 p-5" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">Status baru</span>
+            <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Status baru</span>
             <select
               className={selectClassName}
               value={status}
@@ -107,7 +107,7 @@ export function TaskUpdateStatusDialog({
             />
           ) : null}
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
           ) : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
@@ -130,11 +130,11 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="min-h-24 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors focus:border-slate-400 focus:ring-4 focus:ring-slate-100"
+        className="min-h-24 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
       />
     </label>
   );

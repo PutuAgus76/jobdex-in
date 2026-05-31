@@ -19,10 +19,10 @@ export function RoleDashboardContent() {
           <Badge variant="info">Dashboard</Badge>
           <RoleBadge role={userProfile.role} />
         </div>
-        <h1 className="mt-3 text-3xl font-bold text-slate-950">
+        <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
           Ringkasan koordinasi
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
           Konten dashboard disesuaikan dengan role akun yang sedang login.
         </p>
       </section>

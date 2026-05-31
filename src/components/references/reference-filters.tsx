@@ -21,7 +21,7 @@ type ReferenceFiltersProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
+  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
 
 export function ReferenceFilters({
   search,
@@ -39,7 +39,7 @@ export function ReferenceFilters({
   onShowArchivedChange,
 }: ReferenceFiltersProps) {
   return (
-    <div className="grid gap-3 rounded-[8px] border border-slate-200 bg-white p-4 lg:grid-cols-[1.3fr_1fr_0.8fr_1fr_auto]">
+    <div className="grid gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:grid-cols-[1.3fr_1fr_0.8fr_1fr_auto]">
       <Input
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
@@ -82,7 +82,7 @@ export function ReferenceFilters({
         ))}
       </select>
       {canShowArchived ? (
-        <label className="flex items-center gap-2 rounded-[8px] border border-slate-200 px-3 text-sm font-medium text-slate-700">
+        <label className="flex items-center gap-2 rounded-[8px] border border-slate-200 dark:border-slate-800 px-3 text-sm font-medium text-slate-700 dark:text-slate-300">
           <input
             type="checkbox"
             checked={showArchived}

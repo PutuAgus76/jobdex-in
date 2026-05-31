@@ -28,8 +28,8 @@ export default function EventsPage() {
       <div className="space-y-6">
         <section>
           <Badge variant="info">Acara</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">Acara</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">Acara</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Event yang melibatkan Anda akan tersedia pada fase berikutnya.
           </p>
         </section>
@@ -153,10 +153,10 @@ function EventsManagement() {
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <div>
           <Badge variant="info">Manajemen Acara</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950">
+          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
             Manajemen Acara
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Buat, edit, ubah status, dan kelola anggota yang terlibat dalam
             acara organisasi.
           </p>
@@ -182,7 +182,7 @@ function EventsManagement() {
       />
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
           {error}
         </p>
       ) : null}

@@ -142,7 +142,7 @@ export function TaskActionButtons({
       {canUpdate && allowedStatuses.includes("stuck") ? (
         <Button
           type="button"
-          className="bg-amber-600 hover:bg-amber-700"
+          variant="warning"
           onClick={() => {
             setPresetStatus("stuck");
             setStatusOpen(true);

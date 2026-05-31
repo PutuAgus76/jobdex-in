@@ -8,7 +8,7 @@ import { DashboardTopbar } from "@/components/layout/dashboard-topbar";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <div className="flex min-h-screen bg-[#f8fafc]">
+      <div className="flex min-h-screen bg-[#f8fafc] dark:bg-slate-950">
         <DashboardSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <DashboardTopbar />

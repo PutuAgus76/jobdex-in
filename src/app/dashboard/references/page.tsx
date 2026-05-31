@@ -160,14 +160,14 @@ export default function ReferencesPage() {
     <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <h1 className="text-3xl font-bold text-slate-950">
+          <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-50">
             Arsip Referensi Desain
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
             Catat desain lama, link Drive, style visual, supergrafis, dan color
             palette agar anggota baru punya sumber inspirasi yang rapi.
           </p>
-          <p className="mt-3 text-sm font-semibold text-slate-700">
+          <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
             {filteredReferences.length} dari {references.length} referensi tampil
           </p>
         </div>
