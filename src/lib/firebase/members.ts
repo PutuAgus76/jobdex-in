@@ -6,6 +6,7 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { USER_ROLES } from "@/lib/roles";
@@ -17,6 +18,20 @@ export async function getMembers() {
   );
 
   return snapshot.docs.map((item) => item.data() as UserProfile);
+}
+
+export async function getUsersByIds(userIds: string[]) {
+  const uniqueIds = [...new Set(userIds.filter(Boolean))];
+  const snapshots = await Promise.all(
+    uniqueIds.map((userId) => getDoc(doc(db, "users", userId))),
+  );
+
+  return snapshots
+    .filter((snapshot) => snapshot.exists())
+    .map((snapshot) => ({
+      id: snapshot.id,
+      ...snapshot.data(),
+    })) as UserProfile[];
 }
 
 export async function updateMember(

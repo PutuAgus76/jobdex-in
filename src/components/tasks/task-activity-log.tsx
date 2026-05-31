@@ -20,6 +20,18 @@ function formatDateTime(value: unknown) {
 }
 
 export function TaskActivityLog({ logs, usersById }: TaskActivityLogProps) {
+  function getActorName(userId: string) {
+    const user = usersById.get(userId);
+
+    if (user?.name) {
+      return user.name;
+    }
+
+    const shortUid = userId ? `${userId.slice(0, 8)}...` : "-";
+
+    return `User tidak ditemukan (${shortUid})`;
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -42,7 +54,7 @@ export function TaskActivityLog({ logs, usersById }: TaskActivityLogProps) {
                   <p className="text-xs text-slate-500">{formatDateTime(log.created_at)}</p>
                 </div>
                 <p className="mt-2 text-sm text-slate-600">
-                  Oleh {usersById.get(log.changed_by)?.name ?? log.changed_by}
+                  Oleh {getActorName(log.changed_by)}
                 </p>
                 {log.note ? (
                   <p className="mt-2 whitespace-pre-wrap rounded-[8px] bg-slate-50 p-3 text-sm leading-6 text-slate-600">

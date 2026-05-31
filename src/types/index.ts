@@ -120,6 +120,81 @@ export type TaskStatusLog = {
   created_at?: unknown;
 };
 
+export type TaskUpload = {
+  id: string;
+  task_id: string;
+  upload_url: string;
+  thumbnail_url: string;
+  public_id: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  version_number: number;
+  uploaded_by: string;
+  uploaded_at?: unknown;
+};
+
+export type DesignType =
+  | "poster"
+  | "name_tag"
+  | "twibbon"
+  | "feed_ig"
+  | "story_ig"
+  | "banner"
+  | "sertifikat"
+  | "dokumentasi"
+  | "animasi"
+  | "merchandise"
+  | "lainnya";
+
+export type DesignReference = {
+  id: string;
+  organization_id: string;
+  title: string;
+  event_name: string;
+  design_type: DesignType;
+  year: number;
+  drive_url: string;
+  thumbnail_url: string;
+  style_notes: string;
+  color_palette: string[];
+  notes: string;
+  is_archived: boolean;
+  created_by: string;
+  created_at?: unknown;
+  updated_at?: unknown;
+};
+
+export type DesignReferenceInput = {
+  title: string;
+  event_name: string;
+  design_type: DesignType;
+  year: number;
+  drive_url: string;
+  thumbnail_url: string;
+  style_notes: string;
+  color_palette: string[];
+  notes: string;
+};
+
+export type WhatsAppLogStatus = "sent" | "failed" | "pending";
+
+export type WhatsAppLog = {
+  id: string;
+  organization_id: string;
+  task_id?: string;
+  event_type: string;
+  message_content: string;
+  recipient: string;
+  recipient_type?: "group" | "personal";
+  is_group?: boolean;
+  status: WhatsAppLogStatus;
+  wablas_response?: string;
+  error_message?: string;
+  retry_count: number;
+  created_at?: unknown;
+};
+
 export type TaskInput = {
   type: TaskType;
   event_id: string;

@@ -106,6 +106,27 @@ service cloud.firestore {
         request.resource.data.changed_by == request.auth.uid;
     }
 
+    function canCreateDesignReferenceData(data) {
+      return (
+        isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        isKoordinatorAcara()
+      ) &&
+        data.organization_id == "main_org" &&
+        data.created_by == request.auth.uid &&
+        data.is_archived == false;
+    }
+
+    function canUpdateDesignReference() {
+      return isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        (
+          isKoordinatorAcara() &&
+          resource.data.created_by == request.auth.uid &&
+          request.resource.data.created_by == resource.data.created_by
+        );
+    }
+
     function isSelf(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
@@ -233,21 +254,35 @@ service cloud.firestore {
         allow create: if isSignedIn() && canCreateStatusLog(taskId);
         allow update, delete: if false;
       }
+
+      match /uploads/{uploadId} {
+        allow read: if isSignedIn() &&
+          canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+        allow create, update, delete: if false; // Metadata upload ditulis server API via Admin SDK.
+      }
     }
 
     match /design_references/{referenceId} {
-      allow read: if isSignedIn();
-      allow write: if false; // TODO: buka saat CRUD referensi dibuat.
-    }
+      allow read: if isSignedIn() &&
+        (resource.data.is_archived == false || isKoordinator());
 
-    match /task_uploads/{uploadId} {
-      allow read: if isSignedIn();
-      allow write: if false; // TODO: buka saat upload Cloudinary dibuat.
+      allow create: if isSignedIn() &&
+        canCreateDesignReferenceData(request.resource.data) &&
+        request.resource.data.id == referenceId;
+
+      allow update: if isSignedIn() &&
+        canUpdateDesignReference() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.organization_id == resource.data.organization_id &&
+        request.resource.data.created_by == resource.data.created_by &&
+        request.resource.data.created_at == resource.data.created_at;
+
+      allow delete: if false;
     }
 
     match /whatsapp_logs/{logId} {
       allow read: if isKoordinator();
-      allow write: if false; // TODO: backend notification only.
+      allow write: if false; // Log WhatsApp ditulis server API via Admin SDK.
     }
 
     match /ai_logs/{logId} {

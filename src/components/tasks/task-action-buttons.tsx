@@ -5,6 +5,7 @@ import { TaskApproveDialog } from "@/components/tasks/task-approve-dialog";
 import { TaskRevisionDialog } from "@/components/tasks/task-revision-dialog";
 import { TaskUpdateStatusDialog } from "@/components/tasks/task-update-status-dialog";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   approveTask,
   requestTaskRevision,
@@ -28,6 +29,7 @@ export function TaskActionButtons({
   currentUser,
   onChanged,
 }: TaskActionButtonsProps) {
+  const { user } = useAuth();
   const [statusOpen, setStatusOpen] = useState(false);
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
@@ -35,6 +37,29 @@ export function TaskActionButtons({
   const allowedStatuses = getAllowedStatusOptions(currentUser, task);
   const canUpdate = canUpdateTaskStatus(currentUser, task);
   const canApprove = canApproveTaskWorkflow(currentUser, task);
+
+  async function sendWorkflowNotification(payload: Record<string, unknown>) {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+      await fetch("/api/notifications/whatsapp", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          ...payload,
+        }),
+      });
+    } catch {
+      // Aksi workflow tetap dianggap berhasil walau notifikasi gagal.
+    }
+  }
 
   async function submitStatus(
     status: TaskStatus,
@@ -48,6 +73,15 @@ export function TaskActionButtons({
       note: note || stuckNotes || `Status diubah ke ${status}.`,
       stuckNotes,
     });
+    await sendWorkflowNotification({
+      eventType:
+        status === "stuck" || status === "butuh_bantuan"
+          ? "task_help_needed"
+          : "task_status_changed",
+      status,
+      note,
+      stuckNotes,
+    });
     await onChanged();
   }
 
@@ -57,6 +91,10 @@ export function TaskActionButtons({
       changedBy: currentUser.id,
       revisionNotes,
     });
+    await sendWorkflowNotification({
+      eventType: "task_revision_requested",
+      revisionNotes,
+    });
     await onChanged();
   }
 
@@ -64,6 +102,9 @@ export function TaskActionButtons({
     await approveTask({
       task,
       changedBy: currentUser.id,
+    });
+    await sendWorkflowNotification({
+      eventType: "task_approved",
     });
     await onChanged();
   }

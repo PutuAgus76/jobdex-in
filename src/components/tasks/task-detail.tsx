@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskActionButtons } from "@/components/tasks/task-action-buttons";
@@ -9,16 +8,18 @@ import { TaskActivityLog } from "@/components/tasks/task-activity-log";
 import { TaskApprovalBadge } from "@/components/tasks/task-approval-badge";
 import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
+import { TaskUploadSection } from "@/components/tasks/task-upload-section";
 import { TaskWorkflowPanel } from "@/components/tasks/task-workflow-panel";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import { TASK_STATUS_LABELS } from "@/lib/task-status";
-import type { Event, Task, TaskStatusLog, UserProfile } from "@/types";
+import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/types";
 
 type TaskDetailProps = {
   task: Task;
   usersById: Map<string, UserProfile>;
   eventsById: Map<string, Event>;
   logs: TaskStatusLog[];
+  uploads: TaskUpload[];
   currentUser: UserProfile;
   onChanged: () => Promise<void>;
 };
@@ -39,6 +40,7 @@ export function TaskDetail({
   usersById,
   eventsById,
   logs,
+  uploads,
   currentUser,
   onChanged,
 }: TaskDetailProps) {
@@ -138,16 +140,13 @@ export function TaskDetail({
         </Card>
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <EmptyState
-          title="Upload hasil desain tersedia di fase berikutnya"
-          description="Integrasi Cloudinary dan preview hasil desain belum dikerjakan pada Fase 8."
-        />
-        <EmptyState
-          title="Notifikasi otomatis tersedia di fase berikutnya"
-          description="WhatsApp notification dan reminder deadline belum dikerjakan pada Fase 8."
-        />
-      </section>
+      <TaskUploadSection
+        task={task}
+        uploads={uploads}
+        currentUser={currentUser}
+        usersById={usersById}
+        onUploaded={onChanged}
+      />
 
       <TaskActivityLog logs={logs} usersById={usersById} />
     </div>

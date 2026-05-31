@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -220,6 +221,24 @@ function TaskForm({
             <Field label="Link Google Drive referensi">
               <Input value={driveReferenceUrl} onChange={(event) => setDriveReferenceUrl(event.target.value)} placeholder="https://..." />
             </Field>
+          </div>
+
+          <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">
+                  Butuh inspirasi desain?
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Buka arsip referensi desain untuk melihat style lama, link Drive, dan palette.
+                </p>
+              </div>
+              <Button asChild type="button" variant="secondary" size="sm">
+                <Link href="/dashboard/references" target="_blank">
+                  Buka Referensi
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <Field label="Color palette">

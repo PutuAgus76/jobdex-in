@@ -7,11 +7,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getEventsForProfile } from "@/lib/firebase/events";
-import { getMembers } from "@/lib/firebase/members";
+import { getMembers, getUsersByIds } from "@/lib/firebase/members";
 import { getTaskStatusLogs } from "@/lib/firebase/task-status-logs";
+import { getTaskUploads } from "@/lib/firebase/task-uploads";
 import { getTaskById } from "@/lib/firebase/tasks";
 import { canReadTask } from "@/lib/permissions";
-import type { Event, Task, TaskStatusLog, UserProfile } from "@/types";
+import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/types";
 
 export default function TaskDetailPage() {
   const params = useParams<{ taskId: string }>();
@@ -21,6 +22,7 @@ export default function TaskDetailPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [logs, setLogs] = useState<TaskStatusLog[]>([]);
+  const [uploads, setUploads] = useState<TaskUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const taskId = params.taskId;
@@ -46,16 +48,31 @@ export default function TaskDetailPage() {
         return;
       }
 
-      const [usersData, eventsData, logData] = await Promise.all([
+      const [usersData, eventsData, logData, uploadData] = await Promise.all([
         getMembers().catch(() => [userProfile]),
         getEventsForProfile(userProfile).catch(() => []),
         getTaskStatusLogs(taskId).catch(() => []),
+        getTaskUploads(taskId).catch(() => []),
       ]);
+      const userIdsFromLogs = logData.map((log) => log.changed_by);
+      const missingLogUserIds = userIdsFromLogs.filter(
+        (userId) =>
+          userId &&
+          !usersData.some((user) => user.id === userId) &&
+          userId !== userProfile.id,
+      );
+      const logUsers = missingLogUserIds.length
+        ? await getUsersByIds(missingLogUserIds).catch(() => [])
+        : [];
+      const usersByUniqueId = new Map(
+        [...usersData, userProfile, ...logUsers].map((user) => [user.id, user]),
+      );
 
       setTask(taskData);
-      setUsers(usersData.length ? usersData : [userProfile]);
+      setUsers([...usersByUniqueId.values()]);
       setEvents(eventsData);
       setLogs(logData);
+      setUploads(uploadData);
     } catch {
       setError("Gagal memuat detail task. Periksa izin akses dan Firestore Rules.");
     } finally {
@@ -97,6 +114,7 @@ export default function TaskDetailPage() {
       usersById={usersById}
       eventsById={eventsById}
       logs={logs}
+      uploads={uploads}
       currentUser={userProfile}
       onChanged={loadDetail}
     />

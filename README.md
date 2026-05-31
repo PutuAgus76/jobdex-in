@@ -423,3 +423,171 @@ Cara cek status logs:
 4. Pastikan setiap perubahan status membuat dokumen log baru.
 
 Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar workflow task dan status logs bekerja.
+
+## Upload Cloudinary dan WhatsApp Fase 9
+
+Detail task `/dashboard/tasks/[taskId]` sekarang memiliki section `Hasil Desain`.
+
+Fitur yang tersedia:
+
+- Upload hasil desain JPG, JPEG, PNG, atau WEBP maksimal 10MB
+- Upload dilakukan lewat server API `POST /api/uploads/task-result`
+- File dikirim ke Cloudinary folder `jobdex/{organizationId}/tasks/{taskId}`
+- Metadata upload disimpan di `tasks/{taskId}/uploads`
+- Preview gambar terbaru dan riwayat upload tampil di detail task
+- Setelah upload berhasil, status task menjadi `menunggu_approval`
+- Status log baru dibuat di `tasks/{taskId}/status_logs`
+- Notifikasi WhatsApp dikirim lewat server API dan semua hasilnya dicatat di `whatsapp_logs`
+- Jika WhatsApp gagal, upload tetap dianggap sukses dan log gagal tetap tersimpan
+
+Environment server-side yang dibutuhkan:
+
+```env
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+WABLAS_API_URL=
+WABLAS_API_TOKEN=
+WABLAS_SECRET_KEY=
+WABLAS_DEVICE_ID=
+WABLAS_GROUP_ID=isi_id_grup_whatsapp_valid
+WABLAS_SEND_TO_GROUP=true
+FIREBASE_ADMIN_PROJECT_ID=
+FIREBASE_ADMIN_CLIENT_EMAIL=
+FIREBASE_ADMIN_PRIVATE_KEY=
+```
+
+Jangan gunakan env server-side di komponen client. Cloudinary, Wablas, dan Firebase Admin hanya dipanggil dari API route/server helper.
+
+Cara test upload Cloudinary:
+
+1. Login sebagai `super_admin`, koordinator task, atau PIC task.
+2. Buka `/dashboard/tasks/[taskId]`.
+3. Pada section `Hasil Desain`, klik `Upload Hasil Desain`.
+4. Pilih file JPG/PNG/WEBP di bawah 10MB.
+5. Pastikan preview muncul, riwayat upload bertambah, dan status task menjadi `Menunggu Approval`.
+6. Cek Firestore di `tasks/{taskId}/uploads`.
+
+Cara test file tidak valid:
+
+1. Upload file selain JPG/PNG/WEBP atau file lebih dari 10MB.
+2. Aplikasi akan menampilkan error dan tidak membuat metadata upload.
+
+Cara test WhatsApp notification:
+
+1. Pastikan Wablas env sudah benar.
+2. Upload hasil desain atau lakukan aksi workflow seperti update status, stuck/butuh bantuan, minta revisi, atau approve.
+3. Cek grup WhatsApp tujuan.
+4. Cek Wablas Report dan pastikan Type pesan adalah `Group`, bukan `Personal`.
+5. Cek Firestore collection `whatsapp_logs`.
+
+Payload Wablas dikirim dari server API dalam mode grup:
+
+```json
+{
+  "phone": "isi_id_grup_whatsapp_valid",
+  "message": "isi pesan JobDex.in",
+  "isGroup": "true"
+}
+```
+
+Jika `WABLAS_DEVICE_ID` diisi, server juga menambahkan field `device_id`. Token dan secret hanya dipakai di header server-side dan tidak disimpan ke Firestore.
+
+Cara test WhatsApp gagal:
+
+1. Pakai konfigurasi Wablas development yang tidak valid sementara.
+2. Upload hasil desain.
+3. Upload tetap sukses, tetapi UI menampilkan warning bahwa notifikasi WhatsApp gagal.
+4. Firestore `whatsapp_logs` berisi status `failed`.
+
+Jika `WABLAS_GROUP_ID` kosong atau belum diatur, server tidak memanggil Wablas dan akan membuat log `failed` dengan pesan `WABLAS_GROUP_ID belum diatur di environment variables.`.
+
+Firestore `whatsapp_logs` menyimpan `recipient`, `recipient_type: "group"`, dan `is_group: true` untuk membantu debugging mode pengiriman.
+
+Cara test upload ulang saat status sudah `menunggu_approval`:
+
+1. Upload hasil desain pertama sampai status task menjadi `Menunggu Approval`.
+2. Upload file hasil desain kedua pada task yang sama.
+3. Riwayat upload bertambah dan preview terbaru berubah.
+4. Activity log tidak membuat entri `Menunggu Approval ke Menunggu Approval`.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar read metadata upload tetap aman. Metadata upload dan WhatsApp log ditulis oleh server API menggunakan Firebase Admin SDK, sehingga client write tetap ditutup.
+
+## Arsip Referensi Desain Fase 10A
+
+Halaman `/dashboard/references` sekarang menjadi arsip referensi desain dari collection `design_references`.
+
+Struktur data utama:
+
+```txt
+design_references/{referenceId}
+```
+
+Fitur yang tersedia:
+
+- Melihat referensi desain aktif untuk semua user login
+- Tambah referensi untuk super admin, koordinator divisi, dan koordinator acara
+- Edit/archive referensi untuk super admin dan koordinator divisi
+- Koordinator acara hanya bisa edit/archive referensi yang dia buat
+- Anggota biasa hanya bisa melihat referensi aktif
+- Search judul, nama acara, style notes, dan catatan
+- Filter jenis desain, tahun, dan nama acara
+- Preview thumbnail URL jika tersedia
+- Link Google Drive
+- Color palette preview
+- Detail referensi
+- Integrasi ringan dari form task melalui link `Buka Referensi`
+
+Jenis desain yang tersedia:
+
+```txt
+poster, name_tag, twibbon, feed_ig, story_ig, banner, sertifikat,
+dokumentasi, animasi, merchandise, lainnya
+```
+
+Cara test sebagai super admin:
+
+1. Login sebagai `super_admin`.
+2. Buka `/dashboard/references`.
+3. Klik `Tambah Referensi`.
+4. Isi judul, jenis desain, tahun, link Drive/thumbnail opsional, palette, dan catatan.
+5. Simpan, lalu coba `Detail`, `Edit`, dan `Archive`.
+6. Aktifkan filter `Archived` untuk melihat referensi yang sudah diarsipkan.
+
+Cara test sebagai koordinator divisi:
+
+1. Login sebagai `koordinator_divisi`.
+2. Buka `/dashboard/references`.
+3. Tambah, edit, dan archive referensi.
+4. Pastikan referensi aktif tetap terlihat oleh semua user login.
+
+Cara test sebagai koordinator acara:
+
+1. Login sebagai `koordinator_acara`.
+2. Tambah referensi baru.
+3. Pastikan user tersebut bisa edit/archive referensi yang dia buat.
+4. Pastikan referensi milik user lain tidak menampilkan aksi edit/archive.
+
+Cara test sebagai anggota:
+
+1. Login sebagai `anggota`.
+2. Buka `/dashboard/references`.
+3. Pastikan referensi aktif tampil.
+4. Pastikan tombol `Tambah Referensi`, `Edit`, dan `Archive` tidak tampil.
+
+Cara test search dan filter:
+
+1. Buat beberapa referensi dengan jenis desain, tahun, dan nama acara berbeda.
+2. Gunakan kolom search untuk mencari judul/acara/catatan.
+3. Gunakan filter jenis desain, tahun, dan nama acara.
+4. Pastikan hasil berubah tanpa error.
+
+Validasi form:
+
+- Judul wajib diisi.
+- Jenis desain wajib dipilih.
+- Tahun harus 2020 sampai 2035.
+- URL Drive dan thumbnail harus diawali `http://` atau `https://` jika diisi.
+- Color palette harus hex, contoh `#185FA5, #378ADD, #E6F1FB`.
+
+Setelah update `firestore.rules`, publish ulang rules dari Firebase Console agar CRUD arsip referensi berjalan sesuai role.
