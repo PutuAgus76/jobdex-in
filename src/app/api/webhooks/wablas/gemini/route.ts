@@ -169,8 +169,15 @@ function extractCandidates(payload: unknown): Record<string, string> {
   candidates["data.key.participant"] = getStr(dataKeyObj.participant);
   candidates["data.key.remoteJid"] = getStr(dataKeyObj.remoteJid);
 
-  // Group participants candidates
-  const group = (root.group && typeof root.group === "object") ? (root.group as Record<string, unknown>) : {};
+  // Group participants candidates (extract from root or data.group)
+  let group = (root.group && typeof root.group === "object") ? (root.group as Record<string, unknown>) : {};
+  if (!group.participants) {
+    const dataGroup = (data.group && typeof data.group === "object") ? (data.group as Record<string, unknown>) : {};
+    if (dataGroup.participants) {
+      group = dataGroup;
+    }
+  }
+
   const participants = Array.isArray(group.participants) ? group.participants : [];
 
   const getParticipantSender = (idx: number): string => {
@@ -227,93 +234,6 @@ function cleanPhone(val: unknown): string {
   return "";
 }
 
-function getSenderCandidates(payload: unknown) {
-  const groupSenders: string[] = [];
-  const groupJids: string[] = [];
-  const directFields: string[] = [];
-  const rootSenders: string[] = [];
-
-  if (!payload || typeof payload !== "object") {
-    return { groupSenders, groupJids, directFields, rootSenders };
-  }
-
-  const root = payload as Record<string, unknown>;
-  const data = (root.data && typeof root.data === "object") ? (root.data as Record<string, unknown>) : {};
-  const keyObj = (root.key && typeof root.key === "object") ? (root.key as Record<string, unknown>) : {};
-  const dataKeyObj = (data.key && typeof data.key === "object") ? (data.key as Record<string, unknown>) : {};
-
-  // Extract from group participants
-  const processParticipants = (participants: unknown[]) => {
-    for (const p of participants) {
-      if (p && typeof p === "object") {
-        const pRecord = p as Record<string, unknown>;
-        const s = cleanPhone(pRecord.sender);
-        if (s && s !== "6287798799068") {
-          groupSenders.push(s);
-        }
-        
-        const jidStr = String(pRecord.jid || "").toLowerCase();
-        if (jidStr && !jidStr.includes("@lid")) {
-          const j = cleanPhone(pRecord.jid);
-          if (j && j !== "6287798799068") {
-            groupJids.push(j);
-          }
-        }
-      }
-    }
-  };
-
-  const rootGroup = (root.group && typeof root.group === "object") ? (root.group as Record<string, unknown>) : {};
-  if (Array.isArray(rootGroup.participants)) {
-    processParticipants(rootGroup.participants);
-  }
-  const dataGroup = (data.group && typeof data.group === "object") ? (data.group as Record<string, unknown>) : {};
-  if (Array.isArray(dataGroup.participants)) {
-    processParticipants(dataGroup.participants);
-  }
-
-  // Direct fields (participant / author / key.participant)
-  const addDirect = (val: unknown) => {
-    const cleaned = cleanPhone(val);
-    if (cleaned && cleaned !== "6287798799068") {
-      directFields.push(cleaned);
-    }
-  };
-
-  addDirect(root.participant);
-  addDirect(root.author);
-  addDirect(keyObj.participant);
-  addDirect(data.participant);
-  addDirect(data.author);
-  addDirect(dataKeyObj.participant);
-
-  // Root sender (if not bot and not group ID)
-  const isBotOrGroup = (val: string) => {
-    return val === "6287798799068" || val.startsWith("120363") || val.includes("g.us");
-  };
-
-  const addRoot = (val: unknown) => {
-    const cleaned = cleanPhone(val);
-    if (cleaned && !isBotOrGroup(cleaned)) {
-      rootSenders.push(cleaned);
-    }
-  };
-
-  addRoot(root.sender);
-  addRoot(root.from);
-  addRoot(root.phone);
-  addRoot(data.sender);
-  addRoot(data.from);
-  addRoot(data.phone);
-
-  return {
-    groupSenders: [...new Set(groupSenders)],
-    groupJids: [...new Set(groupJids)],
-    directFields: [...new Set(directFields)],
-    rootSenders: [...new Set(rootSenders)],
-  };
-}
-
 export async function POST(request: NextRequest) {
   const configuredSecret = getWebhookSecret();
   const requestSecret = request.nextUrl.searchParams.get("secret") ?? "";
@@ -327,99 +247,129 @@ export async function POST(request: NextRequest) {
   const question = extractJobDexQuestion(incoming.message);
 
   // --- RESOLVE SENDER FROM CANDIDATES & LOOKUP FIRESTORE ---
-  const candidates = getSenderCandidates(payload);
-  const orderedPhoneCandidates = [
-    ...candidates.groupSenders,
-    ...candidates.groupJids,
-    ...candidates.directFields,
-    ...candidates.rootSenders
-  ];
+  interface CandidateSource {
+    source: string;
+    raw: string;
+    normalized: string;
+  }
+
+  const detailedCandidates: CandidateSource[] = [];
+
+  const rootGroup = (payload as Record<string, unknown>).group as Record<string, unknown> || {};
+  const dataPayloadObj = (payload as Record<string, unknown>).data as Record<string, unknown> || {};
+  const dataGroup = dataPayloadObj.group as Record<string, unknown> || {};
+
+  const processParticipantsForSource = (participants: unknown[], isData: boolean) => {
+    participants.forEach((p, idx) => {
+      if (p && typeof p === "object") {
+        const pRecord = p as Record<string, unknown>;
+        const srcPrefix = isData ? `data.group.participants[${idx}]` : `group.participants[${idx}]`;
+        
+        // 1. sender
+        const rawSender = String(pRecord.sender || "");
+        const normSender = cleanPhone(pRecord.sender);
+        if (normSender && normSender !== "6287798799068") {
+          detailedCandidates.push({
+            source: `${srcPrefix}.sender`,
+            raw: rawSender,
+            normalized: normSender,
+          });
+        }
+
+        // 2. jid (only if valid and doesn't contain @lid)
+        const rawJid = String(pRecord.jid || "");
+        if (rawJid && !rawJid.toLowerCase().includes("@lid")) {
+          const normJid = cleanPhone(pRecord.jid);
+          if (normJid && normJid !== "6287798799068") {
+            detailedCandidates.push({
+              source: `${srcPrefix}.jid`,
+              raw: rawJid,
+              normalized: normJid,
+            });
+          }
+        }
+      }
+    });
+  };
+
+  if (Array.isArray(rootGroup.participants)) {
+    processParticipantsForSource(rootGroup.participants, false);
+  }
+  if (Array.isArray(dataGroup.participants)) {
+    processParticipantsForSource(dataGroup.participants, true);
+  }
+
+  // Direct fields
+  const addDirectSource = (key: string, val: unknown) => {
+    const rawVal = String(val || "");
+    const cleaned = cleanPhone(val);
+    if (cleaned && cleaned !== "6287798799068") {
+      detailedCandidates.push({
+        source: key,
+        raw: rawVal,
+        normalized: cleaned,
+      });
+    }
+  };
+
+  const rootObj = payload as Record<string, unknown>;
+  const keyObj = (rootObj.key && typeof rootObj.key === "object") ? (rootObj.key as Record<string, unknown>) : {};
+  const dataKeyObj = (dataPayloadObj.key && typeof dataPayloadObj.key === "object") ? (dataPayloadObj.key as Record<string, unknown>) : {};
+
+  addDirectSource("participant", rootObj.participant);
+  addDirectSource("author", rootObj.author);
+  addDirectSource("key.participant", keyObj.participant);
+  addDirectSource("data.participant", dataPayloadObj.participant);
+  addDirectSource("data.author", dataPayloadObj.author);
+  addDirectSource("data.key.participant", dataKeyObj.participant);
+
+  // Root sender (if not bot and not group ID)
+  const isBotOrGroup = (val: string) => {
+    return val === "6287798799068" || val.startsWith("120363") || val.includes("g.us");
+  };
+
+  const addRootSource = (key: string, val: unknown) => {
+    const rawVal = String(val || "");
+    const cleaned = cleanPhone(val);
+    if (cleaned && !isBotOrGroup(cleaned)) {
+      detailedCandidates.push({
+        source: key,
+        raw: rawVal,
+        normalized: cleaned,
+      });
+    }
+  };
+
+  addRootSource("sender", rootObj.sender);
+  addRootSource("from", rootObj.from);
+  addRootSource("phone", rootObj.phone);
+  addRootSource("data.sender", dataPayloadObj.sender);
+  addRootSource("data.from", dataPayloadObj.from);
+  addRootSource("data.phone", dataPayloadObj.phone);
 
   let senderUserProfile: UserProfile | null = null;
   let resolvedSenderNumber = incoming.sender;
   let senderSource = "fallback";
 
-  // Priority 1: group.participants[].sender
-  for (const phone of candidates.groupSenders) {
+  for (const cand of detailedCandidates) {
     const userSnapshot = await getAdminDb()
       .collection("users")
-      .where("whatsapp_number", "==", phone)
+      .where("whatsapp_number", "==", cand.normalized)
       .limit(1)
       .get();
+    
     if (!userSnapshot.empty) {
       senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
-      resolvedSenderNumber = phone;
-      senderSource = "group.participants[].sender";
+      resolvedSenderNumber = cand.normalized;
+      senderSource = cand.source;
       break;
     }
   }
 
-  // Priority 2: group.participants[].jid
-  if (!senderUserProfile) {
-    for (const phone of candidates.groupJids) {
-      const userSnapshot = await getAdminDb()
-        .collection("users")
-        .where("whatsapp_number", "==", phone)
-        .limit(1)
-        .get();
-      if (!userSnapshot.empty) {
-        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
-        resolvedSenderNumber = phone;
-        senderSource = "group.participants[].jid";
-        break;
-      }
-    }
-  }
-
-  // Priority 3: participant / author / key.participant
-  if (!senderUserProfile) {
-    for (const phone of candidates.directFields) {
-      const userSnapshot = await getAdminDb()
-        .collection("users")
-        .where("whatsapp_number", "==", phone)
-        .limit(1)
-        .get();
-      if (!userSnapshot.empty) {
-        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
-        resolvedSenderNumber = phone;
-        senderSource = "participant / author / key.participant";
-        break;
-      }
-    }
-  }
-
-  // Priority 4: root sender
-  if (!senderUserProfile) {
-    for (const phone of candidates.rootSenders) {
-      const userSnapshot = await getAdminDb()
-        .collection("users")
-        .where("whatsapp_number", "==", phone)
-        .limit(1)
-        .get();
-      if (!userSnapshot.empty) {
-        senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
-        resolvedSenderNumber = phone;
-        senderSource = "root.sender";
-        break;
-      }
-    }
-  }
-
-  // Fallback if no user found
-  if (!senderUserProfile) {
-    if (candidates.groupSenders.length > 0) {
-      resolvedSenderNumber = candidates.groupSenders[0];
-      senderSource = "group.participants[].sender";
-    } else if (candidates.groupJids.length > 0) {
-      resolvedSenderNumber = candidates.groupJids[0];
-      senderSource = "group.participants[].jid";
-    } else if (candidates.directFields.length > 0) {
-      resolvedSenderNumber = candidates.directFields[0];
-      senderSource = "participant / author / key.participant";
-    } else if (candidates.rootSenders.length > 0) {
-      resolvedSenderNumber = candidates.rootSenders[0];
-      senderSource = "root.sender";
-    }
+  // Fallback: If no registered user is found, pick the first valid non-bot candidate
+  if (!senderUserProfile && detailedCandidates.length > 0) {
+    resolvedSenderNumber = detailedCandidates[0].normalized;
+    senderSource = detailedCandidates[0].source;
   }
 
   // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug"
@@ -437,7 +387,7 @@ export async function POST(request: NextRequest) {
       created_at: FieldValue.serverTimestamp(),
       raw_body_sanitized: JSON.parse(JSON.stringify(sanitizedBody)),
       extracted_candidates: candidatesDump,
-      raw_sender_candidates: orderedPhoneCandidates,
+      raw_sender_candidates: detailedCandidates,
       selected_sender: incoming.sender || "",
       normalized_sender: resolvedSenderNumber,
       matched_user_id: senderUserProfile?.id ?? "",
