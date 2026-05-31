@@ -109,6 +109,70 @@ async function createWhatsAppLog({
   });
 }
 
+function sanitizePayload(obj: unknown): unknown {
+  if (!obj || typeof obj !== "object") return obj;
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizePayload);
+  }
+
+  const record = obj as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
+  const sensitiveKeys = ["token", "secret", "authorization", "api_key", "apikey", "password", "credential"];
+
+  for (const key of Object.keys(record)) {
+    const isSensitive = sensitiveKeys.some(
+      (s) => key.toLowerCase().includes(s)
+    );
+    if (isSensitive) {
+      sanitized[key] = "[STRIPPED]";
+    } else {
+      sanitized[key] = sanitizePayload(record[key]);
+    }
+  }
+
+  return sanitized;
+}
+
+function extractCandidates(payload: unknown): Record<string, string> {
+  const candidates: Record<string, string> = {};
+  
+  if (!payload || typeof payload !== "object") return candidates;
+
+  const root = payload as Record<string, unknown>;
+  const data = (root.data && typeof root.data === "object") ? (root.data as Record<string, unknown>) : {};
+  const keyObj = (root.key && typeof root.key === "object") ? (root.key as Record<string, unknown>) : {};
+  const dataKeyObj = (data.key && typeof data.key === "object") ? (data.key as Record<string, unknown>) : {};
+
+  const getStr = (val: unknown): string => {
+    if (typeof val === "string") return val;
+    if (typeof val === "number") return String(val);
+    return "";
+  };
+
+  // Root level candidates
+  candidates["sender"] = getStr(root.sender);
+  candidates["from"] = getStr(root.from);
+  candidates["phone"] = getStr(root.phone);
+  candidates["author"] = getStr(root.author);
+  candidates["participant"] = getStr(root.participant);
+  candidates["sender_number"] = getStr(root.sender_number);
+  candidates["phone_number"] = getStr(root.phone_number);
+  candidates["key.participant"] = getStr(keyObj.participant);
+  candidates["key.remoteJid"] = getStr(keyObj.remoteJid);
+
+  // Data level candidates
+  candidates["data.sender"] = getStr(data.sender);
+  candidates["data.from"] = getStr(data.from);
+  candidates["data.phone"] = getStr(data.phone);
+  candidates["data.author"] = getStr(data.author);
+  candidates["data.participant"] = getStr(data.participant);
+  candidates["data.key.participant"] = getStr(dataKeyObj.participant);
+  candidates["data.key.remoteJid"] = getStr(dataKeyObj.remoteJid);
+
+  return candidates;
+}
+
 export async function POST(request: NextRequest) {
   const configuredSecret = getWebhookSecret();
   const requestSecret = request.nextUrl.searchParams.get("secret") ?? "";
@@ -118,6 +182,33 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await parseRequestBody(request);
+
+  // LOG DEBUG PRE-VALIDATION to Firestore Collection "wablas_incoming_debug"
+  try {
+    const debugRef = getAdminDb().collection("wablas_incoming_debug").doc();
+    const sanitizedBody = sanitizePayload(payload);
+    const candidates = extractCandidates(payload);
+    const incomingTemp = parseWablasIncomingPayload(payload);
+    
+    const available_top_level_keys = Object.keys(payload || {});
+    const available_data_keys = payload && typeof payload === "object" && payload.data && typeof payload.data === "object"
+      ? Object.keys(payload.data)
+      : [];
+
+    await debugRef.set({
+      created_at: FieldValue.serverTimestamp(),
+      raw_body_sanitized: JSON.parse(JSON.stringify(sanitizedBody)),
+      extracted_candidates: candidates,
+      selected_sender: incomingTemp.sender || "",
+      group_id: incomingTemp.groupId || "",
+      message_text: incomingTemp.message || "",
+      available_top_level_keys,
+      available_data_keys,
+    });
+  } catch (debugError) {
+    console.error("Failed to write wablas incoming debug log:", debugError);
+  }
+
   const incoming = parseWablasIncomingPayload(payload);
   const question = extractJobDexQuestion(incoming.message);
 
