@@ -113,11 +113,14 @@ export default function Home() {
             </Link>
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
                 <Link href="/login">Login</Link>
               </Button>
-              <Button asChild className="jd-btn-dark">
-                <Link href="/dashboard">Masuk Dashboard</Link>
+              <Button asChild variant="primary" size="sm">
+                <Link href="/dashboard">
+                  <span className="hidden sm:inline">Masuk Dashboard</span>
+                  <span className="sm:hidden">Masuk</span>
+                </Link>
               </Button>
             </div>
           </nav>

@@ -17,7 +17,7 @@ export function CardHeader({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pb-3", className)} {...props} />;
+  return <div className={cn("p-4 md:p-5 pb-2 md:pb-3", className)} {...props} />;
 }
 
 export function CardTitle({
@@ -36,5 +36,5 @@ export function CardContent({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("p-5 pt-0", className)} {...props} />;
+  return <div className={cn("p-4 md:p-5 pt-0", className)} {...props} />;
 }

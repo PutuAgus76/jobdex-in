@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { getDashboardNavigation } from "@/lib/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
@@ -12,14 +11,17 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
 
-function getMobileNavItemClass(isActive: boolean) {
-  const base = "shrink-0 px-3 py-2 text-sm font-semibold transition-colors";
-
-  if (isActive) {
-    return `${base} jd-sidebar-active`;
-  }
-
-  return `${base} jd-sidebar-item`;
+function getPageTitle(pathname: string): string {
+  if (pathname === "/dashboard") return "Ringkasan";
+  if (pathname.startsWith("/dashboard/tasks")) return "Job Desk";
+  if (pathname.startsWith("/dashboard/events")) return "Acara";
+  if (pathname.startsWith("/dashboard/members")) return "Anggota";
+  if (pathname.startsWith("/dashboard/references")) return "Referensi";
+  if (pathname.startsWith("/dashboard/ai")) return "AI Assistant";
+  if (pathname.startsWith("/dashboard/setup")) return "Setup";
+  if (pathname.startsWith("/dashboard/settings")) return "Pengaturan";
+  if (pathname.startsWith("/dashboard/profile")) return "Profile";
+  return "Dashboard";
 }
 
 export function DashboardTopbar() {
@@ -27,7 +29,7 @@ export function DashboardTopbar() {
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const navItems = getDashboardNavigation(userProfile);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -37,63 +39,104 @@ export function DashboardTopbar() {
 
   return (
     <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-      <div className="flex min-h-16 flex-col gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+      <div className="flex min-h-16 items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <div>
-          <div className="flex items-center gap-3 lg:hidden">
-            <Link href="/" className="text-lg font-bold text-slate-950 dark:text-white">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-lg font-black text-slate-950 dark:text-white">
               JobDex.in
             </Link>
-            <Badge>Dashboard</Badge>
+            <Badge>{getPageTitle(pathname)}</Badge>
           </div>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 lg:mt-0">
+          <p className="hidden md:block mt-1 text-sm text-slate-500 dark:text-slate-400">
             Pantau koordinasi job desk, acara, anggota, dan referensi desain.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="hidden text-right text-sm sm:block">
-            <p className="font-semibold text-slate-950 dark:text-white">
-              {userProfile?.name ?? user?.displayName ?? "Anggota"}
-            </p>
-            <div className="mt-1 flex justify-end">
-              <RoleBadge role={userProfile?.role} />
+        
+        <div className="flex items-center gap-2">
+          {/* Desktop Direct Actions */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="text-right text-sm mr-2">
+              <p className="font-semibold text-slate-950 dark:text-white leading-none">
+                {userProfile?.name ?? user?.displayName ?? "Anggota"}
+              </p>
+              <div className="mt-1 flex justify-end">
+                <RoleBadge role={userProfile?.role} />
+              </div>
             </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard/profile">Profile</Link>
+            </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/">Landing</Link>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? "Keluar..." : "Logout"}
+            </Button>
           </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/dashboard/profile">Profile</Link>
-          </Button>
-          <Button asChild variant="secondary" size="sm">
-            <Link href="/">Landing</Link>
-          </Button>
+
+          {/* Theme Toggle is always visible and extremely compact */}
           <ThemeToggle />
-          <Button
-            type="button"
-            size="sm"
-            variant="destructive"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-          >
-            {isLoggingOut ? "Keluar..." : "Logout"}
-          </Button>
+
+          {/* Mobile Account Menu Dropdown */}
+          <div className="relative sm:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="gap-1 px-2.5"
+            >
+              <span className="text-xs">Akun</span>
+              <span className="text-[10px] opacity-60">▼</span>
+            </Button>
+
+            {menuOpen ? (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 z-20 rounded-[8px] p-2 space-y-1 jd-surface shadow-xl">
+                  <div className="px-2 py-1.5 border-b border-slate-100 dark:border-slate-800 mb-1">
+                    <p className="text-xs font-bold text-slate-950 dark:text-slate-50 truncate">
+                      {userProfile?.name ?? user?.displayName ?? "Anggota"}
+                    </p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">
+                      {userProfile?.role?.replace("_", " ") ?? "Anggota"}
+                    </p>
+                  </div>
+                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-left h-9 px-2" onClick={() => setMenuOpen(false)}>
+                    <Link href="/dashboard/profile">Profile Saya</Link>
+                  </Button>
+                  <Button asChild variant="ghost" size="sm" className="w-full justify-start text-left h-9 px-2" onClick={() => setMenuOpen(false)}>
+                    <Link href="/">Landing Page</Link>
+                  </Button>
+                  <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    className="w-full justify-start h-9 px-2 text-left"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      void handleLogout();
+                    }}
+                    disabled={isLoggingOut}
+                  >
+                    {isLoggingOut ? "Keluar..." : "Logout"}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
       </div>
-      <nav className="flex gap-2 overflow-x-auto border-t border-slate-200 px-4 py-3 dark:border-slate-800 sm:px-6 lg:hidden">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={getMobileNavItemClass(isActive)}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
     </header>
   );
 }

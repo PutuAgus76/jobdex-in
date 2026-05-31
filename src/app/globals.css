@@ -352,7 +352,7 @@ a {
 }
 
 .jd-soft-glow {
-  position: relative;
+  position: relative !important;
 }
 
 .jd-soft-glow::before {
@@ -364,4 +364,77 @@ a {
   opacity: 0.6;
   pointer-events: none;
   z-index: -1;
+}
+
+/* ========================================================
+   5. MOBILE RESPONSIVE LAYOUTS & SAFE AREAS
+   ======================================================== */
+.jd-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.25rem;
+  background: var(--jd-card);
+  border-top: 1px solid var(--jd-border);
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+.jd-bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  border-radius: 12px;
+  padding: 0.45rem 0.25rem;
+  color: var(--jd-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.jd-bottom-nav-item:hover {
+  background: var(--jd-card-2);
+  color: var(--jd-fg);
+}
+
+.jd-bottom-nav-active {
+  background: #020617 !important;
+  color: #ffffff !important;
+}
+
+.dark .jd-bottom-nav-active {
+  background: #1e293b !important;
+  color: #ffffff !important;
+}
+
+.jd-bottom-nav-active * {
+  color: inherit !important;
+}
+
+@media (min-width: 768px) {
+  .jd-bottom-nav {
+    display: none;
+  }
+}
+
+.jd-mobile-bottom-safe {
+  padding-bottom: 5.5rem;
+}
+
+@media (min-width: 768px) {
+  .jd-mobile-bottom-safe {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Offset the sticky input from the fixed bottom navigation bar on mobile screen sizes */
+  .jd-sticky-bottom-safe {
+    bottom: calc(4.75rem + env(safe-area-inset-bottom)) !important;
+  }
 }

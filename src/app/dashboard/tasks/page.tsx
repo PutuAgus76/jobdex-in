@@ -37,6 +37,15 @@ export default function TasksPage() {
   const [eventFilter, setEventFilter] = useState("all");
   const [deadlineFilter, setDeadlineFilter] = useState<TaskDeadlineFilter>("all");
   const [viewMode, setViewMode] = useState<TaskViewMode>("table");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const timer = setTimeout(() => {
+        setViewMode("card");
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, []);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
