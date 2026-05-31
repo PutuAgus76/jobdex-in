@@ -83,12 +83,13 @@ export async function buildWhatsAppCommandPreview(
 
   const { intent, fields, items = [] } = parsed;
 
-  // Append a general warning if sender is not registered in JobDex.in
+  // Append a success or warning message based on sender registration in JobDex.in
   const getSenderWarning = () => {
     if (!senderProfile) {
       return `\n⚠️ Catatan: Nomor WhatsApp Anda belum terhubung ke akun JobDex.in, sehingga command eksekusi nantinya tidak dapat dijalankan.`;
     }
-    return "";
+    const roleLabel = senderProfile.role?.replace("_", " ") || "anggota";
+    return `\n✅ Pengirim dikenali: ${senderProfile.name} (${roleLabel})`;
   };
 
   switch (intent) {
