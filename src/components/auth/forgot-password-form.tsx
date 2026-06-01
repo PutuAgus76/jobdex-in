@@ -8,6 +8,7 @@ import {
   isValidEmail,
   sendForgotPasswordEmail,
 } from "@/lib/firebase/auth";
+import { showSuccess, showError } from "@/lib/swal";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -31,11 +32,13 @@ export function ForgotPasswordForm() {
 
     try {
       await sendForgotPasswordEmail(trimmedEmail);
-      setSuccessMessage(
-        "Email reset password sudah dikirim. Cek inbox atau folder spam.",
-      );
+      const msg = "Email reset password sudah dikirim. Cek inbox atau folder spam.";
+      setSuccessMessage(msg);
+      await showSuccess(msg, "Email Terkirim");
     } catch (resetError) {
-      setError(getFirebaseAuthErrorMessage(resetError));
+      const errMsg = getFirebaseAuthErrorMessage(resetError);
+      setError(errMsg);
+      await showError(errMsg, "Gagal Mengirim Email");
     } finally {
       setIsSubmitting(false);
     }

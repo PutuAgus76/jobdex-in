@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { canManageTask } from "@/lib/permissions";
 import { formatFileSize, validateImageUpload } from "@/lib/upload-validation";
 import type { Task, TaskUpload, UserProfile } from "@/types";
+import { showSuccess, showError, showWarning } from "@/lib/swal";
 
 type TaskUploadSectionProps = {
   task: Task;
@@ -50,11 +51,13 @@ export function TaskUploadSection({
     const validation = validateImageUpload(file);
 
     if (!validation.valid) {
+      void showError(validation.error, "Upload Gagal");
       setError(validation.error);
       return;
     }
 
     if (!user) {
+      void showError("Sesi login tidak ditemukan. Silakan login ulang.", "Error");
       setError("Sesi login tidak ditemukan. Silakan login ulang.");
       return;
     }
@@ -83,19 +86,22 @@ export function TaskUploadSection({
         throw new Error(result.error ?? "Upload hasil desain gagal.");
       }
 
+      void showSuccess("Hasil desain berhasil diunggah! Status task diubah menjadi Menunggu Approval.");
       setMessage("Upload berhasil. Task dipindahkan ke Menunggu Approval.");
 
       if (!result.whatsappSent) {
+        void showWarning("Upload berhasil, tetapi notifikasi WhatsApp gagal dikirim.");
         setWarning("Upload berhasil, tetapi notifikasi WhatsApp gagal dikirim.");
       }
 
       await onUploaded();
     } catch (uploadError) {
-      setError(
+      const errMsg =
         uploadError instanceof Error
           ? uploadError.message
-          : "Upload hasil desain gagal.",
-      );
+          : "Upload hasil desain gagal.";
+      void showError(errMsg, "Upload Gagal");
+      setError(errMsg);
     } finally {
       setUploading(false);
     }

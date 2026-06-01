@@ -11,6 +11,7 @@ import {
   isValidEmail,
   loginWithEmailPassword,
 } from "@/lib/firebase/auth";
+import { showSuccess, showError } from "@/lib/swal";
 
 export function LoginForm() {
   const router = useRouter();
@@ -44,9 +45,12 @@ export function LoginForm() {
 
     try {
       await loginWithEmailPassword(email.trim(), password);
+      await showSuccess("Anda berhasil masuk ke dashboard.", "Login Sukses");
       router.replace("/dashboard");
     } catch (loginError) {
-      setError(getFirebaseAuthErrorMessage(loginError));
+      const errMsg = getFirebaseAuthErrorMessage(loginError);
+      setError(errMsg);
+      await showError(errMsg, "Login Gagal");
     } finally {
       setIsSubmitting(false);
     }

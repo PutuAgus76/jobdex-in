@@ -17,6 +17,8 @@ import { createTask, getTasksByEvent } from "@/lib/firebase/tasks";
 import { canManageEvent, isAnggota } from "@/lib/permissions";
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
+import { showConfirm, showSuccess, showError } from "@/lib/swal";
+
 export default function EventDetailPage() {
   const params = useParams<{ eventId: string }>();
   const router = useRouter();
@@ -76,13 +78,18 @@ export default function EventDetailPage() {
       return;
     }
 
-    await addEventMember({
-      eventId: event.id,
-      userId,
-      roleInEvent,
-      addedBy: userProfile.id,
-    });
-    await loadDetail();
+    try {
+      await addEventMember({
+        eventId: event.id,
+        userId,
+        roleInEvent,
+        addedBy: userProfile.id,
+      });
+      void showSuccess("Anggota berhasil ditambahkan ke acara!");
+      await loadDetail();
+    } catch {
+      void showError("Gagal menambahkan anggota ke acara.");
+    }
   }
 
   async function handleRemoveMember(userId: string) {
@@ -90,8 +97,24 @@ export default function EventDetailPage() {
       return;
     }
 
-    await removeEventMember(event.id, userId);
-    await loadDetail();
+    const confirmed = await showConfirm({
+      title: "Hapus Anggota Acara",
+      text: "Apakah Anda yakin ingin mengeluarkan anggota ini dari acara?",
+      confirmButtonText: "Ya, Keluarkan",
+      cancelButtonText: "Batal",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await removeEventMember(event.id, userId);
+      void showSuccess("Anggota berhasil dikeluarkan dari acara!");
+      await loadDetail();
+    } catch {
+      void showError("Gagal mengeluarkan anggota dari acara.");
+    }
   }
 
   async function handleCreateTask(input: TaskInput) {
@@ -99,8 +122,13 @@ export default function EventDetailPage() {
       return;
     }
 
-    await createTask(input, userProfile.id);
-    await loadDetail();
+    try {
+      await createTask(input, userProfile.id);
+      void showSuccess("Job desk berhasil ditambahkan ke acara!");
+      await loadDetail();
+    } catch {
+      void showError("Gagal menambahkan job desk.");
+    }
   }
 
   if (loading) {

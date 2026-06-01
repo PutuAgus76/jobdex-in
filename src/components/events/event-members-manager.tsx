@@ -9,6 +9,7 @@ import type { EventMember, UserProfile } from "@/types";
 
 type EventMembersManagerProps = {
   eventId: string;
+  eventName?: string;
   eventMembers: EventMember[];
   users: UserProfile[];
   canManage: boolean;
@@ -22,6 +23,7 @@ export function EventMembersManager({
   canManage,
   onAdd,
   onRemove,
+  eventName,
 }: EventMembersManagerProps) {
   const [addOpen, setAddOpen] = useState(false);
   const usersById = new Map(users.map((user) => [user.id, user]));
@@ -30,7 +32,9 @@ export function EventMembersManager({
     <div className="space-y-4">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">Anggota acara</h2>
+          <h2 className="text-xl font-bold text-slate-950 dark:text-slate-50">
+            {eventName ? `Anggota ${eventName}` : "Anggota acara"}
+          </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Kelola anggota yang terlibat pada acara ini.
           </p>
@@ -44,7 +48,7 @@ export function EventMembersManager({
 
       {eventMembers.length === 0 ? (
         <EmptyState
-          title="Belum ada anggota acara"
+          title={eventName ? `Belum ada anggota ${eventName}` : "Belum ada anggota acara"}
           description="Tambahkan anggota yang terlibat agar koordinasi acara lebih jelas."
         />
       ) : (

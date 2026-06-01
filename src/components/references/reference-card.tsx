@@ -60,13 +60,28 @@ export function ReferenceCard({
           <Button type="button" size="sm" variant="secondary" onClick={() => onView(reference)}>
             Detail
           </Button>
-          {reference.drive_url ? (
-            <Button asChild size="sm" variant="secondary">
-              <a href={reference.drive_url} target="_blank" rel="noreferrer">
-                Buka Drive
-              </a>
-            </Button>
-          ) : null}
+          {(() => {
+            const driveLinks = reference.drive_links || (reference.drive_url ? [reference.drive_url] : []);
+            const canvaLinks = reference.canva_links || [];
+            return (
+              <>
+                {driveLinks.length > 0 ? (
+                  <Button asChild size="sm" variant="secondary">
+                    <a href={driveLinks[0]} target="_blank" rel="noreferrer">
+                      Buka Drive
+                    </a>
+                  </Button>
+                ) : null}
+                {canvaLinks.length > 0 ? (
+                  <Button asChild size="sm" variant="secondary">
+                    <a href={canvaLinks[0]} target="_blank" rel="noreferrer">
+                      Buka Canva
+                    </a>
+                  </Button>
+                ) : null}
+              </>
+            );
+          })()}
           {canEdit ? (
             <>
               <Button type="button" size="sm" variant="ghost" onClick={() => onEdit(reference)}>

@@ -377,6 +377,10 @@ export async function confirmPreviewCommand(
 
         await batch.commit();
 
+        if (isAcara && eventId) {
+          await recalculateEventProgressAdmin(eventId);
+        }
+
         return {
           success: true,
           replyText: [
@@ -556,6 +560,10 @@ export async function confirmPreviewCommand(
 
         await batch.commit();
 
+        if (isAcara && eventId) {
+          await recalculateEventProgressAdmin(eventId);
+        }
+
         return {
           success: true,
           replyText: `✅ ${items.length} Job desk berhasil dibuat sekaligus.\n\nTipe: ${globalTipe.charAt(0).toUpperCase() + globalTipe.slice(1)}\n${isAcara ? `Acara: ${resolvedEventName}\n` : ""}Dibuat oleh: ${user.name}`,
@@ -650,5 +658,66 @@ export async function confirmPreviewCommand(
       success: false,
       replyText: `[JobDex.in AI]\n\n❌ Terjadi kesalahan internal saat menulis ke database: ${err instanceof Error ? err.message : "Kesalahan tidak diketahui"}`,
     };
+  }
+}
+
+export function getTaskProgressWeightAdmin(status: string): number {
+  switch (status) {
+    case "approved":
+      return 100;
+    case "menunggu_approval":
+      return 85;
+    case "draft_selesai":
+      return 70;
+    case "perlu_revisi":
+    case "revisi_dikerjakan":
+      return 65;
+    case "butuh_bantuan":
+    case "stuck":
+      return 40;
+    case "sedang_dikerjakan":
+    case "menunggu_materi":
+      return 30;
+    case "belum_dimulai":
+    case "ditunda":
+    default:
+      return 0;
+  }
+}
+
+export async function recalculateEventProgressAdmin(eventId: string) {
+  if (!eventId) return 0;
+  try {
+    const db = getAdminDb();
+    const snapshot = await db.collection("tasks")
+      .where("event_id", "==", eventId)
+      .where("is_archived", "==", false)
+      .get();
+      
+    const tasks = snapshot.docs.map(doc => doc.data());
+    
+    if (tasks.length === 0) {
+      await db.collection("events").doc(eventId).update({
+        progress_percentage: 0,
+        updated_at: FieldValue.serverTimestamp(),
+      });
+      return 0;
+    }
+    
+    let totalWeight = 0;
+    for (const task of tasks) {
+      totalWeight += getTaskProgressWeightAdmin(task.status || "");
+    }
+    
+    const progress = Math.round(totalWeight / tasks.length);
+    await db.collection("events").doc(eventId).update({
+      progress_percentage: progress,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+    
+    return progress;
+  } catch (error) {
+    console.error("Gagal menghitung progress acara (Admin SDK):", error);
+    return 0;
   }
 }

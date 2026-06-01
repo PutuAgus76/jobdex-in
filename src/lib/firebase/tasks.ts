@@ -75,6 +75,76 @@ export async function getTaskById(taskId: string) {
   } as Task;
 }
 
+export function getTaskProgressWeight(status: string): number {
+  switch (status) {
+    case "approved":
+      return 100;
+    case "menunggu_approval":
+      return 85;
+    case "draft_selesai":
+      return 70;
+    case "perlu_revisi":
+    case "revisi_dikerjakan":
+      return 65;
+    case "butuh_bantuan":
+    case "stuck":
+      return 40;
+    case "sedang_dikerjakan":
+    case "menunggu_materi":
+      return 30;
+    case "belum_dimulai":
+    case "ditunda":
+    default:
+      return 0;
+  }
+}
+
+export async function recalculateEventProgress(eventId: string): Promise<number> {
+  if (!eventId) return 0;
+  try {
+    const tasksRef = collection(db, "tasks");
+    const q = query(
+      tasksRef,
+      where("event_id", "==", eventId),
+      where("is_archived", "==", false)
+    );
+    const snapshot = await getDocs(q);
+    const tasks = snapshot.docs.map((doc) => doc.data() as Task);
+
+    if (tasks.length === 0) {
+      try {
+        await updateDoc(doc(db, "events", eventId), {
+          progress_percentage: 0,
+          updated_at: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn("Recalculate event progress ignored (no permission):", err);
+      }
+      return 0;
+    }
+
+    let totalWeight = 0;
+    for (const task of tasks) {
+      totalWeight += getTaskProgressWeight(task.status);
+    }
+
+    const progress = Math.round(totalWeight / tasks.length);
+    try {
+      await updateDoc(doc(db, "events", eventId), {
+        progress_percentage: progress,
+        updated_at: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Recalculate event progress ignored (no permission):", err);
+    }
+
+    return progress;
+  } catch (error) {
+    console.error("Gagal menghitung ulang progress acara:", error);
+    return 0;
+  }
+}
+
 export async function createTask(input: TaskInput, createdBy: string) {
   const taskRef = await addDoc(collection(db, "tasks"), {
     organization_id: DEFAULT_ORGANIZATION_ID,
@@ -104,10 +174,17 @@ export async function createTask(input: TaskInput, createdBy: string) {
     updated_at: serverTimestamp(),
   });
 
+  if (input.type === "acara" && input.event_id) {
+    await recalculateEventProgress(input.event_id);
+  }
+
   return taskRef.id;
 }
 
 export async function updateTask(taskId: string, input: TaskInput) {
+  const oldDoc = await getDoc(doc(db, "tasks", taskId));
+  const oldData = oldDoc.exists() ? oldDoc.data() : null;
+
   await updateDoc(doc(db, "tasks", taskId), {
     type: input.type,
     division_id: input.type === "divisi" ? DEFAULT_DIVISION_ID : "",
@@ -127,13 +204,27 @@ export async function updateTask(taskId: string, input: TaskInput) {
     visual_direction: input.visual_direction,
     updated_at: serverTimestamp(),
   });
+
+  if (oldData && oldData.type === "acara" && oldData.event_id) {
+    await recalculateEventProgress(oldData.event_id);
+  }
+  if (input.type === "acara" && input.event_id && input.event_id !== oldData?.event_id) {
+    await recalculateEventProgress(input.event_id);
+  }
 }
 
 export async function archiveTask(taskId: string) {
+  const oldDoc = await getDoc(doc(db, "tasks", taskId));
+  const oldData = oldDoc.exists() ? oldDoc.data() : null;
+
   await updateDoc(doc(db, "tasks", taskId), {
     is_archived: true,
     updated_at: serverTimestamp(),
   });
+
+  if (oldData && oldData.type === "acara" && oldData.event_id) {
+    await recalculateEventProgress(oldData.event_id);
+  }
 }
 
 export function formatTaskDate(value: unknown) {

@@ -7,6 +7,7 @@ import { EventTasksSection } from "@/components/tasks/event-tasks-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatEventDate } from "@/lib/firebase/events";
+import { getTaskProgressWeight } from "@/lib/firebase/tasks";
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 type EventDetailProps = {
@@ -32,6 +33,12 @@ export function EventDetail({
 }: EventDetailProps) {
   const usersById = new Map(users.map((user) => [user.id, user]));
   const coordinator = usersById.get(event.coordinator_id);
+
+  // Recalculate event progress dynamically client-side for absolute real-time accuracy!
+  const activeTasks = tasks.filter((t) => t.event_id === event.id && !t.is_archived);
+  const computedProgress = activeTasks.length > 0
+    ? Math.round(activeTasks.reduce((sum, t) => sum + getTaskProgressWeight(t.status), 0) / activeTasks.length)
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -77,7 +84,7 @@ export function EventDetail({
           </CardHeader>
           <CardContent>
             <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">
-              {event.progress_percentage ?? 0}%
+              {computedProgress}%
             </p>
           </CardContent>
         </Card>
@@ -95,6 +102,7 @@ export function EventDetail({
 
       <EventMembersManager
         eventId={event.id}
+        eventName={event.name}
         users={users}
         eventMembers={eventMembers}
         canManage={canManage}

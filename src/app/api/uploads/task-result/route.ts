@@ -5,6 +5,7 @@ import { canUploadTaskResult, getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import { notifyTaskEvent } from "@/lib/server/notifications";
 import type { Task } from "@/types";
+import { recalculateEventProgressAdmin } from "@/lib/server/whatsapp-command-executor";
 
 export const runtime = "nodejs";
 
@@ -108,6 +109,10 @@ export async function POST(request: NextRequest) {
     }
 
     await batch.commit();
+
+    if (task.type === "acara" && task.event_id) {
+      await recalculateEventProgressAdmin(task.event_id);
+    }
 
     const notification = await notifyTaskEvent({
       eventType: "task_result_uploaded",

@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   orderBy,
   query,
@@ -11,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { Task, TaskStatus, TaskStatusLog } from "@/types";
+import { recalculateEventProgress } from "./tasks";
 
 export async function getTaskStatusLogs(taskId: string) {
   const snapshot = await getDocs(
@@ -63,6 +65,10 @@ export async function updateTaskStatusWithLog({
   });
 
   await batch.commit();
+
+  if (task.type === "acara" && task.event_id) {
+    await recalculateEventProgress(task.event_id);
+  }
 }
 
 export async function requestTaskRevision({
@@ -95,6 +101,10 @@ export async function requestTaskRevision({
   });
 
   await batch.commit();
+
+  if (task.type === "acara" && task.event_id) {
+    await recalculateEventProgress(task.event_id);
+  }
 }
 
 export async function approveTask({
@@ -126,6 +136,10 @@ export async function approveTask({
   });
 
   await batch.commit();
+
+  if (task.type === "acara" && task.event_id) {
+    await recalculateEventProgress(task.event_id);
+  }
 }
 
 export async function appendTaskStatusLog({
@@ -153,8 +167,16 @@ export async function updateTaskStatusOnly(
   taskId: string,
   toStatus: TaskStatus,
 ) {
-  await updateDoc(doc(db, "tasks", taskId), {
+  const taskRef = doc(db, "tasks", taskId);
+  const taskSnap = await getDoc(taskRef);
+  const taskData = taskSnap.exists() ? taskSnap.data() : null;
+
+  await updateDoc(taskRef, {
     status: toStatus,
     updated_at: serverTimestamp(),
   });
+
+  if (taskData && taskData.type === "acara" && taskData.event_id) {
+    await recalculateEventProgress(taskData.event_id);
+  }
 }

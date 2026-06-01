@@ -12,6 +12,7 @@ import {
   normalizeWhatsAppNumber,
   registerWithEmailPassword,
 } from "@/lib/firebase/auth";
+import { showSuccess, showError } from "@/lib/swal";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -72,9 +73,12 @@ export function RegisterForm() {
         password,
         whatsapp_number: normalizedWhatsapp,
       });
+      await showSuccess("Akun Anda berhasil didaftarkan.", "Registrasi Sukses");
       router.replace("/dashboard");
     } catch (registerError) {
-      setError(getFirebaseAuthErrorMessage(registerError));
+      const errMsg = getFirebaseAuthErrorMessage(registerError);
+      setError(errMsg);
+      await showError(errMsg, "Registrasi Gagal");
     } finally {
       setIsSubmitting(false);
     }

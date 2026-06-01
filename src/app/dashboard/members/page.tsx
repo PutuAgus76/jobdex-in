@@ -17,6 +17,8 @@ import { getMembers, updateMember } from "@/lib/firebase/members";
 import { canManageMembers } from "@/lib/permissions";
 import type { MemberUpdateInput, UserProfile, UserRole } from "@/types";
 
+import { showConfirm, showSuccess, showError } from "@/lib/swal";
+
 export default function MembersPage() {
   return (
     <PermissionGuard canAccess={canManageMembers}>
@@ -70,7 +72,7 @@ function MembersManagement() {
 
     return members.filter((member) => {
       const matchesSearch =
-        !query ||
+         !query ||
         member.name?.toLowerCase().includes(query) ||
         member.email?.toLowerCase().includes(query);
       const matchesRole = roleFilter === "all" || member.role === roleFilter;
@@ -90,12 +92,18 @@ function MembersManagement() {
       return;
     }
 
-    const canUpdateRole = userProfile.role === "super_admin";
-    await updateMember(memberId, input, canUpdateRole);
-    await loadMembers();
+    try {
+      const canUpdateRole = userProfile.role === "super_admin";
+      await updateMember(memberId, input, canUpdateRole);
+      await loadMembers();
 
-    if (memberId === userProfile.id) {
-      await reloadUserProfile();
+      if (memberId === userProfile.id) {
+        await reloadUserProfile();
+      }
+      void showSuccess("Data anggota berhasil diperbarui!");
+    } catch (err) {
+      void showError("Gagal menyimpan perubahan anggota.");
+      throw err;
     }
   }
 
@@ -105,17 +113,40 @@ function MembersManagement() {
     }
 
     if (userProfile.role !== "super_admin" && member.role === "super_admin") {
-      setError("Koordinator divisi tidak dapat mengubah status super admin.");
+      void showError("Koordinator divisi tidak dapat mengubah status super admin.", "Akses Ditolak");
       return;
     }
 
-    await handleSaveMember(member.id, {
-      name: member.name || "-",
-      whatsapp_number: member.whatsapp_number || "",
-      role: member.role,
-      division_id: member.division_id || "humas_media_kreatif",
-      is_active: !member.is_active,
-    });
+    // Confirmation for deactivation
+    if (member.is_active) {
+      const confirmed = await showConfirm({
+        title: "Nonaktifkan Anggota",
+        text: `Apakah Anda yakin ingin menonaktifkan ${member.name || "anggota ini"}? Anggota ini tidak akan bisa mengakses JobDex.in.`,
+        confirmButtonText: "Ya, Nonaktifkan",
+        cancelButtonText: "Batal",
+      });
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    try {
+      await updateMember(member.id, {
+        name: member.name || "-",
+        whatsapp_number: member.whatsapp_number || "",
+        role: member.role,
+        division_id: member.division_id || "humas_media_kreatif",
+        is_active: !member.is_active,
+        whatsapp_command_pin: member.whatsapp_command_pin || "",
+      }, userProfile.role === "super_admin");
+      
+      await loadMembers();
+      
+      const statusText = !member.is_active ? "diaktifkan" : "dinonaktifkan";
+      void showSuccess(`Anggota berhasil ${statusText}!`);
+    } catch {
+      void showError("Gagal mengubah status anggota.");
+    }
   }
 
   if (!userProfile) {

@@ -164,6 +164,17 @@ export type DesignReference = {
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
+
+  // New expanded fields
+  scope?: "divisi" | "acara";
+  category?: "divisi" | "acara" | "canva" | "drive" | "video" | "dokumen" | "lainnya";
+  event_id?: string;
+  drive_links?: string[];
+  canva_links?: string[];
+  doc_links?: string[];
+  other_links?: string[];
+  summary_notes?: string;
+  file_inventory_notes?: string;
 };
 
 export type DesignReferenceInput = {
@@ -176,6 +187,17 @@ export type DesignReferenceInput = {
   style_notes: string;
   color_palette: string[];
   notes: string;
+
+  // New expanded fields
+  scope?: "divisi" | "acara";
+  category?: "divisi" | "acara" | "canva" | "drive" | "video" | "dokumen" | "lainnya";
+  event_id?: string;
+  drive_links?: string[];
+  canva_links?: string[];
+  doc_links?: string[];
+  other_links?: string[];
+  summary_notes?: string;
+  file_inventory_notes?: string;
 };
 
 export type WhatsAppLogStatus = "sent" | "failed" | "pending";

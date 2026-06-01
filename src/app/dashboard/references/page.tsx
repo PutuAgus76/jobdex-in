@@ -17,24 +17,29 @@ import {
   getDesignReferencesForProfile,
   updateDesignReference,
 } from "@/lib/firebase/design-references";
+import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
 import { isKoordinator } from "@/lib/permissions";
+import { showConfirm, showSuccess, showError } from "@/lib/swal";
 import type {
   DesignReference,
   DesignReferenceInput,
   DesignType,
   UserProfile,
+  Event,
 } from "@/types";
 
 export default function ReferencesPage() {
   const { userProfile } = useAuth();
   const [references, setReferences] = useState<DesignReference[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [selectedReference, setSelectedReference] = useState<DesignReference | null>(null);
   const [editingReference, setEditingReference] = useState<DesignReference | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [designType, setDesignType] = useState<"all" | DesignType>("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "divisi" | "acara">("all");
   const [year, setYear] = useState("");
   const [eventName, setEventName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -50,13 +55,15 @@ export default function ReferencesPage() {
     setError("");
 
     try {
-      const [referencesData, usersData] = await Promise.all([
+      const [referencesData, usersData, eventsData] = await Promise.all([
         getDesignReferencesForProfile(userProfile),
         getMembers().catch(() => [userProfile]),
+        getEventsForProfile(userProfile).catch(() => []),
       ]);
 
       setReferences(referencesData);
       setUsers(usersData.length ? usersData : [userProfile]);
+      setEvents(eventsData);
     } catch {
       setError("Gagal memuat arsip referensi. Periksa koneksi dan Firestore Rules.");
     } finally {
@@ -74,18 +81,23 @@ export default function ReferencesPage() {
   );
   const canCreate = canCreateDesignReference(userProfile);
   const canShowArchived = isKoordinator(userProfile);
-  const eventNames = useMemo(
-    () =>
-      [...new Set(references.map((item) => item.event_name).filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b)),
-    [references],
-  );
+
+  const eventNames = useMemo(() => {
+    const list = references.map((item) => item.event_name).filter(Boolean);
+    // Add names from loaded events if they have references or if we want them as options
+    events.forEach(e => {
+      if (e.name) list.push(e.name);
+    });
+    return [...new Set(list)].sort((a, b) => a.localeCompare(b));
+  }, [references, events]);
+
   const years = useMemo(
     () =>
       [...new Set(references.map((item) => item.year).filter(Boolean))]
         .sort((a, b) => b - a),
     [references],
   );
+
   const filteredReferences = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -95,6 +107,7 @@ export default function ReferencesPage() {
         reference.event_name,
         reference.notes,
         reference.style_notes,
+        reference.file_inventory_notes,
       ]
         .join(" ")
         .toLowerCase();
@@ -104,38 +117,61 @@ export default function ReferencesPage() {
       const matchesYear = !year || String(reference.year) === year;
       const matchesEvent = !eventName || reference.event_name === eventName;
       const matchesArchive = showArchived ? true : !reference.is_archived;
+      const matchesScope =
+        scopeFilter === "all" ||
+        (scopeFilter === "divisi" && (!reference.scope || reference.scope === "divisi")) ||
+        (scopeFilter === "acara" && reference.scope === "acara");
 
       return (
         matchesSearch &&
         matchesDesignType &&
         matchesYear &&
         matchesEvent &&
-        matchesArchive
+        matchesArchive &&
+        matchesScope
       );
     });
-  }, [designType, eventName, references, search, showArchived, year]);
+  }, [designType, eventName, references, search, showArchived, year, scopeFilter]);
 
   async function handleSave(input: DesignReferenceInput, referenceId?: string) {
     if (!userProfile) {
       return;
     }
 
-    if (referenceId) {
-      await updateDesignReference(referenceId, input);
-    } else {
-      await createDesignReference(input, userProfile.id);
+    try {
+      if (referenceId) {
+        await updateDesignReference(referenceId, input);
+        await showSuccess("Referensi berhasil diperbarui.", "Sukses");
+      } else {
+        await createDesignReference(input, userProfile.id);
+        await showSuccess("Referensi baru berhasil ditambahkan.", "Sukses");
+      }
+      await loadReferences();
+    } catch {
+      await showError("Gagal menyimpan referensi ke database.", "Error");
     }
-
-    await loadReferences();
   }
 
   async function handleArchive(reference: DesignReference) {
-    if (!window.confirm(`Archive referensi "${reference.title}"?`)) {
+    const confirmed = await showConfirm({
+      title: "Archive Referensi?",
+      text: `Apakah Anda yakin ingin mengarsipkan referensi "${reference.title}"?`,
+      confirmButtonText: "Ya, Arsipkan",
+      cancelButtonText: "Batal",
+      icon: "warning",
+    });
+
+    if (!confirmed) {
       return;
     }
 
-    await archiveDesignReference(reference.id);
-    await loadReferences();
+    try {
+      await archiveDesignReference(reference.id);
+      await showSuccess(`Referensi "${reference.title}" berhasil diarsipkan.`, "Sukses");
+      await loadReferences();
+    } catch {
+      await showError("Gagal mengarsipkan referensi.", "Error");
+    }
   }
 
   function openCreateForm() {
@@ -164,7 +200,7 @@ export default function ReferencesPage() {
             Arsip Referensi Desain
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Catat desain lama, link Drive, style visual, supergrafis, dan color
+            Catat desain lama, link Drive/Canva ganda, style visual, supergrafis, dan color
             palette agar anggota baru punya sumber inspirasi yang rapi.
           </p>
           <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -181,6 +217,7 @@ export default function ReferencesPage() {
       <ReferenceFilters
         search={search}
         designType={designType}
+        scopeFilter={scopeFilter}
         year={year}
         eventName={eventName}
         eventNames={eventNames}
@@ -189,6 +226,7 @@ export default function ReferencesPage() {
         canShowArchived={canShowArchived}
         onSearchChange={setSearch}
         onDesignTypeChange={setDesignType}
+        onScopeFilterChange={setScopeFilter}
         onYearChange={setYear}
         onEventNameChange={setEventName}
         onShowArchivedChange={setShowArchived}
@@ -219,6 +257,7 @@ export default function ReferencesPage() {
       <ReferenceFormDialog
         open={formOpen}
         reference={editingReference}
+        events={events}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
       />

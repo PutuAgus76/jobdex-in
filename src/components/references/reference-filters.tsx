@@ -7,6 +7,7 @@ import type { DesignType } from "@/types";
 type ReferenceFiltersProps = {
   search: string;
   designType: "all" | DesignType;
+  scopeFilter: "all" | "divisi" | "acara";
   year: string;
   eventName: string;
   eventNames: string[];
@@ -15,6 +16,7 @@ type ReferenceFiltersProps = {
   canShowArchived: boolean;
   onSearchChange: (value: string) => void;
   onDesignTypeChange: (value: "all" | DesignType) => void;
+  onScopeFilterChange: (value: "all" | "divisi" | "acara") => void;
   onYearChange: (value: string) => void;
   onEventNameChange: (value: string) => void;
   onShowArchivedChange: (value: boolean) => void;
@@ -26,6 +28,7 @@ const selectClassName =
 export function ReferenceFilters({
   search,
   designType,
+  scopeFilter,
   year,
   eventName,
   eventNames,
@@ -34,12 +37,13 @@ export function ReferenceFilters({
   canShowArchived,
   onSearchChange,
   onDesignTypeChange,
+  onScopeFilterChange,
   onYearChange,
   onEventNameChange,
   onShowArchivedChange,
 }: ReferenceFiltersProps) {
   return (
-    <div className="grid gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:grid-cols-[1.3fr_1fr_0.8fr_1fr_auto]">
+    <div className="grid gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_auto]">
       <Input
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
@@ -47,10 +51,19 @@ export function ReferenceFilters({
       />
       <select
         className={selectClassName}
+        value={scopeFilter}
+        onChange={(event) => onScopeFilterChange(event.target.value as "all" | "divisi" | "acara")}
+      >
+        <option value="all">Semua Skope (Divisi/Acara)</option>
+        <option value="divisi">Skope Divisi</option>
+        <option value="acara">Skope Acara</option>
+      </select>
+      <select
+        className={selectClassName}
         value={designType}
         onChange={(event) => onDesignTypeChange(event.target.value as "all" | DesignType)}
       >
-        <option value="all">Semua jenis</option>
+        <option value="all">Semua jenis visual</option>
         {DESIGN_TYPE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}

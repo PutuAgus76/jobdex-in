@@ -25,6 +25,8 @@ function getPageTitle(pathname: string): string {
   return "Dashboard";
 }
 
+import { showSuccess } from "@/lib/swal";
+
 export function DashboardTopbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -45,6 +47,7 @@ export function DashboardTopbar() {
   async function handleLogout() {
     setIsLoggingOut(true);
     await logoutUser();
+    await showSuccess("Anda berhasil keluar dari akun.", "Logout Sukses");
     router.replace("/login");
   }
 

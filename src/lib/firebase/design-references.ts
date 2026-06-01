@@ -71,6 +71,17 @@ export async function createDesignReference(
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
+    
+    // New fields
+    scope: input.scope || "divisi",
+    category: input.category || "lainnya",
+    event_id: input.event_id || "",
+    drive_links: input.drive_links || [],
+    canva_links: input.canva_links || [],
+    doc_links: input.doc_links || [],
+    other_links: input.other_links || [],
+    summary_notes: input.summary_notes || "",
+    file_inventory_notes: input.file_inventory_notes || "",
   });
 
   return referenceRef.id;
@@ -91,6 +102,17 @@ export async function updateDesignReference(
     color_palette: input.color_palette,
     notes: input.notes,
     updated_at: serverTimestamp(),
+
+    // New fields
+    scope: input.scope || "divisi",
+    category: input.category || "lainnya",
+    event_id: input.event_id || "",
+    drive_links: input.drive_links || [],
+    canva_links: input.canva_links || [],
+    doc_links: input.doc_links || [],
+    other_links: input.other_links || [],
+    summary_notes: input.summary_notes || "",
+    file_inventory_notes: input.file_inventory_notes || "",
   });
 }
 

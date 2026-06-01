@@ -19,6 +19,7 @@ import {
 import { getMembers } from "@/lib/firebase/members";
 import { canCreateEvent, isAnggota } from "@/lib/permissions";
 import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
+import { showSuccess, showError } from "@/lib/swal";
 
 export default function EventsPage() {
   const { userProfile } = useAuth();
@@ -135,13 +136,19 @@ function EventsManagement() {
       return;
     }
 
-    if (eventId) {
-      await updateEvent(eventId, input);
-    } else {
-      await createEvent(input, userProfile.id);
+    try {
+      if (eventId) {
+        await updateEvent(eventId, input);
+        void showSuccess("Acara berhasil diperbarui!");
+      } else {
+        await createEvent(input, userProfile.id);
+        void showSuccess("Acara baru berhasil ditambahkan!");
+      }
+      await loadEvents();
+    } catch (err) {
+      void showError("Gagal menyimpan acara.");
+      throw err;
     }
-
-    await loadEvents();
   }
 
   if (!userProfile) {

@@ -21,6 +21,7 @@ import {
 } from "@/lib/firebase/tasks";
 import { canCreateTask, canManageTask } from "@/lib/permissions";
 import type { Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
+import { showConfirm, showSuccess, showError } from "@/lib/swal";
 
 export default function TasksPage() {
   const { userProfile } = useAuth();
@@ -128,18 +129,40 @@ export default function TasksPage() {
       return;
     }
 
-    if (taskId) {
-      await updateTask(taskId, input);
-    } else {
-      await createTask(input, userProfile.id);
+    try {
+      if (taskId) {
+        await updateTask(taskId, input);
+        void showSuccess("Job desk berhasil diperbarui!");
+      } else {
+        await createTask(input, userProfile.id);
+        void showSuccess("Job desk baru berhasil ditambahkan!");
+      }
+      await loadData();
+    } catch (err) {
+      void showError("Gagal menyimpan job desk.");
+      throw err;
     }
-
-    await loadData();
   }
 
   async function handleArchiveTask(task: Task) {
-    await archiveTask(task.id);
-    await loadData();
+    const confirmed = await showConfirm({
+      title: "Arsipkan Job Desk",
+      text: `Apakah Anda yakin ingin mengarsipkan job desk "${task.name}"?`,
+      confirmButtonText: "Ya, Arsipkan",
+      cancelButtonText: "Batal",
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await archiveTask(task.id);
+      void showSuccess("Job desk berhasil diarsipkan!");
+      await loadData();
+    } catch {
+      void showError("Gagal mengarsipkan job desk.");
+    }
   }
 
   if (!userProfile) {

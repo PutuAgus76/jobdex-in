@@ -17,6 +17,7 @@ import {
   getAllowedStatusOptions,
 } from "@/lib/task-workflow";
 import type { Task, TaskStatus, UserProfile } from "@/types";
+import { showSuccess, showError } from "@/lib/swal";
 
 type TaskActionButtonsProps = {
   task: Task;
@@ -66,47 +67,62 @@ export function TaskActionButtons({
     note: string,
     stuckNotes?: string,
   ) {
-    await updateTaskStatusWithLog({
-      task,
-      toStatus: status,
-      changedBy: currentUser.id,
-      note: note || stuckNotes || `Status diubah ke ${status}.`,
-      stuckNotes,
-    });
-    await sendWorkflowNotification({
-      eventType:
-        status === "stuck" || status === "butuh_bantuan"
-          ? "task_help_needed"
-          : "task_status_changed",
-      status,
-      note,
-      stuckNotes,
-    });
-    await onChanged();
+    try {
+      await updateTaskStatusWithLog({
+        task,
+        toStatus: status,
+        changedBy: currentUser.id,
+        note: note || stuckNotes || `Status diubah ke ${status}.`,
+        stuckNotes,
+      });
+      void showSuccess("Status job desk berhasil diperbarui!");
+      await sendWorkflowNotification({
+        eventType:
+          status === "stuck" || status === "butuh_bantuan"
+            ? "task_help_needed"
+            : "task_status_changed",
+        status,
+        note,
+        stuckNotes,
+      });
+      await onChanged();
+    } catch {
+      void showError("Gagal memperbarui status job desk.");
+    }
   }
 
   async function submitRevision(revisionNotes: string) {
-    await requestTaskRevision({
-      task,
-      changedBy: currentUser.id,
-      revisionNotes,
-    });
-    await sendWorkflowNotification({
-      eventType: "task_revision_requested",
-      revisionNotes,
-    });
-    await onChanged();
+    try {
+      await requestTaskRevision({
+        task,
+        changedBy: currentUser.id,
+        revisionNotes,
+      });
+      void showSuccess("Revisi job desk berhasil diminta!");
+      await sendWorkflowNotification({
+        eventType: "task_revision_requested",
+        revisionNotes,
+      });
+      await onChanged();
+    } catch {
+      void showError("Gagal meminta revisi.");
+    }
   }
 
   async function submitApprove() {
-    await approveTask({
-      task,
-      changedBy: currentUser.id,
-    });
-    await sendWorkflowNotification({
-      eventType: "task_approved",
-    });
-    await onChanged();
+    try {
+      await approveTask({
+        task,
+        changedBy: currentUser.id,
+      });
+      void showSuccess("Job desk berhasil disetujui!");
+      await sendWorkflowNotification({
+        eventType: "task_approved",
+      });
+      await onChanged();
+    } catch {
+      void showError("Gagal menyetujui job desk.");
+    }
   }
 
   if (!canUpdate && !canApprove) {
