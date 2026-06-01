@@ -10,6 +10,7 @@ import {
 import { bulkCreateDesignReferences } from "@/lib/firebase/design-reference-bulk";
 import { showConfirm, showSuccess, showError, showWarning } from "@/lib/swal";
 import type { DesignReference, DesignReferenceInput, UserProfile, Event } from "@/types";
+import Swal from "sweetalert2";
 
 interface ReferenceBulkImportDialogProps {
   open: boolean;
@@ -396,8 +397,32 @@ export function ReferenceBulkImportDialog({
       void showSuccess(`Berhasil mengimpor ${itemsToSave.length} arsip referensi desain!`, "Impor Sukses");
       await onSuccess();
       handleClose();
-    } catch {
-      void showError("Gagal menyimpan data massal referensi ke database.", "Error");
+    } catch (error: unknown) {
+      console.error("[Bulk Import References] Save failed:", error);
+
+      const err = error as Record<string, unknown>;
+      const errorCode = err?.code ? `Error Code: ${err.code}` : "";
+      const errorMessage = err?.message ? `Error Message: ${err.message}` : "";
+      const errorFallback = !errorCode && !errorMessage ? `Raw Error: ${JSON.stringify(error) || String(error)}` : "";
+
+      void Swal.fire({
+        title: "Gagal menyimpan",
+        html: `
+          <div class="text-left space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <p>Data massal gagal disimpan ke database.</p>
+            ${errorCode ? `<pre class="bg-slate-100 dark:bg-slate-950 p-2 rounded text-xs overflow-x-auto text-rose-600 dark:text-rose-400 font-mono mt-1">${errorCode}</pre>` : ""}
+            ${errorMessage ? `<pre class="bg-slate-100 dark:bg-slate-950 p-2 rounded text-xs overflow-x-auto text-rose-600 dark:text-rose-400 font-mono mt-1">${errorMessage}</pre>` : ""}
+            ${errorFallback ? `<pre class="bg-slate-100 dark:bg-slate-950 p-2 rounded text-xs overflow-x-auto text-rose-600 dark:text-rose-400 font-mono mt-1">${errorFallback}</pre>` : ""}
+          </div>
+        `,
+        icon: "error",
+        confirmButtonText: "OK",
+        customClass: {
+          confirmButton: "jd-btn jd-btn-danger px-6 py-2 rounded-[8px]",
+          popup: "rounded-[8px] bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-50 border border-slate-200 dark:border-slate-800",
+        },
+        buttonsStyling: false,
+      });
     } finally {
       setIsSaving(false);
     }
