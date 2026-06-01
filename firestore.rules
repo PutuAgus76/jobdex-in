@@ -299,6 +299,14 @@ service cloud.firestore {
       allow write: if false; // Log AI ditulis server API via Admin SDK.
     }
 
+    match /whatsapp_task_candidates/{candidateId} {
+      allow read, write: if false;
+    }
+
+    match /whatsapp_task_edit_previews/{previewId} {
+      allow read, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

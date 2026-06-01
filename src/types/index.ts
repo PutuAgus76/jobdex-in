@@ -324,3 +324,33 @@ export type AuthContextValue = {
   isAuthenticated: boolean;
   reloadUserProfile: () => Promise<UserProfile | null>;
 };
+
+export type TaskCandidate = {
+  id: string;
+  code: string;
+  task_id: string;
+  task_title: string;
+  command_type: "approve" | "update_status" | "edit" | "archive" | "checklist";
+  created_at: unknown;
+  expires_at: unknown;
+  status: "pending" | "used" | "expired";
+  requested_by_user_id?: string;
+  payload?: Record<string, unknown> | null;
+};
+
+export type TaskEditPreview = {
+  id: string;
+  code: string;
+  task_id: string;
+  task_title: string;
+  action_type: "edit_task" | "archive_task";
+  changes: Record<string, unknown>;
+  old_values: Record<string, unknown>;
+  requested_by: string;
+  requested_by_name: string;
+  created_at: unknown;
+  expires_at: unknown;
+  status: "pending" | "confirmed" | "cancelled" | "expired";
+  raw_message_sanitized: string;
+};
+

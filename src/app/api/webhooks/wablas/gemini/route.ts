@@ -24,6 +24,18 @@ import {
   cancelPreviewCommand,
   sanitizePinFromMessage,
 } from "@/lib/server/whatsapp-command-executor";
+import {
+  handleDeadlineQuery,
+  handleApproveTaskCommand,
+  handleUpdateTaskStatusCommand,
+  handleEditTaskCommand,
+  handleConfirmEditTaskCommand,
+  handleCancelEditTaskCommand,
+  handleArchiveTaskCommand,
+  handleConfirmArchiveCommand,
+  handleChecklistCommand,
+  validateCommandPin,
+} from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile } from "@/types";
 import {
   isReferenceSearchQuestion,
@@ -463,16 +475,71 @@ export async function POST(request: NextRequest) {
     : resolvedSenderNumber || incoming.sender;
 
   try {
-    const lowerQuestion = question.toLowerCase().trim();
+    const parsedCommand = parseWhatsAppCommand(incoming.message);
+    const intent = parsedCommand.intent;
 
-    // Fase 12C: Detect konfirmasi / batal command first!
-    if (lowerQuestion.startsWith("konfirmasi") || lowerQuestion.startsWith("batal")) {
-      const parsedCommand = parseWhatsAppCommand(incoming.message);
+    // Fase 15C: Bantuan Task Command
+    if (intent === "bantuan_task") {
+      const replyMessage = [
+        "[JobDex.in Bantuan Task]",
+        "",
+        "Command yang tersedia:",
+        "",
+        "1. Cek deadline:",
+        "!jobdex deadline dekat",
+        "!jobdex tugas h-3",
+        "!jobdex tugas overdue",
+        "!jobdex siapa yang stuck",
+        "",
+        "2. Approve task:",
+        "!jobdex approve task Nama Task pin: 9703",
+        "",
+        "3. Update status:",
+        "!jobdex update status Nama Task menjadi sedang dikerjakan pin: 9703",
+        "!jobdex update status Nama Task menjadi stuck catatan: kurang materi pin: 9703",
+        "",
+        "4. Edit task:",
+        "!jobdex edit task Nama Task",
+        "deadline: 5 Juni 2026",
+        "prioritas: kritis",
+        "pic: Nama PIC",
+        "pin: 9703",
+        "",
+        "5. Checklist:",
+        "!jobdex checklist Nama Task redaksi selesai pin: 9703",
+        "!jobdex checklist Nama Task upload selesai pin: 9703"
+      ].join("\n");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Read-only Deadline & Risk Queries (No PIN needed)
+    if (intent === "deadline_query") {
+      const queryType = String(parsedCommand.fields.query_type || "dekat");
+      const replyMessage = await handleDeadlineQuery(queryType);
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 12C: Detect konfirmasi / batal command first (tambah jobdesk / acara)!
+    if (intent === "confirm_command" || intent === "cancel_command") {
       const code = String(parsedCommand.fields.code || "").toUpperCase();
       const pin = String(parsedCommand.fields.pin || "");
 
       let result;
-      if (parsedCommand.intent === "confirm_command") {
+      if (intent === "confirm_command") {
         result = await confirmPreviewCommand(code, pin);
       } else {
         result = await cancelPreviewCommand(code, pin);
@@ -492,11 +559,188 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Fase 15C: Detect konfirmasi / batal edit / archive task
+    if (intent === "confirm_edit" || intent === "cancel_edit" || intent === "confirm_archive") {
+      const code = String(parsedCommand.fields.code || "").toUpperCase();
+      const pin = String(parsedCommand.fields.pin || "");
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Command]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      let result;
+      if (intent === "confirm_edit") {
+        result = await handleConfirmEditTaskCommand(code, pin, validatedUser);
+      } else if (intent === "cancel_edit") {
+        result = await handleCancelEditTaskCommand(code, pin, validatedUser);
+      } else {
+        result = await handleConfirmArchiveCommand(code, pin, validatedUser);
+      }
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Approve Task
+    if (intent === "approve_task") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const pin = String(parsedCommand.fields.pin || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Approval]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      const result = await handleApproveTaskCommand(taskName, pin, validatedUser, isCode);
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Update Status
+    if (intent === "update_status") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const pin = String(parsedCommand.fields.pin || "");
+      const statusVal = String(parsedCommand.fields.status || "");
+      const notes = String(parsedCommand.fields.notes || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Status]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      const result = await handleUpdateTaskStatusCommand(taskName, pin, validatedUser, isCode, statusVal, notes);
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Edit Task
+    if (intent === "edit_task") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const pin = String(parsedCommand.fields.pin || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Edit Task]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      const changesPayload: Record<string, string> = { ...parsedCommand.fields, rawText: incoming.message };
+      delete changesPayload.task_name;
+      delete changesPayload.pin;
+      delete changesPayload.is_code;
+
+      const result = await handleEditTaskCommand(taskName, pin, validatedUser, isCode, changesPayload);
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Archive Task
+    if (intent === "archive_task") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const pin = String(parsedCommand.fields.pin || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Archive]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      const result = await handleArchiveTaskCommand(taskName, pin, validatedUser, isCode);
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // Fase 15C: Checklist Task
+    if (intent === "checklist_task") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const pin = String(parsedCommand.fields.pin || "");
+      const item = String(parsedCommand.fields.item || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = "[JobDex.in Checklist]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
+
+      const result = await handleChecklistCommand(taskName, pin, validatedUser, isCode, item);
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
     const isStructured =
-      lowerQuestion.startsWith("tambah jobdesk") ||
-      lowerQuestion.startsWith("tambah acara") ||
-      lowerQuestion.startsWith("tambah banyak jobdesk") ||
-      lowerQuestion.startsWith("approve task");
+      intent === "create_task_preview" ||
+      intent === "create_event_preview" ||
+      intent === "bulk_create_task_preview" ||
+      intent === "approve_task_preview";
 
     if (isStructured) {
       // 2. Parse command
