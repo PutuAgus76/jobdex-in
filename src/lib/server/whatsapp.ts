@@ -8,16 +8,17 @@ function normalizeBaseUrl(value: string) {
   return value.replace(/\/$/, "");
 }
 
-export async function sendWhatsAppMessage(message: string) {
+export async function sendWhatsAppMessage(message: string, customPhone?: string) {
   const apiUrl = process.env.WABLAS_API_URL;
   const token = process.env.WABLAS_API_TOKEN;
   const secret = process.env.WABLAS_SECRET_KEY;
   const groupId = process.env.WABLAS_GROUP_ID;
   const deviceId = process.env.WABLAS_DEVICE_ID;
-  const sendToGroup = isWhatsAppGroupRecipient();
+  const sendToGroup = customPhone ? false : isWhatsAppGroupRecipient();
+  const recipient = customPhone ? customPhone : groupId;
 
-  if (!groupId) {
-    throw new Error("WABLAS_GROUP_ID belum diatur di environment variables.");
+  if (!recipient) {
+    throw new Error("Penerima WhatsApp belum diatur (groupId dan customPhone kosong).");
   }
 
   if (!apiUrl || !token || !secret) {
@@ -35,7 +36,7 @@ export async function sendWhatsAppMessage(message: string) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      phone: groupId,
+      phone: recipient,
       message,
       isGroup: sendToGroup ? "true" : "false",
       ...(deviceId ? { device_id: deviceId } : {}),
