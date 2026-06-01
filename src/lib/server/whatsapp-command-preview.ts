@@ -4,6 +4,101 @@ import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { ParsedWhatsAppCommand } from "./whatsapp-command-parser";
 import type { UserProfile } from "@/types";
 
+const CASE_1_TEMPLATE = `[JobDex.in AI]
+
+Silakan lengkapi format job desk berikut:
+
+!jobdex tambah jobdesk
+tipe: divisi/acara
+judul: ...
+pic: ...
+deadline: ...
+prioritas: rendah/sedang/tinggi/kritis
+deskripsi: ...
+redaksi: ...
+referensi: ...
+drive: ...
+warna: #185FA5, #EF9F27
+arahan visual: ...
+
+Catatan:
+- Gunakan \`tipe: divisi\` untuk job desk divisi.
+- Gunakan \`tipe: acara\` jika job desk terkait acara.
+- Jika \`tipe: acara\`, tambahkan \`acara: nama acara\`.
+
+Contoh job desk divisi:
+
+!jobdex tambah jobdesk
+tipe: divisi
+judul: Desain PP Grup Inti 26/27
+pic: IPANG NIH BOSS
+deadline: 3 Juni 2026
+prioritas: sedang
+deskripsi: Buat desain PP grup inti
+redaksi: https://docs.google.com/...
+referensi: https://drive.google.com/...
+warna: #185FA5, #EF9F27
+arahan visual: modern, biru elegan`;
+
+const CASE_2_TEMPLATE = `[JobDex.in AI]
+
+Untuk menambahkan job desk acara, gunakan format ini:
+
+!jobdex tambah jobdesk
+tipe: acara
+acara: nama acara
+judul: ...
+pic: ...
+deadline: ...
+prioritas: rendah/sedang/tinggi/kritis
+deskripsi: ...
+redaksi: ...
+referensi: ...
+drive: ...
+warna: ...
+arahan visual: ...
+
+Contoh:
+
+!jobdex tambah jobdesk
+tipe: acara
+acara: PKKMB 2026
+judul: Desain feed opening
+pic: Agus DJ
+deadline: 10 Juni 2026
+prioritas: tinggi
+deskripsi: Buat desain feed opening PKKMB
+redaksi: https://docs.google.com/...
+referensi: https://drive.google.com/...
+warna: #185FA5, #EF9F27
+arahan visual: modern, kampus, biru elegan
+
+Jika acara belum ada di JobDex.in, buat acaranya dulu dengan:
+
+!jobdex tambah acara
+nama: PKKMB 2026
+tanggal: 1 Agustus 2026
+koordinator: Nama Koordinator
+deskripsi: ...`;
+
+const CASE_5_TEMPLATE = `[JobDex.in AI]
+
+Untuk membuat acara, gunakan format:
+
+!jobdex tambah acara
+nama: ...
+tanggal: ...
+koordinator: ...
+deskripsi: ...
+
+Contoh:
+
+!jobdex tambah acara
+nama: PKKMB 2026
+tanggal: 1 Agustus 2026
+koordinator: Sumesta C
+deskripsi: Acara pengenalan kampus mahasiswa baru`;
+
 export const TASK_STATUS_LABELS: Record<string, string> = {
   todo: "Belum Mulai",
   in_progress: "Sedang Dikerjakan",
@@ -94,11 +189,101 @@ export async function buildWhatsAppCommandPreview(
 
   switch (intent) {
     case "create_task_preview": {
-      const tipe = fields.tipe || "Divisi";
+      const cleanedCmd = parsed.rawText.trim().toLowerCase().replace(/^!jobdex/i, "").trim();
+      if (cleanedCmd === "tambah jobdesk") {
+        return {
+          isValid: false,
+          previewText: CASE_1_TEMPLATE,
+        };
+      }
+      if (cleanedCmd === "tambah jobdesk acara") {
+        return {
+          isValid: false,
+          previewText: CASE_2_TEMPLATE,
+        };
+      }
+
+      // Check missing required fields
+      const tipe = fields.tipe || "";
+      const isAcara = tipe.toLowerCase() === "acara";
+
+      const missingFields: string[] = [];
+      if (!fields.tipe) missingFields.push("tipe");
+      if (!fields.judul) missingFields.push("judul");
+      if (!fields.pic) missingFields.push("pic");
+      if (!fields.deadline) missingFields.push("deadline");
+      
+      let priorityInvalid = false;
+      if (!fields.prioritas) {
+        missingFields.push("prioritas");
+      } else {
+        const validPriorities = ["rendah", "sedang", "tinggi", "kritis"];
+        if (!validPriorities.includes(fields.prioritas.toLowerCase().trim())) {
+          missingFields.push("prioritas");
+          priorityInvalid = true;
+        }
+      }
+      if (isAcara && !fields.acara) missingFields.push("acara");
+
+      if (missingFields.length > 0) {
+        // Build Case 3 incomplete guidance
+        const readFields: string[] = [];
+        if (fields.tipe) {
+          const tLabel = tipe.toLowerCase() === "divisi" ? "Divisi" : tipe.toLowerCase() === "acara" ? "Acara" : tipe;
+          readFields.push(`- Tipe: ${tLabel}`);
+        }
+        if (isAcara && fields.acara) readFields.push(`- Acara: ${fields.acara}`);
+        if (fields.judul) readFields.push(`- Judul: ${fields.judul}`);
+        if (fields.pic) readFields.push(`- PIC: ${fields.pic}`);
+        if (fields.deadline) readFields.push(`- Deadline: ${fields.deadline}`);
+        if (fields.prioritas && !priorityInvalid) {
+          const pLabel = fields.prioritas.charAt(0).toUpperCase() + fields.prioritas.slice(1).toLowerCase();
+          readFields.push(`- Prioritas: ${pLabel}`);
+        }
+
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+
+        const dynamicTemplate = [
+          `!jobdex tambah jobdesk`,
+          `tipe: ${fields.tipe || "divisi/acara"}`,
+          isAcara || tipe.toLowerCase() === "acara" ? `acara: ${fields.acara || "..."}` : null,
+          `judul: ${fields.judul || "..."}`,
+          `pic: ${fields.pic || "..."}`,
+          `deadline: ${fields.deadline || "..."}`,
+          `prioritas: ${fields.prioritas && !priorityInvalid ? fields.prioritas.toLowerCase() : "rendah/sedang/tinggi/kritis"}`,
+          `deskripsi: ${fields.deskripsi || "..."}`,
+          fields.redaksi ? `redaksi: ${fields.redaksi}` : null,
+          fields.referensi ? `referensi: ${fields.referensi}` : null,
+          fields.drive ? `drive: ${fields.drive}` : null,
+          fields.warna ? `warna: ${fields.warna}` : null,
+          fields["arahan visual"] || fields.arahan_visual ? `arahan visual: ${fields["arahan visual"] || fields.arahan_visual}` : null,
+        ].filter(Boolean).join("\n");
+
+        const previewText = [
+          `[JobDex.in AI]`,
+          ``,
+          `Data job desk sudah mulai terbaca, tetapi masih kurang:`,
+          ``,
+          readSection,
+          ``,
+          missingSection,
+          ``,
+          `Silakan kirim ulang dengan format:`,
+          ``,
+          dynamicTemplate
+        ].join("\n");
+
+        return {
+          isValid: false,
+          previewText,
+        };
+      }
+
       const judul = fields.judul || "-";
       const picRaw = fields.pic || "-";
       const deadlineRaw = fields.deadline || "-";
-      const prioritas = fields.prioritas || "-";
+      const prioritas = fields.prioritas || "sedang";
       const deskripsi = fields.deskripsi || "-";
       const redaksi = fields.redaksi || "-";
       const referensi = fields.referensi || "-";
@@ -176,7 +361,6 @@ export async function buildWhatsAppCommandPreview(
         ...validations,
         getSenderWarning(),
         ``,
-        `Catatan:`,
         `Preview ini belum disimpan ke database.`
       ]
         .filter((line) => line !== null)
@@ -186,11 +370,64 @@ export async function buildWhatsAppCommandPreview(
     }
 
     case "create_event_preview": {
-      const name = fields.nama || fields.name || "-";
-      const tanggal = fields.tanggal || fields.date || "-";
-      const koordinatorRaw = fields.koordinator || "-";
-      const deskripsi = fields.deskripsi || fields.description || "-";
+      const cleanedCmd = parsed.rawText.trim().toLowerCase().replace(/^!jobdex/i, "").trim();
+      if (cleanedCmd === "tambah acara") {
+        return {
+          isValid: false,
+          previewText: CASE_5_TEMPLATE,
+        };
+      }
 
+      const name = fields.nama || fields.name || "";
+      const tanggal = fields.tanggal || fields.date || "";
+      const koordinatorRaw = fields.koordinator || "";
+      const deskripsi = fields.deskripsi || fields.description || "";
+
+      // Check missing required fields for event
+      const missingFields: string[] = [];
+      if (!name) missingFields.push("nama");
+      if (!tanggal) missingFields.push("tanggal");
+      if (!koordinatorRaw) missingFields.push("koordinator");
+
+      if (missingFields.length > 0) {
+        const readFields: string[] = [];
+        if (name) readFields.push(`- Nama: ${name}`);
+        if (tanggal) readFields.push(`- Tanggal: ${tanggal}`);
+        if (koordinatorRaw) readFields.push(`- Koordinator: ${koordinatorRaw}`);
+
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+
+        const dynamicTemplate = [
+          `!jobdex tambah acara`,
+          `nama: ${name || "..."}`,
+          `tanggal: ${tanggal || "..."}`,
+          `koordinator: ${koordinatorRaw || "..."}`,
+          `deskripsi: ${deskripsi || "..."}`
+        ].join("\n");
+
+        const previewText = [
+          `[JobDex.in AI]`,
+          ``,
+          `Data acara sudah mulai terbaca, tetapi masih kurang:`,
+          ``,
+          readSection,
+          ``,
+          missingSection,
+          ``,
+          `Silakan kirim ulang dengan format:`,
+          ``,
+          dynamicTemplate
+        ].join("\n");
+
+        return {
+          isValid: false,
+          previewText,
+        };
+      }
+
+      const nameVal = name || "-";
+      const tanggalVal = tanggal || "-";
       const koorUser = findUserByName(koordinatorRaw, users);
 
       const validations: string[] = [];
@@ -205,15 +442,15 @@ export async function buildWhatsAppCommandPreview(
       }
 
       // Validate Tanggal
-      if (tanggal && tanggal !== "-") {
-        validations.push(`- Tanggal terbaca: ${tanggal}`);
+      if (tanggalVal && tanggalVal !== "-") {
+        validations.push(`- Tanggal terbaca: ${tanggalVal}`);
       } else {
         validations.push(`- Tanggal tidak terbaca/tidak lengkap`);
         isValid = false;
       }
 
       // Validate required name
-      if (!name || name === "-") {
+      if (!nameVal || nameVal === "-") {
         validations.push(`- Field wajib tidak lengkap (Harap lengkapi: nama)`);
         isValid = false;
       } else {
@@ -225,10 +462,10 @@ export async function buildWhatsAppCommandPreview(
         ``,
         `Saya membaca rencana tambah acara:`,
         ``,
-        `Nama: ${name}`,
-        `Tanggal: ${tanggal}`,
+        `Nama: ${nameVal}`,
+        `Tanggal: ${tanggalVal}`,
         `Koordinator: ${koorUser ? koorUser.name : koordinatorRaw}`,
-        `Deskripsi: ${deskripsi}`,
+        `Deskripsi: ${deskripsi || "-"}`,
         ``,
         `Status validasi:`,
         ...validations,

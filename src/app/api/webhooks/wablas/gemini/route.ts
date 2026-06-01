@@ -520,7 +520,7 @@ export async function POST(request: NextRequest) {
         const instruction = [
           `Preview ID: ${confirmationCode}`,
           `Untuk menyimpan ke database, balas:`,
-          `!jobdex konfirmasi ${confirmationCode} pin: 123456`
+          `!jobdex konfirmasi ${confirmationCode} pin: 1234`
         ].join("\n");
 
         if (replyMessage.includes(oldNote)) {
@@ -532,6 +532,19 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const scrubbedFields: Record<string, string> = {};
+      for (const key of Object.keys(parsedCommand.fields || {})) {
+        scrubbedFields[key] = sanitizePinFromMessage(parsedCommand.fields[key]);
+      }
+
+      const scrubbedItems = (parsedCommand.items || []).map((item) => {
+        const cleaned: Record<string, string> = {};
+        for (const key of Object.keys(item)) {
+          cleaned[key] = sanitizePinFromMessage(item[key]);
+        }
+        return cleaned;
+      });
+
       // 4. Save preview log to Firestore collection ai_command_previews
       const previewLogRef = getAdminDb().collection("ai_command_previews").doc();
       await previewLogRef.set({
@@ -539,8 +552,8 @@ export async function POST(request: NextRequest) {
         source: "whatsapp",
         raw_message: sanitizePinFromMessage(incoming.message),
         parsed_intent: parsedCommand.intent,
-        parsed_fields: parsedCommand.fields || {},
-        parsed_items: parsedCommand.items || [],
+        parsed_fields: scrubbedFields,
+        parsed_items: scrubbedItems,
         preview_text: replyMessage,
         whatsapp_sender: senderLabel,
         whatsapp_group_id: incoming.groupId || "",
