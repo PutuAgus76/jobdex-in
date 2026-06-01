@@ -4,7 +4,7 @@ import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { ParsedWhatsAppCommand } from "./whatsapp-command-parser";
 import type { UserProfile } from "@/types";
 
-const TASK_STATUS_LABELS: Record<string, string> = {
+export const TASK_STATUS_LABELS: Record<string, string> = {
   todo: "Belum Mulai",
   in_progress: "Sedang Dikerjakan",
   stuck: "Stuck/Kendala",
@@ -17,7 +17,7 @@ interface PreviewResult {
   previewText: string;
 }
 
-function findUserByName(picName: string, allUsers: UserProfile[]): UserProfile | null {
+export function findUserByName(picName: string, allUsers: UserProfile[]): UserProfile | null {
   const normPic = picName.toLowerCase().trim();
   if (!normPic || normPic === "-") return null;
   
@@ -34,7 +34,7 @@ function findUserByName(picName: string, allUsers: UserProfile[]): UserProfile |
   return found || null;
 }
 
-function findEventByName(eventName: string, allEvents: Array<{ id: string; name: string }>) {
+export function findEventByName(eventName: string, allEvents: Array<{ id: string; name: string }>) {
   const normEvent = eventName.toLowerCase().trim();
   if (!normEvent) return null;
   

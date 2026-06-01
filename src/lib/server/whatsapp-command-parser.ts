@@ -7,6 +7,8 @@ export type WhatsAppCommandIntent =
   | "bulk_create_task_preview"
   | "approve_task_preview"
   | "progress_question"
+  | "confirm_command"
+  | "cancel_command"
   | "unknown";
 
 export interface ParsedWhatsAppCommand {
@@ -32,7 +34,11 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
   const lowerCleaned = cleaned.toLowerCase();
 
   // 1. Check intent based on command starting words
-  if (lowerCleaned.startsWith("tambah banyak jobdesk")) {
+  if (lowerCleaned.startsWith("konfirmasi")) {
+    return parseConfirmCommand(rawText, cleaned);
+  } else if (lowerCleaned.startsWith("batal")) {
+    return parseCancelCommand(rawText, cleaned);
+  } else if (lowerCleaned.startsWith("tambah banyak jobdesk")) {
     return parseBulkTaskCommand(rawText, cleaned);
   } else if (lowerCleaned.startsWith("tambah jobdesk")) {
     return parseSingleTaskCommand(rawText, cleaned);
@@ -184,6 +190,62 @@ function parseApproveTaskCommand(rawText: string, cleaned: string): ParsedWhatsA
 
   return {
     intent: "approve_task_preview",
+    rawText,
+    fields,
+  };
+}
+
+function parseConfirmCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
+  const fields: Record<string, string> = {};
+  
+  // Format is: konfirmasi <code_id> pin: <pin_code>
+  // e.g. konfirmasi ABC123 pin: 123456
+  // let's use a regex to capture code and pin
+  const match = cleaned.match(/^konfirmasi\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+  if (match) {
+    fields["code"] = match[1].trim().toUpperCase();
+    fields["pin"] = match[2].trim();
+  } else {
+    // Try a looser match if there are spaces or different casing
+    const parts = cleaned.split(/\s+/);
+    if (parts.length >= 2) {
+      fields["code"] = parts[1].trim().toUpperCase();
+    }
+    const pinMatch = cleaned.match(/pin:\s*(\d+)/i);
+    if (pinMatch) {
+      fields["pin"] = pinMatch[1].trim();
+    }
+  }
+
+  return {
+    intent: "confirm_command",
+    rawText,
+    fields,
+  };
+}
+
+function parseCancelCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
+  const fields: Record<string, string> = {};
+  
+  // Format is: batal <code_id> pin: <pin_code>
+  // e.g. batal ABC123 pin: 123456
+  const match = cleaned.match(/^batal\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+  if (match) {
+    fields["code"] = match[1].trim().toUpperCase();
+    fields["pin"] = match[2].trim();
+  } else {
+    const parts = cleaned.split(/\s+/);
+    if (parts.length >= 2) {
+      fields["code"] = parts[1].trim().toUpperCase();
+    }
+    const pinMatch = cleaned.match(/pin:\s*(\d+)/i);
+    if (pinMatch) {
+      fields["pin"] = pinMatch[1].trim();
+    }
+  }
+
+  return {
+    intent: "cancel_command",
     rawText,
     fields,
   };

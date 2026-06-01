@@ -19,6 +19,11 @@ import {
 } from "@/lib/server/wablas-webhook-parser";
 import { parseWhatsAppCommand } from "@/lib/server/whatsapp-command-parser";
 import { buildWhatsAppCommandPreview } from "@/lib/server/whatsapp-command-preview";
+import {
+  confirmPreviewCommand,
+  cancelPreviewCommand,
+  sanitizePinFromMessage,
+} from "@/lib/server/whatsapp-command-executor";
 import type { UserProfile } from "@/types";
 
 export const runtime = "nodejs";
@@ -257,6 +262,35 @@ function extractCandidates(payload: unknown): Record<string, string> {
   return candidates;
 }
 
+function generateConfirmationCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function scrubPinFromPayload(obj: unknown): unknown {
+  if (!obj || typeof obj !== "object") {
+    if (typeof obj === "string") {
+      return sanitizePinFromMessage(obj);
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(scrubPinFromPayload);
+  }
+  
+  const record = obj as Record<string, unknown>;
+  const scrubbed: Record<string, unknown> = {};
+  for (const key of Object.keys(record)) {
+    scrubbed[key] = scrubPinFromPayload(record[key]);
+  }
+  return scrubbed;
+}
+
 function cleanPhone(val: unknown): string {
   const str = getString(val);
   if (!str) return "";
@@ -382,10 +416,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug"
+  // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug" (scrub PIN!)
   try {
     const debugRef = getAdminDb().collection("wablas_incoming_debug").doc();
-    const sanitizedBody = sanitizePayload(payload);
+    const sanitizedBody = scrubPinFromPayload(sanitizePayload(payload));
     const candidatesDump = extractCandidates(payload);
     
     const available_top_level_keys = Object.keys(payload && typeof payload === "object" ? payload : {});
@@ -403,7 +437,7 @@ export async function POST(request: NextRequest) {
       matched_user_role: senderUserProfile?.role ?? "",
       sender_source: senderSource,
       group_id: incoming.groupId || "",
-      message_text: incoming.message || "",
+      message_text: sanitizePinFromMessage(incoming.message || ""),
       group_participant_senders: candidatesDump["group_participant_senders"] || "",
       available_top_level_keys,
       available_data_keys,
@@ -426,6 +460,34 @@ export async function POST(request: NextRequest) {
 
   try {
     const lowerQuestion = question.toLowerCase().trim();
+
+    // Fase 12C: Detect konfirmasi / batal command first!
+    if (lowerQuestion.startsWith("konfirmasi") || lowerQuestion.startsWith("batal")) {
+      const parsedCommand = parseWhatsAppCommand(incoming.message);
+      const code = String(parsedCommand.fields.code || "").toUpperCase();
+      const pin = String(parsedCommand.fields.pin || "");
+
+      let result;
+      if (parsedCommand.intent === "confirm_command") {
+        result = await confirmPreviewCommand(code, pin);
+      } else {
+        result = await cancelPreviewCommand(code, pin);
+      }
+
+      // Send execution reply to WhatsApp group
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+
+      // Save WhatsApp reply log (scrub PIN!)
+      await createWhatsAppLog({
+        message: sanitizePinFromMessage(replyMessage),
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      return NextResponse.json({ ok: true });
+    }
+
     const isStructured =
       lowerQuestion.startsWith("tambah jobdesk") ||
       lowerQuestion.startsWith("tambah acara") ||
@@ -439,22 +501,57 @@ export async function POST(request: NextRequest) {
       // 3. Build command preview (with resolved sender profile!)
       const previewResult = await buildWhatsAppCommandPreview(parsedCommand, senderUserProfile);
 
+      // Generate Preview ID & instruction ONLY if preview is valid and is not approve task (approve task remains preview only)
+      let confirmationCode = "";
+      let status = "failed";
+      let expiresAt: Date | null = null;
+      let replyMessage = previewResult.previewText;
+
+      const isApprove = parsedCommand.intent === "approve_task_preview";
+
+      if (previewResult.isValid && !isApprove) {
+        confirmationCode = generateConfirmationCode();
+        status = "pending";
+        expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+        // Replace the placeholder note or append
+        const oldNote = "Preview ini belum disimpan ke database.";
+        const oldNote2 = "Preview ini belum dijalankan.";
+        const instruction = [
+          `Preview ID: ${confirmationCode}`,
+          `Untuk menyimpan ke database, balas:`,
+          `!jobdex konfirmasi ${confirmationCode} pin: 123456`
+        ].join("\n");
+
+        if (replyMessage.includes(oldNote)) {
+          replyMessage = replyMessage.replace(oldNote, `${instruction}\n\nCatatan:\n${oldNote}`);
+        } else if (replyMessage.includes(oldNote2)) {
+          replyMessage = replyMessage.replace(oldNote2, `${instruction}\n\nCatatan:\n${oldNote2}`);
+        } else {
+          replyMessage = replyMessage + `\n\n${instruction}`;
+        }
+      }
+
       // 4. Save preview log to Firestore collection ai_command_previews
       const previewLogRef = getAdminDb().collection("ai_command_previews").doc();
       await previewLogRef.set({
         id: previewLogRef.id,
         source: "whatsapp",
-        raw_message: incoming.message,
+        raw_message: sanitizePinFromMessage(incoming.message),
         parsed_intent: parsedCommand.intent,
         parsed_fields: parsedCommand.fields || {},
-        preview_text: previewResult.previewText,
+        parsed_items: parsedCommand.items || [],
+        preview_text: replyMessage,
         whatsapp_sender: senderLabel,
         whatsapp_group_id: incoming.groupId || "",
         created_at: FieldValue.serverTimestamp(),
+        // New Fase 12C fields
+        confirmation_code: confirmationCode,
+        status: status,
+        expires_at: expiresAt || null,
       });
 
       // 5. Send preview reply to WhatsApp group
-      const replyMessage = previewResult.previewText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
       
       await createWhatsAppLog({
@@ -475,7 +572,7 @@ export async function POST(request: NextRequest) {
       contextSummary,
       "",
       "PERTANYAAN DARI WHATSAPP:",
-      question,
+      sanitizePinFromMessage(question),
       "",
       "Instruksi jawaban: jawab ringkas, siap dibaca di WhatsApp group, dan jangan memakai data di luar context.",
     ].join("\n");
@@ -489,7 +586,7 @@ export async function POST(request: NextRequest) {
       id: aiLogRef.id,
       organization_id: "main_org",
       asked_by: "whatsapp_bot",
-      question,
+      question: sanitizePinFromMessage(question),
       context_summary: contextSummary.slice(0, 12000),
       answer,
       model_used: GEMINI_MODEL,
@@ -503,7 +600,7 @@ export async function POST(request: NextRequest) {
       "[JobDex.in AI]",
       "",
       "Pertanyaan:",
-      question,
+      sanitizePinFromMessage(question),
       "",
       "Jawaban:",
       answer,

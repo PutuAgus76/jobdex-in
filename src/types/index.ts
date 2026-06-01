@@ -21,6 +21,7 @@ export type UserProfile = {
   is_active: boolean;
   created_at?: unknown;
   updated_at?: unknown;
+  whatsapp_command_pin?: string;
 };
 
 export type EventStatus =
@@ -265,6 +266,7 @@ export type MemberUpdateInput = {
   role?: UserRole;
   division_id: string;
   is_active: boolean;
+  whatsapp_command_pin?: string;
 };
 
 export type AuthContextValue = {

@@ -58,6 +58,9 @@ function MemberEditForm({
   const [whatsappNumber, setWhatsappNumber] = useState(
     member.whatsapp_number ?? "",
   );
+  const [whatsappCommandPin, setWhatsappCommandPin] = useState(
+    member.whatsapp_command_pin ?? "",
+  );
   const [role, setRole] = useState<UserRole>(member.role ?? "anggota");
   const [divisionId, setDivisionId] = useState(
     member.division_id || "humas_media_kreatif",
@@ -99,6 +102,7 @@ function MemberEditForm({
         role,
         division_id: divisionId.trim(),
         is_active: isSelf ? true : isActive,
+        whatsapp_command_pin: whatsappCommandPin.trim(),
       });
       onClose();
     } catch {
@@ -151,6 +155,25 @@ function MemberEditForm({
               onChange={(event) => setWhatsappNumber(event.target.value)}
               placeholder="08xxxxxxxxxx"
             />
+          </div>
+
+          <div>
+            <label
+              htmlFor="member-whatsapp-pin"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              PIN Perintah WhatsApp (6 Digit)
+            </label>
+            <Input
+              id="member-whatsapp-pin"
+              value={whatsappCommandPin}
+              onChange={(event) => setWhatsappCommandPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="Contoh: 123456"
+              maxLength={6}
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Digunakan untuk memvalidasi eksekusi perintah WhatsApp group (Fase 12C).
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

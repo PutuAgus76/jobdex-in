@@ -392,3 +392,62 @@ https://jobdex-in.vercel.app/api/webhooks/wablas/gemini?secret=ISI_SECRET
 - Upload referensi desain ke Cloudinary.
 - Multi-assignee task.
 - Notification retry queue.
+
+## Fase 12C — WhatsApp Command Execution dengan Preview ID + PIN Konfirmasi
+
+Pada Fase 12C, asisten WhatsApp AI `!jobdex` dikembangkan dari yang sebelumnya asisten baca/preview saja menjadi bot yang mampu mengeksekusi perintah terstruktur secara aman ke database Firestore. Alur ini dirancang menggunakan sistem otorisasi **Preview ID + PIN Konfirmasi**.
+
+### Cara Kerja Alur
+
+1. **Pembuatan Preview**:
+   - Pengguna mengirim perintah terstruktur, contoh:
+     ```txt
+     !jobdex tambah jobdesk
+     tipe: divisi
+     judul: Desain Poster HUT
+     pic: Sumesta C
+     deadline: 15 Juni 2026
+     prioritas: tinggi
+     deskripsi: Buat desain poster HUT RI ke-81
+     ```
+   - Bot menganalisis, memvalidasi input, dan mengembalikan teks preview beserta kode unik 6 karakter (`Preview ID`):
+     ```txt
+     [JobDex.in AI Preview]
+     ...
+     Preview ID: XY97R2
+     Untuk menyimpan ke database, balas:
+     !jobdex konfirmasi XY97R2 pin: 123456
+     ```
+   - Status preview disimpan ke Firestore collection `ai_command_previews` dengan status `pending` dan kedaluwarsa dalam 30 menit.
+
+2. **Konfirmasi Eksekusi**:
+   - Pengguna mengirim konfirmasi dengan PIN akunnya:
+     ```txt
+     !jobdex konfirmasi XY97R2 pin: 123456
+     ```
+   - Sistem mencari dokumen preview, memvalidasi kecocokan PIN dengan field `whatsapp_command_pin` di Firestore `users`, memvalidasi batasan peran/role (koordinator/super_admin), dan melakukan penulisan database.
+   - Setelah sukses, status diubah menjadi `confirmed` dan bot membalas dengan visual status tugas baru.
+
+3. **Pembatalan Tindakan**:
+   - Pengguna membatalkan rencana tindakan:
+     ```txt
+     !jobdex batal XY97R2 pin: 123456
+     ```
+   - Sistem memvalidasi PIN dan mengubah status dokumen preview menjadi `cancelled` tanpa menulis data apa pun ke database tugas.
+
+### Cara Pengaturan PIN Pengguna
+
+Super Admin dapat mengatur PIN WhatsApp Command Anggota secara langsung dari dashboard web:
+1. Masuk ke halaman **Manajemen Anggota** (`/dashboard/members`).
+2. Klik tombol **Edit** pada anggota yang dituju.
+3. Masukkan 6 digit angka di kolom **PIN Perintah WhatsApp**.
+4. Klik **Simpan Perubahan**. PIN akan tersimpan secara aman di dokumen user Firestore pada properti `whatsapp_command_pin`.
+
+### Catatan Keamanan Penting (Security Features)
+- **Log Sensor PIN**: Seluruh modul logs (`wablas_incoming_debug`, `whatsapp_logs`, `ai_logs`, dan `ai_command_previews`) dilengkapi parser sanitasi otomatis `sanitizePinFromMessage`. Setiap teks yang memuat pola `pin: <PIN>` akan disensor menjadi `pin: [STRIPPED]` sebelum disimpan ke database, menjamin tidak ada kebocoran PIN.
+- **Batasan Peran (Permissions)**:
+  - `super_admin`: Eksekusi bebas atas seluruh jenis command.
+  - `koordinator_divisi`: Eksekusi tugas divisi dan acara baru.
+  - `koordinator_acara`: Hanya diperbolehkan membuat tugas acara **khusus untuk acara yang ia koordinasikan sendiri**.
+  - `anggota`: Hak akses eksekusi ditolak penuh.
+- **Integritas Bulk (All-or-Nothing)**: Pembuatan banyak tugas sekaligus (bulk) akan divalidasi seluruh barisnya terlebih dahulu. Jika ditemukan 1 kesalahan data (misalnya nama PIC tidak dikenal), sistem membatalkan seluruh rangkaian tugas tersebut agar database tugas tetap konsisten.

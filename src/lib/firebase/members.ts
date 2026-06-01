@@ -39,13 +39,14 @@ export async function updateMember(
   input: MemberUpdateInput,
   canUpdateRole: boolean,
 ) {
-  const payload = {
+  const payload: Record<string, unknown> = {
     name: input.name,
     whatsapp_number: input.whatsapp_number,
     division_id: input.division_id,
     is_active: input.is_active,
     updated_at: serverTimestamp(),
     ...(canUpdateRole ? { role: input.role ?? USER_ROLES.ANGGOTA } : {}),
+    ...(input.whatsapp_command_pin !== undefined ? { whatsapp_command_pin: input.whatsapp_command_pin } : {}),
   };
 
   await updateDoc(doc(db, "users", memberId), payload);
