@@ -25,6 +25,10 @@ import {
   sanitizePinFromMessage,
 } from "@/lib/server/whatsapp-command-executor";
 import type { UserProfile } from "@/types";
+import {
+  isReferenceSearchQuestion,
+  searchDesignReferencesFromQuestion,
+} from "@/lib/server/reference-search";
 
 export const runtime = "nodejs";
 
@@ -567,6 +571,35 @@ export async function POST(request: NextRequest) {
       // 5. Send preview reply to WhatsApp group
       const sendResult = await sendWhatsAppMessage(replyMessage);
       
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+    }
+
+    // --- Fase 14A: Reference Search Intent Detection ---
+    if (isReferenceSearchQuestion(question)) {
+      const searchResult = await searchDesignReferencesFromQuestion(question);
+
+      const aiLogRef = getAdminDb().collection("ai_logs").doc();
+      await aiLogRef.set({
+        id: aiLogRef.id,
+        organization_id: "main_org",
+        asked_by: "whatsapp_bot",
+        question: sanitizePinFromMessage(question),
+        context_summary: "Reference search query - Firestore collection matched directly.",
+        answer: searchResult,
+        model_used: "firestore-reference-search",
+        source: "whatsapp",
+        whatsapp_sender: senderLabel,
+        whatsapp_group_id: process.env.WABLAS_GROUP_ID ?? "",
+        created_at: FieldValue.serverTimestamp(),
+      });
+
+      const replyMessage = searchResult;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({
         message: replyMessage,
         status: "sent",

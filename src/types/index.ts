@@ -175,6 +175,14 @@ export type DesignReference = {
   other_links?: string[];
   summary_notes?: string;
   file_inventory_notes?: string;
+  file_inventory?: Array<{
+    name: string;
+    url: string;
+    type: "file" | "folder";
+    mime_type?: string;
+    level?: number;
+    parent_folder?: string;
+  }>;
 };
 
 export type DesignReferenceInput = {
@@ -198,6 +206,14 @@ export type DesignReferenceInput = {
   other_links?: string[];
   summary_notes?: string;
   file_inventory_notes?: string;
+  file_inventory?: Array<{
+    name: string;
+    url: string;
+    type: "file" | "folder";
+    mime_type?: string;
+    level?: number;
+    parent_folder?: string;
+  }>;
 };
 
 export type WhatsAppLogStatus = "sent" | "failed" | "pending";

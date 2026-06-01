@@ -125,10 +125,11 @@ Untuk pertanyaan progress seperti "siapa yang stuck?", "apa pengerjaan yang tert
 Jawablah dengan sopan, ringkas, rapi, dan mudah dibaca di WhatsApp.`;
 
 export const AI_QUICK_PROMPTS = [
-  "Ringkas progress hari ini",
-  "Siapa yang stuck?",
-  "Siapa yang belum mulai?",
-  "Apa yang menunggu approval?",
-  "Deadline terdekat",
-  "Buat pesan update WA",
+  "Ringkas progress",
+  "Siapa stuck?",
+  "Deadline dekat",
+  "Cari referensi PDK 2025",
+  "Cari poster",
+  "Cari nametag",
+  "Buat update WA",
 ];

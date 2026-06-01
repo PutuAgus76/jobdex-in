@@ -12,27 +12,31 @@ service cloud.firestore {
     }
 
     function currentUserRole() {
-      return hasCurrentUserDoc()
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
         ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
         : null;
     }
 
     function isSuperAdmin() {
-      return currentUserRole() == "super_admin";
+      let role = currentUserRole();
+      return role == "super_admin";
     }
 
     function isKoordinatorDivisi() {
-      return currentUserRole() == "koordinator_divisi";
+      let role = currentUserRole();
+      return role == "koordinator_divisi";
     }
 
     function isKoordinatorAcara() {
-      return currentUserRole() == "koordinator_acara";
+      let role = currentUserRole();
+      return role == "koordinator_acara";
     }
 
     function isKoordinator() {
-      return isSuperAdmin() ||
-        isKoordinatorDivisi() ||
-        isKoordinatorAcara();
+      let role = currentUserRole();
+      return role == "super_admin" ||
+        role == "koordinator_divisi" ||
+        role == "koordinator_acara";
     }
 
     function canManageEvent(eventId) {
@@ -107,10 +111,11 @@ service cloud.firestore {
     }
 
     function canCreateDesignReferenceData(data) {
+      let role = currentUserRole();
       return (
-        isSuperAdmin() ||
-        isKoordinatorDivisi() ||
-        isKoordinatorAcara()
+        role == "super_admin" ||
+        role == "koordinator_divisi" ||
+        role == "koordinator_acara"
       ) &&
         data.organization_id == "main_org" &&
         data.created_by == request.auth.uid &&
@@ -118,10 +123,11 @@ service cloud.firestore {
     }
 
     function canUpdateDesignReference() {
-      return isSuperAdmin() ||
-        isKoordinatorDivisi() ||
+      let role = currentUserRole();
+      return role == "super_admin" ||
+        role == "koordinator_divisi" ||
         (
-          isKoordinatorAcara() &&
+          role == "koordinator_acara" &&
           resource.data.created_by == request.auth.uid &&
           request.resource.data.created_by == resource.data.created_by
         );

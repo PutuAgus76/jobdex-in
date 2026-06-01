@@ -61,13 +61,16 @@ export function ReferenceCard({
             Detail
           </Button>
           {(() => {
-            const driveLinks = reference.drive_links || (reference.drive_url ? [reference.drive_url] : []);
+            const driveUrl = (reference.drive_links && reference.drive_links[0]) || 
+                             reference.drive_url || 
+                             (reference.file_inventory && reference.file_inventory[0]?.url) || 
+                             "";
             const canvaLinks = reference.canva_links || [];
             return (
               <>
-                {driveLinks.length > 0 ? (
+                {driveUrl ? (
                   <Button asChild size="sm" variant="secondary">
-                    <a href={driveLinks[0]} target="_blank" rel="noreferrer">
+                    <a href={driveUrl} target="_blank" rel="noreferrer">
                       Buka Drive
                     </a>
                   </Button>

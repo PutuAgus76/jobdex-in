@@ -158,6 +158,15 @@ export function convertDriveTreeToReferenceItems(
       if (row.parentFolder) fileInventoryNotes += `- Folder Induk: ${row.parentFolder}\n`;
       if (row.mimeType) fileInventoryNotes += `- Mime Type: ${row.mimeType}\n`;
 
+      const file_inventory = [{
+        name: row.name,
+        url: row.url,
+        type: row.type.trim().toLowerCase() === "folder" ? ("folder" as const) : ("file" as const),
+        mime_type: row.mimeType,
+        level: row.level,
+        parent_folder: row.parentFolder,
+      }];
+
       return {
         title: row.name || "Arsip Tanpa Judul",
         scope: options.scope,
@@ -176,48 +185,137 @@ export function convertDriveTreeToReferenceItems(
         canva_links,
         doc_links,
         other_links,
-        summary_notes: `Impor Per Row dari Drive Tree.`,
+        summary_notes: `Impor Per Baris dari Drive Tree.`,
         file_inventory_notes: fileInventoryNotes.trim(),
+        file_inventory,
       };
     });
   }
 
   if (options.mode === "per_parent_folder") {
-    const groups = groupDriveTreeRows(rows);
-    return Object.keys(groups).map((parentPath) => {
-      const groupRows = groups[parentPath];
-      const urls = groupRows.map((r) => r.url).filter(Boolean);
-      const { drive_links, canva_links, doc_links, other_links } = distributeLinks(urls);
+    interface FolderGroup {
+      name: string;
+      url: string;
+      level: number;
+      parentFolder: string;
+      files: ExcelRow[];
+    }
 
-      let title = "Arsip Referensi";
-      if (parentPath) {
-        const parts = parentPath.split("/");
-        title = parts[parts.length - 1].trim() || "Arsip Referensi";
-      } else {
-        title = "Root Files & Folders";
+    const folderMap: Record<string, FolderGroup> = {};
+
+    // 1. Map all folders to folderMap keyed by their absolute folderPath path
+    for (const row of rows) {
+      if (row.type.trim().toLowerCase() === "folder") {
+        const folderPath = row.parentFolder
+          ? `${row.parentFolder} / ${row.name}`
+          : row.name;
+
+        folderMap[folderPath] = {
+          name: row.name,
+          url: row.url,
+          level: row.level,
+          parentFolder: row.parentFolder,
+          files: [],
+        };
+      }
+    }
+
+    // 2. Map all files to their parent folders
+    const fallbackGroup: FolderGroup = {
+      name: "Root Files & Folders",
+      url: "",
+      level: 0,
+      parentFolder: "",
+      files: [],
+    };
+
+    for (const row of rows) {
+      if (row.type.trim().toLowerCase() === "file") {
+        const parentPath = row.parentFolder || "";
+        if (parentPath && folderMap[parentPath]) {
+          folderMap[parentPath].files.push(row);
+        } else {
+          fallbackGroup.files.push(row);
+        }
+      }
+    }
+
+    // 3. Compile folders that have child files (or fallback if files exist)
+    const groupsToImport: FolderGroup[] = [];
+    for (const path of Object.keys(folderMap)) {
+      const folder = folderMap[path];
+      if (folder.files.length > 0) {
+        groupsToImport.push(folder);
+      }
+    }
+
+    if (fallbackGroup.files.length > 0) {
+      groupsToImport.push(fallbackGroup);
+    }
+
+    // 4. Map to DesignReferenceInput
+    return groupsToImport.map((folder) => {
+      const totalFiles = folder.files.length;
+      const audioCount = folder.files.filter((f) => (f.mimeType || "").toLowerCase().includes("audio")).length;
+      const videoCount = folder.files.filter((f) => (f.mimeType || "").toLowerCase().includes("video")).length;
+      const imageCount = folder.files.filter((f) => (f.mimeType || "").toLowerCase().includes("image")).length;
+      const docCount = folder.files.filter(
+        (f) =>
+          (f.mimeType || "").toLowerCase().includes("document") ||
+          (f.mimeType || "").toLowerCase().includes("pdf") ||
+          (f.mimeType || "").toLowerCase().includes("sheet")
+      ).length;
+
+      const summaryParts = [
+        `Total file: ${totalFiles}`,
+        folder.parentFolder ? `Path: ${folder.parentFolder} / ${folder.name}` : `Path: ${folder.name}`,
+      ];
+
+      const fileTypes: string[] = [];
+      if (audioCount > 0) fileTypes.push(`${audioCount} audio`);
+      if (videoCount > 0) fileTypes.push(`${videoCount} video`);
+      if (imageCount > 0) fileTypes.push(`${imageCount} image`);
+      if (docCount > 0) fileTypes.push(`${docCount} dokumen`);
+      const otherCount = totalFiles - (audioCount + videoCount + imageCount + docCount);
+      if (otherCount > 0) fileTypes.push(`${otherCount} lainnya`);
+
+      if (fileTypes.length > 0) {
+        summaryParts.push(`Jenis file: ${fileTypes.join(", ")}`);
       }
 
-      let fileInventoryNotes = `Daftar File dalam Folder [${parentPath || "Root"}]:\n`;
-      groupRows.forEach((r, idx) => {
-        fileInventoryNotes += `${idx + 1}. ${r.name} (${
-          r.type === "Folder" ? "Folder" : r.mimeType || "File"
-        })\n`;
-        if (r.url) {
-          fileInventoryNotes += `   Link: ${r.url}\n`;
-        }
+      const summary_notes = summaryParts.join(" | ");
+
+      // Build structured file_inventory_notes
+      let fileInventoryNotes = `Folder: ${folder.name}\n`;
+      fileInventoryNotes += `Folder URL: ${folder.url || "-"}\n\n`;
+      fileInventoryNotes += `Daftar file:\n`;
+      folder.files.forEach((f, idx) => {
+        fileInventoryNotes += `${idx + 1}. ${f.name}\n`;
+        fileInventoryNotes += `   Type: ${f.mimeType || "File"}\n`;
+        fileInventoryNotes += `   URL: ${f.url || "-"}\n\n`;
       });
 
-      const firstRow = groupRows[0];
-      const guessedType = guessDesignType(title, firstRow?.mimeType || "");
+      // Build structured file_inventory
+      const file_inventory = folder.files.map((f) => ({
+        name: f.name,
+        url: f.url,
+        type: "file" as const,
+        mime_type: f.mimeType,
+        level: f.level,
+        parent_folder: f.parentFolder,
+      }));
+
+      const drive_links = folder.url ? [folder.url] : [];
+      const guessedType = guessDesignType(folder.name, folder.files[0]?.mimeType || "");
 
       return {
-        title,
+        title: folder.name,
         scope: options.scope,
         event_id: options.event_id || "",
         event_name: options.event_name || "",
         year: options.year || new Date().getFullYear(),
         design_type: guessedType,
-        drive_url: drive_links[0] || "",
+        drive_url: folder.url || folder.files[0]?.url || "",
         thumbnail_url: "",
         style_notes: options.styleNotesDefault || "",
         color_palette: [],
@@ -225,11 +323,12 @@ export function convertDriveTreeToReferenceItems(
 
         category: options.categoryDefault || "drive",
         drive_links,
-        canva_links,
-        doc_links,
-        other_links,
-        summary_notes: `Dikelompokkan berdasarkan folder induk: ${parentPath || "Root"}`,
+        canva_links: [],
+        doc_links: [],
+        other_links: [],
+        summary_notes,
         file_inventory_notes: fileInventoryNotes.trim(),
+        file_inventory,
       };
     });
   }
@@ -249,6 +348,15 @@ export function convertDriveTreeToReferenceItems(
         fileInventoryNotes += `${indent}   Link: ${r.url}\n`;
       }
     });
+
+    const file_inventory = rows.map((r) => ({
+      name: r.name,
+      url: r.url,
+      type: r.type.trim().toLowerCase() === "folder" ? ("folder" as const) : ("file" as const),
+      mime_type: r.mimeType,
+      level: r.level,
+      parent_folder: r.parentFolder,
+    }));
 
     return [
       {
@@ -271,6 +379,7 @@ export function convertDriveTreeToReferenceItems(
         other_links,
         summary_notes: `Arsip Besar Tunggal dari Drive Tree.`,
         file_inventory_notes: fileInventoryNotes.trim(),
+        file_inventory,
       },
     ];
   }

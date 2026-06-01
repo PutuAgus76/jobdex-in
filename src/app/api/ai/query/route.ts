@@ -5,6 +5,10 @@ import { buildAIContext } from "@/lib/server/ai-context";
 import { askGemini, GEMINI_MODEL } from "@/lib/server/gemini";
 import { getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
+import {
+  isReferenceSearchQuestion,
+  searchDesignReferencesFromQuestion,
+} from "@/lib/server/reference-search";
 
 export const runtime = "nodejs";
 
@@ -90,6 +94,29 @@ export async function POST(request: NextRequest) {
         { error: `Batas ${dailyLimit} pertanyaan hari ini sudah tercapai.` },
         { status: 429 },
       );
+    }
+
+    // --- Fase 14A: Reference Search Intent Detection ---
+    if (isReferenceSearchQuestion(question)) {
+      const searchResult = await searchDesignReferencesFromQuestion(question);
+
+      const logRef = getAdminDb().collection("ai_logs").doc();
+      await logRef.set({
+        id: logRef.id,
+        organization_id: profile.organization_id || "main_org",
+        asked_by: profile.id,
+        question,
+        context_summary: "Reference search query - Firestore collection matched directly.",
+        answer: searchResult,
+        model_used: "firestore-reference-search",
+        source: "web",
+        created_at: FieldValue.serverTimestamp(),
+      });
+
+      return NextResponse.json({
+        answer: searchResult,
+        context_summary: "Reference search query - Firestore collection matched directly.",
+      });
     }
 
     const { contextSummary } = await buildAIContext({

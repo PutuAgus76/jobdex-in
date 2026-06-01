@@ -82,6 +82,7 @@ export async function createDesignReference(
     other_links: input.other_links || [],
     summary_notes: input.summary_notes || "",
     file_inventory_notes: input.file_inventory_notes || "",
+    file_inventory: input.file_inventory || [],
   });
 
   return referenceRef.id;
@@ -113,6 +114,7 @@ export async function updateDesignReference(
     other_links: input.other_links || [],
     summary_notes: input.summary_notes || "",
     file_inventory_notes: input.file_inventory_notes || "",
+    file_inventory: input.file_inventory || [],
   });
 }
 

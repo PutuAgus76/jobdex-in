@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { AI_QUICK_PROMPTS } from "@/lib/ai-prompts";
 
 type AIQuickPromptsProps = {
@@ -10,18 +9,17 @@ type AIQuickPromptsProps = {
 
 export function AIQuickPrompts({ disabled = false, onSelect }: AIQuickPromptsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none whitespace-nowrap -mx-1 px-1">
       {AI_QUICK_PROMPTS.map((prompt) => (
-        <Button
+        <button
           key={prompt}
           type="button"
-          variant="secondary"
-          size="sm"
           disabled={disabled}
           onClick={() => onSelect(prompt)}
+          className="inline-block rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 px-3.5 py-1.5 transition-colors shrink-0 disabled:opacity-50"
         >
           {prompt}
-        </Button>
+        </button>
       ))}
     </div>
   );

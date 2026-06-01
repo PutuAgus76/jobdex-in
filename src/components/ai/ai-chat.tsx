@@ -7,7 +7,6 @@ import { AILoadingMessage } from "@/components/ai/ai-loading-message";
 import { AIMessage } from "@/components/ai/ai-message";
 import { AIQuickPrompts } from "@/components/ai/ai-quick-prompts";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { getRecentAILogs } from "@/lib/firebase/ai-logs";
 import { getMembers } from "@/lib/firebase/members";
@@ -178,21 +177,9 @@ export function AIChat() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
-        <div className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-semibold text-slate-950 dark:text-slate-50">Quick prompt</p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Pilih pertanyaan cepat untuk membaca progres terbaru.</p>
-          </div>
-          <Button type="button" variant="secondary" size="sm" onClick={loadHistory} disabled={historyLoading}>
-            {historyLoading ? "Memuat..." : "Refresh Riwayat"}
-          </Button>
-        </div>
-        <AIQuickPrompts disabled={loading} onSelect={ask} />
-      </div>
-
-      <section className="max-h-[62vh] min-h-[420px] space-y-4 overflow-y-auto rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+    <div className="space-y-4">
+      {/* Scrollable Chat Area */}
+      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto rounded-[12px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800/80 dark:bg-slate-950/40">
         {historyLoading ? (
           <div className="rounded-[8px] border border-slate-200 bg-white p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
             Memuat riwayat chat...
@@ -228,13 +215,14 @@ export function AIChat() {
         ) : (
           <EmptyState
             title="Belum ada percakapan"
-            description="Riwayat chat dari ai_logs akan tampil di sini setelah Anda mengirim pertanyaan."
+            description="Tanyakan progress, deadline, atau referensi desain."
           />
         )}
         {loading ? <AILoadingMessage /> : null}
         <div ref={chatEndRef} />
       </section>
 
+      {/* Copy / Action Alerts */}
       {copyMessage ? (
         <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
           {copyMessage}
@@ -251,7 +239,22 @@ export function AIChat() {
         </p>
       ) : null}
 
-      <AIInput disabled={loading} onSubmit={ask} />
+      {/* Quick Prompts & Prompt Input Group (ChatGPT style, anchored at the bottom) */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pertanyaan Cepat</span>
+          <button
+            type="button"
+            onClick={loadHistory}
+            disabled={historyLoading}
+            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+          >
+            {historyLoading ? "Memuat..." : "Refresh Riwayat"}
+          </button>
+        </div>
+        <AIQuickPrompts disabled={loading} onSelect={ask} />
+        <AIInput disabled={loading} onSubmit={ask} />
+      </div>
     </div>
   );
 }

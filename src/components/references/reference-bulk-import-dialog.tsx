@@ -723,18 +723,61 @@ export function ReferenceBulkImportDialog({
                               {item.event_name || "Divisi Humas"}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
-                            <div className="flex flex-wrap gap-1 text-[10px]">
-                              <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
-                                Drive: {item.drive_links?.length || 0}
-                              </span>
-                              <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
-                                Canva: {item.canva_links?.length || 0}
-                              </span>
-                              <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
-                                Docs: {item.doc_links?.length || 0}
-                              </span>
-                            </div>
+                           <td className="px-3 py-3 text-slate-600 dark:text-slate-300">
+                            {item.file_inventory && item.file_inventory.length > 0 ? (
+                              <div className="space-y-1 text-[10px]">
+                                <div className="font-semibold text-slate-800 dark:text-slate-200">
+                                  Folder: <span className={item.drive_links && item.drive_links.length > 0 ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+                                    {item.drive_links && item.drive_links.length > 0 ? "ada" : "tidak ada"}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  <span className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-medium text-slate-700 dark:text-slate-300">
+                                    File: {item.file_inventory.length}
+                                  </span>
+                                  {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("audio")).length > 0 && (
+                                    <span className="bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">
+                                      Audio: {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("audio")).length}
+                                    </span>
+                                  )}
+                                  {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("video")).length > 0 && (
+                                    <span className="bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">
+                                      Video: {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("video")).length}
+                                    </span>
+                                  )}
+                                  {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("image")).length > 0 && (
+                                    <span className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded">
+                                      Image: {item.file_inventory.filter((f) => f.mime_type?.toLowerCase().includes("image")).length}
+                                    </span>
+                                  )}
+                                  {item.file_inventory.filter((f) => 
+                                    f.mime_type?.toLowerCase().includes("document") || 
+                                    f.mime_type?.toLowerCase().includes("pdf") ||
+                                    f.mime_type?.toLowerCase().includes("sheet")
+                                  ).length > 0 && (
+                                    <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
+                                      Docs: {item.file_inventory.filter((f) => 
+                                        f.mime_type?.toLowerCase().includes("document") || 
+                                        f.mime_type?.toLowerCase().includes("pdf") ||
+                                        f.mime_type?.toLowerCase().includes("sheet")
+                                      ).length}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-1 text-[10px]">
+                                <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
+                                  Drive: {item.drive_links?.length || 0}
+                                </span>
+                                <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
+                                  Canva: {item.canva_links?.length || 0}
+                                </span>
+                                <span className="bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">
+                                  Docs: {item.doc_links?.length || 0}
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-3 max-w-[200px] truncate text-slate-500 dark:text-slate-400">
                             {item.style_notes || "-"}

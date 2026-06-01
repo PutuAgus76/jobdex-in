@@ -87,6 +87,7 @@ export async function bulkCreateDesignReferences(
         other_links: item.other_links || [],
         summary_notes: item.summary_notes || "",
         file_inventory_notes: item.file_inventory_notes || "",
+        file_inventory: item.file_inventory || [],
       })
     );
   }

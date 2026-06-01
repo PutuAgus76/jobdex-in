@@ -93,7 +93,7 @@ export function ReferenceDetailDialog({
             <div className="space-y-4">
               {driveLinks.length > 0 ? (
                 <section className="space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Google Drive Link(s)</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Folder Drive Utama</p>
                   <div className="flex flex-col gap-2">
                     {driveLinks.map((url, idx) => (
                       <a
@@ -103,7 +103,7 @@ export function ReferenceDetailDialog({
                         rel="noreferrer"
                         className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-semibold break-all border border-slate-100 dark:border-slate-800 rounded-[6px] p-2 bg-slate-50/55 dark:bg-slate-900/50 hover:bg-slate-100 transition-colors"
                       >
-                        📁 Google Drive Tautan {driveLinks.length > 1 ? `#${idx + 1}` : ""}
+                        📁 Buka Folder Drive {driveLinks.length > 1 ? `#${idx + 1}` : ""}
                       </a>
                     ))}
                   </div>
@@ -167,6 +167,41 @@ export function ReferenceDetailDialog({
                 </section>
               ) : null}
             </div>
+
+            {/* Folder Structured File Inventory Section */}
+            {reference.file_inventory && reference.file_inventory.length > 0 ? (
+              <section className="space-y-2">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  📁 Daftar File dalam Folder ({reference.file_inventory.length})
+                </p>
+                <div className="grid gap-3 max-h-[300px] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-[8px] p-3 bg-slate-50 dark:bg-slate-950">
+                  {reference.file_inventory.map((file, idx) => (
+                    <div key={idx} className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-2 last:border-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate" title={file.name}>
+                          {idx + 1}. {file.name}
+                        </p>
+                        {file.mime_type && (
+                          <span className="mt-1 inline-block text-[10px] bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                            {file.mime_type}
+                          </span>
+                        )}
+                      </div>
+                      {file.url && (
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-8 items-center rounded-[6px] bg-slate-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-slate-850 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 shrink-0"
+                        >
+                          Buka File
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </div>
 
           <div className="space-y-5">

@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type AIMessageProps = {
@@ -28,9 +27,9 @@ export function AIMessage({
     <div className={cn("flex", isAssistant ? "justify-start" : "justify-end")}>
       <article
         className={cn(
-          "max-w-[86%] rounded-[8px] border p-4 shadow-sm",
+          "max-w-[78%] md:max-w-[68%] rounded-[12px] border p-3.5 shadow-sm transition-all",
           isAssistant
-            ? "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+            ? "border-slate-100 bg-white dark:border-slate-800/80 dark:bg-slate-900/40"
             : "border-slate-900 bg-slate-950 text-white dark:border-slate-700 dark:bg-slate-800",
         )}
       >
@@ -58,19 +57,22 @@ export function AIMessage({
           {content}
         </div>
         {isAssistant ? (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => onCopy?.(content)}>
-              Salin Jawaban
-            </Button>
-            <Button
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 dark:border-slate-800/60 pt-2.5">
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
+              onClick={() => onCopy?.(content)}
+              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 px-2.5 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              Salin
+            </button>
+            <button
+              type="button"
               onClick={() => onSendWhatsApp?.(content)}
               disabled={sendingWhatsApp}
+              className="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 px-2.5 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
-              {sendingWhatsApp ? "Mengirim..." : "Kirim ke WhatsApp"}
-            </Button>
+              {sendingWhatsApp ? "Mengirim..." : "Kirim ke WA"}
+            </button>
           </div>
         ) : null}
       </article>
