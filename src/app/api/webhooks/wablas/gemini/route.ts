@@ -17,7 +17,7 @@ import {
   extractJobDexQuestion,
   parseWablasIncomingPayload,
 } from "@/lib/server/wablas-webhook-parser";
-import { parseWhatsAppCommand } from "@/lib/server/whatsapp-command-parser";
+import { parseWhatsAppCommand, isTaskCommandLike } from "@/lib/server/whatsapp-command-parser";
 import { buildWhatsAppCommandPreview } from "@/lib/server/whatsapp-command-preview";
 import {
   confirmPreviewCommand,
@@ -152,6 +152,22 @@ function sanitizePayload(obj: unknown): unknown {
   }
 
   return sanitized;
+}
+
+function formatStatusVal(status: string): string {
+  const clean = status.toLowerCase().replace(/[\s\-_]+/g, " ").trim();
+  if (clean.includes("belum mulai") || clean.includes("belum dimulai") || clean === "belum_dimulai") return "Belum Dimulai";
+  if (clean.includes("sedang dikerjakan") || clean.includes("dikerjakan") || clean.includes("kerja") || clean === "sedang_dikerjakan") return "Sedang Dikerjakan";
+  if (clean.includes("butuh bantuan") || clean.includes("bantuan") || clean === "butuh_bantuan") return "Butuh Bantuan";
+  if (clean.includes("stuck") || clean.includes("macet") || clean === "stuck") return "Stuck";
+  if (clean.includes("menunggu materi") || clean.includes("materi") || clean === "menunggu_materi") return "Menunggu Materi";
+  if (clean.includes("draft selesai") || clean.includes("draft") || clean === "draft_selesai") return "Draft Selesai";
+  if (clean.includes("perlu revisi") || clean.includes("revisi") || clean === "perlu_revisi") return "Perlu Revisi";
+  if (clean.includes("revisi dikerjakan") || clean === "revisi_dikerjakan") return "Revisi Dikerjakan";
+  if (clean.includes("menunggu approval") || clean.includes("approval") || clean === "menunggu_approval") return "Menunggu Approval";
+  if (clean.includes("approved") || clean.includes("selesai") || clean.includes("acc") || clean === "approved") return "Approved";
+  if (clean.includes("ditunda") || clean.includes("tunda") || clean === "ditunda") return "Ditunda";
+  return status;
 }
 
 function getRecord(value: unknown): Record<string, unknown> | null {
@@ -433,8 +449,10 @@ export async function POST(request: NextRequest) {
   }
 
   // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug" (scrub PIN!)
+  let debugRefId = "";
   try {
     const debugRef = getAdminDb().collection("wablas_incoming_debug").doc();
+    debugRefId = debugRef.id;
     const sanitizedBody = scrubPinFromPayload(sanitizePayload(payload));
     const candidatesDump = extractCandidates(payload);
     
@@ -475,6 +493,28 @@ export async function POST(request: NextRequest) {
     : resolvedSenderNumber || incoming.sender;
 
   try {
+    const isTaskLike = isTaskCommandLike(incoming.message || "");
+    const isRefSearch = isReferenceSearchQuestion(question);
+
+    const updateDebugIntent = async (
+      routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback",
+      parsedTaskIntent: string | null
+    ) => {
+      if (!debugRefId) return;
+      try {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          intent_debug: {
+            is_task_command_like: isTaskLike,
+            parsed_task_intent: parsedTaskIntent,
+            is_reference_search: isRefSearch,
+            routed_to: routedTo,
+          }
+        });
+      } catch (err) {
+        console.error("Failed to update intent_debug in wablas_incoming_debug:", err);
+      }
+    };
+
     const parsedCommand = parseWhatsAppCommand(incoming.message);
     const intent = parsedCommand.intent;
 
@@ -510,6 +550,8 @@ export async function POST(request: NextRequest) {
         "!jobdex checklist Nama Task upload selesai pin: 9703"
       ].join("\n");
 
+      await updateDebugIntent("task_command", "bantuan_task");
+
       const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({
         message: replyMessage,
@@ -523,8 +565,10 @@ export async function POST(request: NextRequest) {
     if (intent === "deadline_query") {
       const queryType = String(parsedCommand.fields.query_type || "dekat");
       const replyMessage = await handleDeadlineQuery(queryType);
-      const sendResult = await sendWhatsAppMessage(replyMessage);
       
+      await updateDebugIntent("task_command", "deadline_query");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({
         message: replyMessage,
         status: "sent",
@@ -533,10 +577,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 12C: Detect konfirmasi / batal command first (tambah jobdesk / acara)!
+    // Fase 12C: Detect konfirmasi / batal command (tambah jobdesk / acara)
     if (intent === "confirm_command" || intent === "cancel_command") {
       const code = String(parsedCommand.fields.code || "").toUpperCase();
       const pin = String(parsedCommand.fields.pin || "");
+
+      if (!pin) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah konfirmasi / batal:",
+          `Kode: ${code}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex ${intent === "confirm_command" ? "konfirmasi" : "batal"} ${code} pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", intent);
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      const validatedUser = await validateCommandPin(pin);
+      if (!validatedUser) {
+        const errMessage = `[JobDex.in AI]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.`;
+        const sendResult = await sendWhatsAppMessage(errMessage);
+        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
+        return NextResponse.json({ ok: true });
+      }
 
       let result;
       if (intent === "confirm_command") {
@@ -544,6 +620,8 @@ export async function POST(request: NextRequest) {
       } else {
         result = await cancelPreviewCommand(code, pin);
       }
+
+      await updateDebugIntent("task_command", intent);
 
       // Send execution reply to WhatsApp group
       const replyMessage = result.replyText;
@@ -564,6 +642,31 @@ export async function POST(request: NextRequest) {
       const code = String(parsedCommand.fields.code || "").toUpperCase();
       const pin = String(parsedCommand.fields.pin || "");
 
+      if (!pin) {
+        const actionStr = intent === "confirm_edit" ? "konfirmasi edit" : intent === "cancel_edit" ? "batal edit" : "konfirmasi archive";
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah konfirmasi / batal:",
+          `Kode: ${code}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex ${actionStr} ${code} pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", intent);
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Command]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -580,6 +683,8 @@ export async function POST(request: NextRequest) {
       } else {
         result = await handleConfirmArchiveCommand(code, pin, validatedUser);
       }
+
+      await updateDebugIntent("task_command", intent);
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
@@ -599,6 +704,30 @@ export async function POST(request: NextRequest) {
       const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
+      if (!pin) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah approve task:",
+          `Tugas: ${taskName || "Desain feed forkom achievement"}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex approve task ${taskName || "Desain feed forkom achievement"} pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "approve_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Approval]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -608,6 +737,9 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await handleApproveTaskCommand(taskName, pin, validatedUser, isCode);
+      
+      await updateDebugIntent("task_command", "approve_task");
+
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
 
@@ -628,6 +760,57 @@ export async function POST(request: NextRequest) {
       const notes = String(parsedCommand.fields.notes || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
+      if (!statusVal || !taskName) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Format update status belum lengkap.",
+          "",
+          "Gunakan:",
+          "!jobdex update status Nama Task menjadi sedang dikerjakan pin: 9703",
+          "",
+          "Contoh:",
+          "!jobdex update status Desain feed forkom achievement menjadi sedang dikerjakan pin: 9703"
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "update_status");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!pin) {
+        const readableStatus = formatStatusVal(statusVal) || statusVal || "Sedang Dikerjakan";
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah update status:",
+          "",
+          `Tugas: ${taskName}`,
+          `Status baru: ${readableStatus}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex update status ${taskName} menjadi ${statusVal} pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "update_status");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Status]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -637,6 +820,9 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await handleUpdateTaskStatusCommand(taskName, pin, validatedUser, isCode, statusVal, notes);
+      
+      await updateDebugIntent("task_command", "update_status");
+
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
 
@@ -655,6 +841,55 @@ export async function POST(request: NextRequest) {
       const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
+      if (!taskName) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Format edit task belum lengkap.",
+          "",
+          "Gunakan:",
+          "!jobdex edit task Nama Task",
+          "deadline: 5 Juni 2026",
+          "pin: 9703"
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "edit_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!pin) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah edit task:",
+          `Tugas: ${taskName}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex edit task ${taskName}`,
+          "deadline: 5 Juni 2026",
+          "pin: 9703"
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "edit_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Edit Task]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -669,6 +904,9 @@ export async function POST(request: NextRequest) {
       delete changesPayload.is_code;
 
       const result = await handleEditTaskCommand(taskName, pin, validatedUser, isCode, changesPayload);
+      
+      await updateDebugIntent("task_command", "edit_task");
+
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
 
@@ -687,6 +925,51 @@ export async function POST(request: NextRequest) {
       const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
+      if (!taskName) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Format archive task belum lengkap.",
+          "",
+          "Gunakan:",
+          "!jobdex archive task Nama Task pin: 9703"
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "archive_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!pin) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah archive task:",
+          `Tugas: ${taskName}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex archive task ${taskName} pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "archive_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Archive]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -696,6 +979,9 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await handleArchiveTaskCommand(taskName, pin, validatedUser, isCode);
+      
+      await updateDebugIntent("task_command", "archive_task");
+
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
 
@@ -715,6 +1001,51 @@ export async function POST(request: NextRequest) {
       const item = String(parsedCommand.fields.item || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
+      if (!taskName || !item) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Format checklist task belum lengkap.",
+          "",
+          "Gunakan:",
+          "!jobdex checklist Nama Task redaksi selesai pin: 9703"
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "checklist_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      if (!pin) {
+        const replyMessage = [
+          "[JobDex.in Task]",
+          "",
+          "Saya membaca perintah checklist task:",
+          `Tugas: ${taskName}`,
+          "",
+          "Namun PIN belum disertakan.",
+          "",
+          "Gunakan:",
+          `!jobdex checklist ${taskName} ${item} selesai pin: 9703`
+        ].join("\n");
+
+        await updateDebugIntent("task_help", "checklist_task");
+
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       const validatedUser = await validateCommandPin(pin);
       if (!validatedUser) {
         const errMessage = "[JobDex.in Checklist]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
@@ -724,6 +1055,9 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await handleChecklistCommand(taskName, pin, validatedUser, isCode, item);
+      
+      await updateDebugIntent("task_command", "checklist_task");
+
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
 
@@ -733,6 +1067,28 @@ export async function POST(request: NextRequest) {
         response: sendResult.responseText,
       });
 
+      return NextResponse.json({ ok: true });
+    }
+
+    // Intercept if it looks like a task command but fell through (parser failed or incomplete)
+    if (isTaskLike) {
+      const replyMessage = [
+        "[JobDex.in Task]",
+        "",
+        "Format perintah task tidak dikenali atau belum lengkap.",
+        "",
+        "Gunakan bantuan untuk melihat format yang benar:",
+        "!jobdex bantuan task"
+      ].join("\n");
+
+      await updateDebugIntent("task_help", intent || "unknown");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "failed",
+        response: sendResult.responseText,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -821,6 +1177,7 @@ export async function POST(request: NextRequest) {
         response: sendResult.responseText,
       });
 
+      await updateDebugIntent("task_command", parsedCommand.intent);
     }
 
     // --- Fase 14A: Reference Search Intent Detection ---
@@ -850,6 +1207,7 @@ export async function POST(request: NextRequest) {
         response: sendResult.responseText,
       });
 
+      await updateDebugIntent("reference_search", null);
       return NextResponse.json({ ok: true });
     }
 
@@ -902,6 +1260,7 @@ export async function POST(request: NextRequest) {
       response: sendResult.responseText,
     });
 
+    await updateDebugIntent("gemini_fallback", null);
     return NextResponse.json({ ok: true });
   } catch (error) {
     const errorReply = [

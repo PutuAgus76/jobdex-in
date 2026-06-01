@@ -28,6 +28,37 @@ export interface ParsedWhatsAppCommand {
   items?: Array<Record<string, string>>;
 }
 
+export function isTaskCommandLike(text: string): boolean {
+  const normalized = text.toLowerCase().trim();
+  let clean = normalized;
+  if (clean.startsWith("!jobdex")) {
+    clean = clean.replace(/^!jobdex/i, "").trim();
+  }
+
+  const taskPatterns = [
+    "update status",
+    "ubah status",
+    "ganti status",
+    "approve task",
+    "approve jobdesk",
+    "acc task",
+    "acc jobdesk",
+    "edit task",
+    "edit jobdesk",
+    "ubah deadline",
+    "ganti pic",
+    "archive task",
+    "arsipkan task",
+    "checklist",
+    "jobdesk yang berjudul",
+    "job desk yang berjudul",
+    "task yang berjudul",
+    "tugas yang berjudul",
+  ];
+
+  return taskPatterns.some((pattern) => clean.includes(pattern));
+}
+
 /**
  * Clean message text for parsing by removing the !jobdex trigger if present
  */
@@ -83,40 +114,40 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
 
   // 3. Confirm Edit / Cancel Edit
   if (lowerCleaned.startsWith("konfirmasi edit")) {
-    const match = cleaned.match(/^konfirmasi\s+edit\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+    const match = cleaned.match(/^konfirmasi\s+edit\s+([a-z0-9]{6})(?:\s+pin\s*:?\s*(\d+))?/i);
     if (match) {
       return {
         intent: "confirm_edit",
         rawText,
-        fields: { code: match[1].toUpperCase(), pin: match[2] },
+        fields: { code: match[1].toUpperCase(), pin: match[2] || "" },
       };
     }
   } else if (lowerCleaned.startsWith("batal edit")) {
-    const match = cleaned.match(/^batal\s+edit\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+    const match = cleaned.match(/^batal\s+edit\s+([a-z0-9]{6})(?:\s+pin\s*:?\s*(\d+))?/i);
     if (match) {
       return {
         intent: "cancel_edit",
         rawText,
-        fields: { code: match[1].toUpperCase(), pin: match[2] },
+        fields: { code: match[1].toUpperCase(), pin: match[2] || "" },
       };
     }
   }
 
   // 4. Confirm Archive
   if (lowerCleaned.startsWith("konfirmasi archive")) {
-    const match = cleaned.match(/^konfirmasi\s+archive\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+    const match = cleaned.match(/^konfirmasi\s+archive\s+([a-z0-9]{6})(?:\s+pin\s*:?\s*(\d+))?/i);
     if (match) {
       return {
         intent: "confirm_archive",
         rawText,
-        fields: { code: match[1].toUpperCase(), pin: match[2] },
+        fields: { code: match[1].toUpperCase(), pin: match[2] || "" },
       };
     }
   }
 
   // 5. Checklist Task
   if (lowerCleaned.startsWith("checklist")) {
-    const match = cleaned.match(/^checklist\s+(kode\s+)?(.+?)\s+(\w+)\s+selesai\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^checklist\s+(kode\s+)?(.+?)\s+(\w+)\s+selesai(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "checklist_task",
@@ -125,34 +156,82 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1] ? "true" : "false",
           task_name: match[2].trim(),
           item: match[3].toLowerCase().trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // 6. Update Status Command
-  if (lowerCleaned.startsWith("update status")) {
-    const match = cleaned.match(/^update\s+status\s+(kode\s+)?(.+?)\s+menjadi\s+(.+?)(?:\s+catatan:\s+(.+?))?\s+pin:\s*(\d+)\s*$/i);
-    if (match) {
-      return {
-        intent: "update_status",
-        rawText,
-        fields: {
-          is_code: match[1] ? "true" : "false",
-          task_name: match[2].trim(),
-          status: match[3].trim(),
-          notes: match[4] ? match[4].trim() : "",
-          pin: match[5].trim(),
-        },
-      };
+  // 6. Update Status Command (Custom, Natural & Colon-less PIN parsing)
+  if (
+    lowerCleaned.includes("update status") ||
+    lowerCleaned.includes("ubah status") ||
+    lowerCleaned.includes("ganti status")
+  ) {
+    const pinMatch = cleaned.match(/(?:pin\s*:?\s*)(\d{4,6})/i);
+    const pin = pinMatch ? pinMatch[1] : "";
+    const textWithoutPin = cleaned.replace(/(?:pin\s*:?\s*)(\d{4,6})/i, "").trim();
+
+    let targetStatusText = "";
+    let notes = "";
+    const statusMatch = textWithoutPin.match(/(?:menjadi|ke)\s+([^]+?)(?:\s+catatan:\s*([^]+))?$/i);
+    if (statusMatch) {
+      targetStatusText = statusMatch[1].trim();
+      notes = statusMatch[2] ? statusMatch[2].trim() : "";
     }
+
+    let taskTitle = "";
+    let isCode = "false";
+    const quoteMatch = textWithoutPin.match(/(?:yang\s+berjudul|berjudul|jobdesk|task|tugas|kode)\s+["']([^"']+)["']/i);
+    if (quoteMatch) {
+      taskTitle = quoteMatch[1].trim();
+      if (textWithoutPin.match(/(?:kode)\s+["']([^"']+)["']/i)) {
+        isCode = "true";
+      }
+    } else {
+      const anyQuoteMatch = textWithoutPin.match(/["']([^"']+)["']/);
+      if (anyQuoteMatch) {
+        taskTitle = anyQuoteMatch[1].trim();
+        if (textWithoutPin.toLowerCase().includes("kode")) {
+          isCode = "true";
+        }
+      } else {
+        const traditionalMatch = textWithoutPin.match(/^(?:update|ubah|ganti)\s+status\s+(?:dari\s+)?(?:jobdesk|task|tugas)?\s*(?:yang\s+berjudul\s+)?(?:kode\s+)?([^]+?)\s+(?:menjadi|ke)\s+/i);
+        if (traditionalMatch) {
+          taskTitle = traditionalMatch[1].trim();
+          const prefixPart = textWithoutPin.slice(0, textWithoutPin.indexOf(taskTitle));
+          if (prefixPart.toLowerCase().includes("kode")) {
+            isCode = "true";
+          }
+        } else {
+          const fallbackMatch = textWithoutPin.match(/^(?:update|ubah|ganti)\s+status\s+(?:dari\s+)?(?:jobdesk|task|tugas)?\s*(?:yang\s+berjudul\s+)?(?:kode\s+)?([^]+)$/i);
+          if (fallbackMatch) {
+            taskTitle = fallbackMatch[1].trim();
+            const prefixPart = textWithoutPin.slice(0, textWithoutPin.indexOf(taskTitle));
+            if (prefixPart.toLowerCase().includes("kode")) {
+              isCode = "true";
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      intent: "update_status",
+      rawText,
+      fields: {
+        is_code: isCode,
+        task_name: taskTitle,
+        status: targetStatusText,
+        notes: notes,
+        pin: pin,
+      },
+    };
   }
 
-  // 7. Short Edit Commands
-  // e.g. ubah deadline task Nama Task ke 5 Juni 2026 pin: 9703
+  // 7. Short Edit Commands (Colon-less PIN support)
   if (lowerCleaned.startsWith("ubah deadline")) {
-    const match = cleaned.match(/^ubah\s+deadline\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^ubah\s+deadline\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "edit_task",
@@ -161,15 +240,14 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1].toLowerCase() === "kode" ? "true" : "false",
           task_name: match[2].trim(),
           deadline: match[3].trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // e.g. ganti pic task Nama Task ke IPANG NIH BOSS pin: 9703
   if (lowerCleaned.startsWith("ganti pic")) {
-    const match = cleaned.match(/^ganti\s+pic\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^ganti\s+pic\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "edit_task",
@@ -178,15 +256,14 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1].toLowerCase() === "kode" ? "true" : "false",
           task_name: match[2].trim(),
           pic: match[3].trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // e.g. ubah prioritas task Nama Task ke kritis pin: 9703
   if (lowerCleaned.startsWith("ubah prioritas")) {
-    const match = cleaned.match(/^ubah\s+prioritas\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^ubah\s+prioritas\s+(task|kode)\s+(.+?)\s+ke\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "edit_task",
@@ -195,15 +272,14 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1].toLowerCase() === "kode" ? "true" : "false",
           task_name: match[2].trim(),
           prioritas: match[3].trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // e.g. edit warna task Nama Task jadi #185FA5, #EF9F27 pin: 9703
   if (lowerCleaned.startsWith("edit warna")) {
-    const match = cleaned.match(/^edit\s+warna\s+(task|kode)\s+(.+?)\s+jadi\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^edit\s+warna\s+(task|kode)\s+(.+?)\s+jadi\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "edit_task",
@@ -212,15 +288,14 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1].toLowerCase() === "kode" ? "true" : "false",
           task_name: match[2].trim(),
           warna: match[3].trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // e.g. edit referensi task Nama Task jadi https://... pin: 9703
   if (lowerCleaned.startsWith("edit referensi")) {
-    const match = cleaned.match(/^edit\s+referensi\s+(task|kode)\s+(.+?)\s+jadi\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+    const match = cleaned.match(/^edit\s+referensi\s+(task|kode)\s+(.+?)\s+jadi\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       return {
         intent: "edit_task",
@@ -229,16 +304,20 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
           is_code: match[1].toLowerCase() === "kode" ? "true" : "false",
           task_name: match[2].trim(),
           referensi: match[3].trim(),
-          pin: match[4].trim(),
+          pin: match[4] ? match[4].trim() : "",
         },
       };
     }
   }
 
-  // 8. Archive Task Command
-  // e.g. archive task Nama Task pin: 9703 or arsipkan jobdesk Nama Task pin: 9703
-  if (lowerCleaned.startsWith("archive task") || lowerCleaned.startsWith("arsipkan jobdesk") || lowerCleaned.startsWith("archive kode")) {
-    const match = cleaned.match(/^(?:archive\s+task|arsipkan\s+jobdesk|archive\s+kode)\s+(.+?)\s+pin:\s*(\d+)\s*$/i);
+  // 8. Archive Task Command (Colon-less PIN support)
+  if (
+    lowerCleaned.startsWith("archive task") ||
+    lowerCleaned.startsWith("arsipkan task") ||
+    lowerCleaned.startsWith("arsipkan jobdesk") ||
+    lowerCleaned.startsWith("archive kode")
+  ) {
+    const match = cleaned.match(/^(?:archive\s+task|arsipkan\s+task|arsipkan\s+jobdesk|archive\s+kode)\s+(.+?)(?:\s+pin\s*:?\s*(\d+))?\s*$/i);
     if (match) {
       const isCode = lowerCleaned.startsWith("archive kode");
       return {
@@ -247,20 +326,19 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
         fields: {
           is_code: isCode ? "true" : "false",
           task_name: match[1].trim(),
-          pin: match[2].trim(),
+          pin: match[2] ? match[2].trim() : "",
         },
       };
     }
   }
 
-  // 9. Full Block Edit Task
+  // 9. Full Block Edit Task (Colon-less PIN support)
   if (lowerCleaned.startsWith("edit task") || lowerCleaned.startsWith("edit kode")) {
     const lines = cleaned.split("\n");
     const fields: Record<string, string> = {};
     const isCode = lowerCleaned.startsWith("edit kode");
     let taskName = "";
 
-    // Extract task name from first line
     const firstLineMatch = lines[0].match(/^(?:edit\s+task|edit\s+kode)\s+(.+)$/i);
     if (firstLineMatch) {
       taskName = firstLineMatch[1].trim();
@@ -279,6 +357,12 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
       }
     }
 
+    let pin = fields.pin || "";
+    if (!pin) {
+      const pinMatch = cleaned.match(/(?:pin\s*:?\s*)(\d{4,6})/i);
+      if (pinMatch) pin = pinMatch[1];
+    }
+
     return {
       intent: "edit_task",
       rawText,
@@ -286,30 +370,33 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
         ...fields,
         is_code: isCode ? "true" : "false",
         task_name: taskName,
-        pin: fields.pin || "",
+        pin: pin,
       },
     };
   }
 
-  // 10. Approve Task with PIN
-  // e.g. approve task Nama Task pin: 9703 or approve kode TSK12A pin: 9703
-  if (lowerCleaned.startsWith("approve task") || lowerCleaned.startsWith("approve jobdesk") || lowerCleaned.startsWith("approve kode")) {
-    const pinMatch = cleaned.match(/pin:\s*(\d+)/i);
-    if (pinMatch) {
-      const pin = pinMatch[1].trim();
-      const prefixMatch = cleaned.match(/^(?:approve\s+task|approve\s+jobdesk|approve\s+kode)\s+(.+?)\s+pin:\s*/i);
-      if (prefixMatch) {
-        const isCode = lowerCleaned.startsWith("approve kode");
-        return {
-          intent: "approve_task",
-          rawText,
-          fields: {
-            is_code: isCode ? "true" : "false",
-            task_name: prefixMatch[1].trim(),
-            pin,
-          },
-        };
-      }
+  // 10. Approve Task (Colon-less PIN support)
+  if (
+    lowerCleaned.startsWith("approve task") ||
+    lowerCleaned.startsWith("approve jobdesk") ||
+    lowerCleaned.startsWith("approve kode") ||
+    lowerCleaned.startsWith("acc task") ||
+    lowerCleaned.startsWith("acc jobdesk")
+  ) {
+    const pinMatch = cleaned.match(/(?:pin\s*:?\s*)(\d{4,6})/i);
+    const pin = pinMatch ? pinMatch[1].trim() : "";
+    const prefixMatch = cleaned.match(/^(?:approve\s+task|approve\s+jobdesk|approve\s+kode|acc\s+task|acc\s+jobdesk)\s+(.+?)(?:\s+pin\s*:?\s*\d+)?\s*$/i);
+    if (prefixMatch) {
+      const isCode = lowerCleaned.startsWith("approve kode");
+      return {
+        intent: "approve_task",
+        rawText,
+        fields: {
+          is_code: isCode ? "true" : "false",
+          task_name: prefixMatch[1].trim(),
+          pin,
+        },
+      };
     }
   }
 

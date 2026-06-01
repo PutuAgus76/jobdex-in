@@ -100,7 +100,7 @@ export async function validateCommandPin(pinCode: string): Promise<UserProfile |
  */
 export function sanitizePinFromMessage(text: string): string {
   if (!text) return "";
-  return text.replace(/(pin:\s*)(\d+)/gi, "$1[STRIPPED]");
+  return text.replace(/(pin\s*:?\s*)(\d+)/gi, "pin: [STRIPPED]");
 }
 
 /**
