@@ -7,6 +7,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ReferenceDetailDialog } from "@/components/references/reference-detail-dialog";
 import { ReferenceFilters } from "@/components/references/reference-filters";
 import { ReferenceFormDialog } from "@/components/references/reference-form-dialog";
+import { ReferenceBulkImportDialog } from "@/components/references/reference-bulk-import-dialog";
 import { ReferencesGrid } from "@/components/references/references-grid";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -37,6 +38,7 @@ export default function ReferencesPage() {
   const [selectedReference, setSelectedReference] = useState<DesignReference | null>(null);
   const [editingReference, setEditingReference] = useState<DesignReference | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [designType, setDesignType] = useState<"all" | DesignType>("all");
   const [scopeFilter, setScopeFilter] = useState<"all" | "divisi" | "acara">("all");
@@ -192,6 +194,10 @@ export default function ReferencesPage() {
     return <EmptyState title="Arsip referensi gagal dimuat" description={error} />;
   }
 
+  if (!userProfile) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -208,9 +214,14 @@ export default function ReferencesPage() {
           </p>
         </div>
         {canCreate ? (
-          <Button type="button" onClick={openCreateForm}>
-            Tambah Referensi
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => setBulkImportOpen(true)}>
+              Import Banyak
+            </Button>
+            <Button type="button" onClick={openCreateForm}>
+              Tambah Referensi
+            </Button>
+          </div>
         ) : null}
       </section>
 
@@ -246,9 +257,14 @@ export default function ReferencesPage() {
           description="Coba ubah filter pencarian, atau tambahkan referensi baru jika Anda memiliki akses."
           action={
             canCreate ? (
-              <Button type="button" onClick={openCreateForm}>
-                Tambah Referensi
-              </Button>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <Button type="button" variant="secondary" onClick={() => setBulkImportOpen(true)}>
+                  Import Banyak
+                </Button>
+                <Button type="button" onClick={openCreateForm}>
+                  Tambah Referensi
+                </Button>
+              </div>
             ) : null
           }
         />
@@ -260,6 +276,14 @@ export default function ReferencesPage() {
         events={events}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
+      />
+      <ReferenceBulkImportDialog
+        open={bulkImportOpen}
+        events={events}
+        existingReferences={references}
+        currentUser={userProfile}
+        onClose={() => setBulkImportOpen(false)}
+        onSuccess={loadReferences}
       />
       <ReferenceDetailDialog
         reference={selectedReference}
