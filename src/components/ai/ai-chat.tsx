@@ -53,9 +53,25 @@ export function AIChat() {
     }
   }, [userProfile]);
 
+  const initialQueryProcessedRef = useRef(false);
+
   useEffect(() => {
     void Promise.resolve().then(loadHistory);
   }, [loadHistory]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && !initialQueryProcessedRef.current && user && !historyLoading && !loading) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryParam = searchParams.get("q");
+      if (queryParam) {
+        initialQueryProcessedRef.current = true;
+        setTimeout(() => {
+          ask(queryParam);
+        }, 300);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, historyLoading, loading]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });

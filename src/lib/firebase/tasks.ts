@@ -146,6 +146,15 @@ export async function recalculateEventProgress(eventId: string): Promise<number>
 }
 
 export async function createTask(input: TaskInput, createdBy: string) {
+  const defaultChecklist = [
+    { id: "checklist_1", label: "Redaksi/materi tersedia", is_done: false },
+    { id: "checklist_2", label: "Referensi desain tersedia", is_done: false },
+    { id: "checklist_3", label: "Mulai desain/draft awal", is_done: false },
+    { id: "checklist_4", label: "Revisi internal", is_done: false },
+    { id: "checklist_5", label: "Finalisasi desain", is_done: false },
+    { id: "checklist_6", label: "Upload hasil ke JobDex.in / Drive", is_done: false },
+  ];
+
   const taskRef = await addDoc(collection(db, "tasks"), {
     organization_id: DEFAULT_ORGANIZATION_ID,
     type: input.type,
@@ -169,6 +178,7 @@ export async function createTask(input: TaskInput, createdBy: string) {
     result_design_url: "",
     approval_status: "pending",
     is_archived: false,
+    checklist_items: defaultChecklist,
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),

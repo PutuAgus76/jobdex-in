@@ -28,6 +28,11 @@ export function getRiskLevelFromTask(task: Task): "none" | "yellow" | "orange" |
   const diffDays = getTaskDeadlineDiffDays(task);
   const priority = task.priority;
 
+  // Overdue check regardless of priority or status
+  if (diffDays < 0) {
+    return "red";
+  }
+
   // Stuck or Butuh Bantuan for >= 3 days -> Red
   if (task.status === "stuck" || task.status === "butuh_bantuan") {
     const updatedAtDate =
@@ -64,6 +69,20 @@ export function getRiskLevelFromTask(task: Task): "none" | "yellow" | "orange" |
     }
   }
 
+  // Menunggu Approval dekat deadline: orange atau red tergantung deadline
+  if (task.status === "menunggu_approval") {
+    if (diffDays <= 1) return "red";
+    if (diffDays <= 3) return "orange";
+    if (diffDays <= 5) return "yellow";
+  }
+
+  // Belum Dimulai dekat deadline: orange atau red tergantung deadline
+  if (task.status === "belum_dimulai") {
+    if (diffDays <= 1) return "red";
+    if (diffDays <= 3) return "orange";
+    if (diffDays <= 5) return "yellow";
+  }
+
   // Priority-based deadline diff days mapping
   if (priority === "rendah" || priority === "sedang") {
     if (diffDays <= 1) return "red"; // H-1, today, overdue
@@ -72,11 +91,6 @@ export function getRiskLevelFromTask(task: Task): "none" | "yellow" | "orange" |
     if (diffDays <= 1) return "red"; // H-1, today, overdue
     if (diffDays === 5 || diffDays === 3) return "orange"; // H-5, H-3
     if (diffDays === 7) return "yellow"; // H-7
-  }
-
-  // Overdue check regardless of priority
-  if (diffDays < 0) {
-    return "red";
   }
 
   return "none";

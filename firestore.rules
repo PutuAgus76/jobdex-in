@@ -90,7 +90,10 @@ service cloud.firestore {
         request.resource.data.type == resource.data.type &&
         request.resource.data.event_id == resource.data.event_id &&
         request.resource.data.division_id == resource.data.division_id &&
-        changedOnly(["status", "stuck_notes", "updated_at"]);
+        (
+          changedOnly(["status", "stuck_notes", "updated_at"]) ||
+          changedOnly(["checklist_items", "updated_at"])
+        );
     }
 
     function canCreateStatusLog(taskId) {

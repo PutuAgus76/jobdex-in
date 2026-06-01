@@ -25,6 +25,11 @@ export const dashboardNavigation: DashboardNavConfig[] = [
     visible: allUsers,
   },
   {
+    label: "Kalender",
+    href: "/dashboard/calendar",
+    visible: allUsers,
+  },
+  {
     label: "Acara",
     href: "/dashboard/events",
     visible: (profile) => canCreateEvent(profile),

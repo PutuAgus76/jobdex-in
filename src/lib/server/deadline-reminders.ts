@@ -189,11 +189,28 @@ export function checkMissingMaterial(task: Task): boolean {
     return false;
   }
 
+  const daysSinceCreation = getDaysSinceCreation(task);
+
+  // 1. Check checklist items first
+  const checklistItems = task.checklist_items || [];
+  const materialCheckItem = checklistItems.find(
+    (item) => item.label === "Redaksi/materi tersedia"
+  );
+
+  if (materialCheckItem) {
+    if (materialCheckItem.is_done) {
+      return false; // Material is marked as available!
+    } else {
+      // Checklist item is not done, check if task was created >= 2 days ago
+      return daysSinceCreation >= 2;
+    }
+  }
+
+  // 2. Fallback to field checks
   const isCopywritingEmpty = !task.copywriting?.trim();
   const isCopywritingDocsEmpty = !task.copywriting_docs_url?.trim();
 
   if (isCopywritingEmpty && isCopywritingDocsEmpty) {
-    const daysSinceCreation = getDaysSinceCreation(task);
     return daysSinceCreation >= 2;
   }
 

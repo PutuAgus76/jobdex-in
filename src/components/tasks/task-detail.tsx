@@ -1,5 +1,4 @@
-"use client";
-
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +9,8 @@ import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { TaskUploadSection } from "@/components/tasks/task-upload-section";
 import { TaskWorkflowPanel } from "@/components/tasks/task-workflow-panel";
+import { TaskChecklist } from "@/components/tasks/task-checklist";
+import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import { TASK_STATUS_LABELS } from "@/lib/task-status";
 import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/types";
@@ -44,9 +45,13 @@ export function TaskDetail({
   currentUser,
   onChanged,
 }: TaskDetailProps) {
+  const [refDialogOpen, setRefDialogOpen] = useState(false);
+
+  const eventName = task.event_id ? eventsById.get(task.event_id)?.name ?? "" : "";
+
   const rows = [
     ["Tipe task", task.type],
-    ["Acara", task.event_id ? eventsById.get(task.event_id)?.name ?? "Acara tidak ditemukan" : "-"],
+    ["Acara", task.event_id ? eventName || "Acara tidak ditemukan" : "-"],
     ["Divisi", task.division_id || "-"],
     ["PIC", usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"],
     ["Koordinator", usersById.get(task.coordinator_id)?.name ?? "User tidak ditemukan"],
@@ -84,6 +89,12 @@ export function TaskDetail({
 
       <TaskWorkflowPanel task={task} usersById={usersById} />
 
+      <TaskChecklist
+        task={task}
+        profile={currentUser}
+        onUpdate={onChanged}
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Informasi task</CardTitle>
@@ -110,6 +121,18 @@ export function TaskDetail({
             <LinkBlock label="Google Docs redaksi" href={task.copywriting_docs_url} />
             <LinkBlock label="Referensi desain" href={task.design_reference_url} />
             <LinkBlock label="Google Drive referensi" href={task.drive_reference_url} />
+            
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setRefDialogOpen(true)}
+                className="w-full text-xs font-semibold py-1.5 h-auto"
+              >
+                Perlu Referensi Cerdas
+              </Button>
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -149,6 +172,13 @@ export function TaskDetail({
       />
 
       <TaskActivityLog logs={logs} usersById={usersById} />
+
+      <SuggestedReferencesDialog
+        open={refDialogOpen}
+        task={task}
+        eventName={eventName}
+        onClose={() => setRefDialogOpen(false)}
+      />
     </div>
   );
 }

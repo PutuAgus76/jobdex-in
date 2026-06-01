@@ -106,6 +106,14 @@ export type Task = {
   approved_by?: string;
   approved_at?: unknown;
   is_archived: boolean;
+  checklist_items?: Array<{
+    id: string;
+    label: string;
+    is_done: boolean;
+    done_at?: unknown;
+    done_by?: string;
+    done_by_name?: string;
+  }>;
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
