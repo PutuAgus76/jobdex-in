@@ -1,238 +1,315 @@
 import {
-  Archive,
+  ClipboardList,
   Bot,
-  CheckCircle2,
-  FileCheck2,
-  FolderKanban,
-  GalleryHorizontalEnd,
-  MessageCircle,
-  Palette,
+  CalendarDays,
   Send,
   Sparkles,
-  UploadCloud,
-  Workflow,
+  ArrowRight,
+  FolderOpen,
+  Lock,
+  Sparkle,
 } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 const problems = [
-  "Job desk tercecer di chat dan sulit dicari ulang.",
-  "Spreadsheet tidak selalu menunjukkan siapa yang stuck.",
-  "Hasil desain dan link Drive sering tersebar di banyak tempat.",
-  "Referensi visual tahun sebelumnya tidak terdokumentasi rapi.",
+  {
+    title: "Tenggelam di Chat",
+    desc: "Job desk penting tertimbun obrolan harian grup dan sulit dicari kembali saat dibutuhkan.",
+    color: "jd-neo-badge-red",
+  },
+  {
+    title: "Stuck Tanpa Solusi",
+    desc: "Spreadsheet statis jarang diupdate dan tidak menunjukkan siapa anggota yang butuh bantuan segera.",
+    color: "jd-neo-badge-yellow",
+  },
+  {
+    title: "Aset Desain Tersebar",
+    desc: "Tautan folder Drive pengerjaan, hasil desain, dan feedback revisi berceceran di berbagai platform chat.",
+    color: "jd-neo-badge-orange",
+  },
+  {
+    title: "Amnesia Organisasi",
+    desc: "Referensi visual, palette, dan aset tahun sebelumnya hilang, memaksa anggota baru mulai dari nol.",
+    color: "jd-neo-badge-purple",
+  },
 ];
 
 const features = [
   {
-    icon: FolderKanban,
-    title: "Job Desk Divisi",
-    description:
-      "Kelola tugas rutin Humas dan Media Kreatif dalam satu dashboard.",
-  },
-  {
-    icon: GalleryHorizontalEnd,
-    title: "Job Desk Acara",
-    description:
-      "Pisahkan kebutuhan publikasi, dokumentasi, desain, dan PIC setiap acara.",
-  },
-  {
-    icon: Workflow,
-    title: "Status Workflow",
-    description:
-      "Pantau belum mulai, sedang dikerjakan, stuck, revisi, approval, hingga approved.",
-  },
-  {
-    icon: UploadCloud,
-    title: "Upload Hasil Desain",
-    description:
-      "Upload hasil desain ke Cloudinary dan tampilkan preview di detail task.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Notifikasi WhatsApp",
-    description:
-      "Kirim update status, upload, revisi, approve, dan ringkasan ke grup.",
+    icon: ClipboardList,
+    title: "Job Desk & Status Workflow",
+    desc: "Mulai dari belum dikerjakan, stuck, perlu revisi, hingga disetujui. Semua alur terdokumentasi rapi dengan PIC dan tenggat waktu yang jelas.",
+    badge: "100% Transparan",
+    badgeColor: "jd-neo-badge-blue",
+    iconBg: "bg-[var(--jd-neo-blue)]",
   },
   {
     icon: Bot,
-    title: "AI Assistant",
-    description:
-      "Tanyakan progress, kendala, deadline, atau ringkasan lewat dashboard dan WhatsApp.",
+    title: "WhatsApp AI Bot Command",
+    desc: "Kelola checklist, setujui tugas, dan cek deadline via WhatsApp chat dengan trigger !jobdex. Aman terenkripsi menggunakan otentikasi PIN.",
+    badge: "Otomatis & Aman",
+    badgeColor: "jd-neo-badge-green",
+    iconBg: "bg-[var(--jd-neo-green)]",
   },
   {
-    icon: Archive,
-    title: "Arsip Referensi",
-    description:
-      "Simpan link Drive, color palette, style notes, dan desain tahun sebelumnya.",
+    icon: FolderOpen,
+    title: "Arsip Referensi Desain",
+    desc: "Simpan tautan Drive utama, link Canva, color palette, style notes, dan supergrafis agar gaya visual organisasi tetap konsisten dari tahun ke tahun.",
+    badge: "File Inventory",
+    badgeColor: "jd-neo-badge-purple",
+    iconBg: "bg-[var(--jd-neo-purple)]",
   },
   {
-    icon: FileCheck2,
-    title: "Approval & Revisi",
-    description:
-      "Koordinator bisa meminta revisi atau menyetujui task dengan activity log.",
+    icon: CalendarDays,
+    title: "Analisis Risiko & Kalender",
+    desc: "Lacak tugas-tugas kritis yang mendekati deadline secara visual dengan sistem highlight risiko (Aman, Peringatan, Overdue) pada kalender interaktif.",
+    badge: "Smart Tracking",
+    badgeColor: "jd-neo-badge-orange",
+    iconBg: "bg-[var(--jd-neo-orange)]",
   },
 ];
 
 const workflowSteps = [
-  "Buat acara atau job desk",
-  "Assign PIC dan koordinator",
-  "Anggota update status",
-  "Upload hasil desain",
-  "Koordinator revisi atau approve",
-  "WhatsApp dan AI bantu ringkas progress",
+  "Buat Event atau Job Desk Divisi",
+  "Tugaskan PIC & Koordinator",
+  "Anggota Update Progres & Checklist",
+  "Unggah Hasil Desain (Cloudinary)",
+  "Persetujuan (Approval) / Catatan Revisi",
+  "Notifikasi Otomatis WhatsApp Bot & AI",
 ];
 
 const stats = [
-  ["24", "Task aktif"],
-  ["7", "Menunggu approval"],
-  ["3", "Butuh bantuan"],
-  ["42", "Referensi desain"],
+  { value: "24+", label: "Job Desk Aktif" },
+  { value: "7", label: "Menunggu Approval" },
+  { value: "3", label: "PIC Butuh Bantuan" },
+  { value: "40+", label: "Arsip Referensi" },
 ];
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
-      <div className="relative border-b border-slate-200 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/85">
-        <Container className="py-5">
+    <main className="min-h-screen bg-[var(--jd-neo-bg)] text-[var(--jd-neo-text)] transition-colors duration-200">
+      {/* 1. Header/Navbar */}
+      <header className="sticky top-0 z-50 w-full border-b-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-surface)]/90 backdrop-blur-md">
+        <Container className="py-4">
           <nav className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-[8px] bg-slate-950 text-sm font-black text-white shadow-sm dark:bg-white dark:text-slate-950">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <span className="flex size-10 items-center justify-center rounded-lg border-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-yellow)] text-sm font-black text-neutral-900 shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-transform group-hover:scale-105">
                 JD
               </span>
               <div>
-                <p className="text-lg font-bold text-slate-950 dark:text-white">
-                  JobDex.in
+                <p className="text-lg font-black tracking-wider text-[var(--jd-neo-text)]">
+                  JobDex<span className="text-[#8fa882]">.in</span>
                 </p>
-                <p className="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
+                <p className="hidden text-[10px] uppercase tracking-wider font-bold text-[var(--jd-neo-muted)] sm:block">
                   Humas & Media Kreatif
                 </p>
               </div>
             </Link>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2.5">
               <ThemeToggle />
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-                <Link href="/login">Login</Link>
-              </Button>
+              <Link
+                href="/login"
+                className="hidden sm:inline-flex items-center justify-center font-bold text-sm text-[var(--jd-neo-text)] hover:underline px-3 py-2"
+              >
+                Login
+              </Link>
               <Button asChild variant="primary" size="sm">
-                <Link href="/dashboard">
-                  <span className="hidden sm:inline">Masuk Dashboard</span>
-                  <span className="sm:hidden">Masuk</span>
+                <Link href="/dashboard" className="flex items-center gap-1">
+                  <span>Dashboard</span>
+                  <ArrowRight className="size-4 shrink-0" />
                 </Link>
               </Button>
             </div>
           </nav>
         </Container>
-      </div>
+      </header>
 
-      <section className="dark relative jd-hero text-white">
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(34,197,94,0.10),transparent_28%,rgba(56,189,248,0.12)_72%,transparent)]" />
-        <Container className="relative grid gap-12 py-16 lg:grid-cols-[1fr_0.95fr] lg:items-center lg:py-24">
-          <div className="max-w-3xl">
-            <Badge className="border border-white/10 bg-white/10 text-slate-100">
-              Koordinasi kreatif yang lebih rapi
-            </Badge>
-            <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
-              Koordinasi job desk organisasi tanpa tenggelam di chat.
+      {/* 2. Hero Section */}
+      <section className="relative overflow-hidden py-16 lg:py-24">
+        {/* Subtle grid accent background */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
+
+        <Container className="relative grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          {/* Left Column: Heading & CTAs */}
+          <div className="flex flex-col items-start text-left">
+            <div className="jd-neo-badge jd-neo-badge-yellow mb-5 flex items-center gap-1.5 animate-pulse">
+              <Sparkle className="size-3.5 fill-current" />
+              <span>Koordinasi Kreatif Bebas Ruwet</span>
+            </div>
+
+            <h1 className="text-4xl font-black leading-none tracking-tight sm:text-5xl lg:text-6xl text-[var(--jd-neo-text)]">
+              Koordinasi job desk organisasi{" "}
+              <span className="underline decoration-[var(--jd-neo-yellow)] decoration-wavy decoration-2">
+                tanpa tenggelam
+              </span>{" "}
+              di chat.
             </h1>
-            <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-              JobDex.in membantu divisi Humas dan Media Kreatif mencatat tugas,
-              memantau status anggota, mengarsipkan referensi desain, mengirim
-              update WhatsApp, dan merangkum progress dengan AI.
+
+            <p className="mt-6 text-sm sm:text-base leading-relaxed text-[var(--jd-neo-muted)] font-normal max-w-xl">
+              Kelola daftar tugas humas & publikasi, pantau deadline kritis,
+              bagikan referensi desain visual tahun lalu, serta perbarui progres
+              koordinasi secara instan melalui integrasi{" "}
+              <b>WhatsApp Bot & AI Assistant</b>.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="jd-btn-light gap-2">
-                <Link href="/dashboard">
-                  Masuk ke Dashboardnya
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+              <Button
+                asChild
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto justify-center font-black"
+              >
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  <span>Masuk Dashboard</span>
                   <Send className="size-4" />
                 </Link>
               </Button>
-              <Button asChild variant="heroOutline" size="lg">
-                <Link href="/login">Login</Link>
+
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="w-full sm:w-auto justify-center font-black bg-[var(--jd-neo-surface)] hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                <Link href="/login" className="flex items-center gap-2">
+                  <span>Login Anggota</span>
+                  <Lock className="size-4" />
+                </Link>
               </Button>
             </div>
           </div>
 
-          <div className="p-3 jd-glass jd-soft-glow rounded-[8px]">
-            <div className="rounded-[8px] border border-white/10 bg-slate-950/90 p-4">
-              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+          {/* Right Column: Simulated 3D Neubrutalist Dashboard Card */}
+          <div className="relative">
+            {/* Background offset shape to emphasize 3D */}
+            <div className="absolute inset-0 translate-x-3 translate-y-3 rounded-2xl bg-[var(--jd-neo-border)] opacity-20 dark:opacity-40" />
+
+            <div className="relative jd-neo-card p-6 bg-[var(--jd-neo-surface)] border-2 border-[var(--jd-neo-border)] shadow-[6px_6px_0px_var(--jd-neo-shadow)]">
+              {/* Fake Dashboard Header */}
+              <div className="flex items-center justify-between border-b-2 border-[var(--jd-neo-border)] pb-4 mb-4">
                 <div>
-                  <p className="font-semibold text-white">
-                    Dashboard Koordinasi
+                  <p className="text-xs uppercase tracking-wider font-extrabold text-[var(--jd-neo-muted)]">
+                    Live Progress
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Progress minggu ini
+                  <p className="text-base font-black text-[var(--jd-neo-text)]">
+                    Publikasi Acara Humas
                   </p>
                 </div>
-                <Badge className="bg-emerald-400/15 text-emerald-200">
-                  Live MVP
-                </Badge>
+                <span className="jd-neo-badge jd-neo-badge-green font-extrabold">
+                  Active MVP
+                </span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {stats.map(([value, label]) => (
+
+              {/* Stats Row inside card */}
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {stats.slice(0, 2).map((stat) => (
                   <div
-                    key={label}
-                    className="rounded-[8px] border border-white/10 bg-white/[0.06] p-4"
+                    key={stat.label}
+                    className="jd-neo-card-soft p-3 bg-[var(--jd-neo-bg)]"
                   >
-                    <p className="text-3xl font-bold text-white">{value}</p>
-                    <p className="mt-1 text-sm text-slate-400">{label}</p>
+                    <p className="text-2xl font-black text-[var(--jd-neo-text)]">
+                      {stat.value}
+                    </p>
+                    <p className="text-[10px] font-bold text-[var(--jd-neo-muted)] uppercase tracking-wider mt-0.5">
+                      {stat.label}
+                    </p>
                   </div>
                 ))}
               </div>
-              <div className="mt-4 space-y-3">
-                {[
-                  ["Poster PKKMB", "stuck", "Butuh redaksi final"],
-                  [
-                    "Feed Open Recruitment",
-                    "menunggu approval",
-                    "Preview sudah upload",
-                  ],
-                  [
-                    "Dokumentasi Seminar",
-                    "sedang dikerjakan",
-                    "Deadline dekat",
-                  ],
-                ].map(([task, status, note]) => (
-                  <div
-                    key={task}
-                    className="rounded-[8px] border border-white/10 bg-white/[0.05] p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-white">{task}</p>
-                      <span className="rounded-full bg-sky-400/10 px-2 py-1 text-xs font-semibold text-sky-200">
-                        {status}
-                      </span>
+
+              {/* Fake Task Card List */}
+              <div className="space-y-3">
+                {/* Task 1: Stuck */}
+                <div className="jd-neo-card-soft p-3.5 bg-[var(--jd-neo-surface)] border-2 border-[var(--jd-neo-border)] shadow-[3px_3px_0px_var(--jd-neo-shadow)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black text-[var(--jd-neo-text)]">
+                        Desain Poster Utama PKKMB
+                      </p>
+                      <p className="text-[10px] text-[var(--jd-neo-muted)] mt-0.5">
+                        PIC: Sumesta C &bull; Humas & Media
+                      </p>
                     </div>
-                    <p className="mt-2 text-xs text-slate-400">{note}</p>
+                    <span className="jd-neo-badge jd-neo-badge-red text-[9px] shrink-0 font-extrabold">
+                      STUCK
+                    </span>
                   </div>
-                ))}
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">
+                      ⚠️ Deadline Besok
+                    </span>
+                    <span className="text-[9px] font-semibold text-[var(--jd-neo-muted)] bg-[var(--jd-neo-bg)] px-1.5 py-0.5 rounded border border-[var(--jd-neo-border)]">
+                      Butuh Copywriting
+                    </span>
+                  </div>
+                </div>
+
+                {/* Task 2: Dikerjakan */}
+                <div className="jd-neo-card-soft p-3.5 bg-[var(--jd-neo-surface)] border-2 border-[var(--jd-neo-border)] shadow-[3px_3px_0px_var(--jd-neo-shadow)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black text-[var(--jd-neo-text)]">
+                        Feed Instagram Open Recruitment
+                      </p>
+                      <p className="text-[10px] text-[var(--jd-neo-muted)] mt-0.5">
+                        PIC: Putu Agus &bull; Media Kreatif
+                      </p>
+                    </div>
+                    <span className="jd-neo-badge jd-neo-badge-blue text-[9px] shrink-0 font-extrabold">
+                      DIKERJAKAN
+                    </span>
+                  </div>
+                  <div className="mt-2.5 flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wide">
+                      ✅ Aman (H-5)
+                    </span>
+                    <span className="text-[9px] font-semibold text-[var(--jd-neo-muted)] bg-[var(--jd-neo-bg)] px-1.5 py-0.5 rounded border border-[var(--jd-neo-border)]">
+                      Desain Draf
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </Container>
       </section>
 
-      <section className="border-b border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-950">
+      {/* 3. Problems / Pain Points Section */}
+      <section className="py-16 border-t-2 border-b-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-surface)]">
         <Container>
-          <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-            <div>
-              <Badge variant="warning">Masalah yang sering muncul</Badge>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-                Kerja kreatif kampus bergerak cepat. Dokumentasinya harus ikut
-                rapi.
+          <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div className="flex flex-col items-start">
+              <div className="jd-neo-badge jd-neo-badge-red mb-4">
+                Pain Points
+              </div>
+              <h2 className="text-3xl font-black tracking-tight text-[var(--jd-neo-text)]">
+                Kerja kreatif kampus bergerak cepat. Tapi kordinasinya
+                berantakan?
               </h2>
+              <p className="mt-4 text-sm leading-relaxed text-[var(--jd-neo-muted)] font-normal">
+                Di divisi Humas dan Media Kreatif, tumpukan file, brief lisan,
+                dan instruksi WA sering menjadi bumerang yang menghambat rilis
+                publikasi.
+              </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {problems.map((problem) => (
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {problems.map((prob) => (
                 <div
-                  key={problem}
-                  className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/70"
+                  key={prob.title}
+                  className="jd-neo-card-soft p-5 bg-[var(--jd-neo-bg)] border-2 border-[var(--jd-neo-border)] shadow-[3px_3px_0px_var(--jd-neo-shadow)]"
                 >
-                  <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
-                  <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {problem}
+                  <span
+                    className={`jd-neo-badge ${prob.color} text-[10px] font-extrabold uppercase`}
+                  >
+                    {prob.title}
+                  </span>
+                  <p className="mt-3 text-sm leading-relaxed text-[var(--jd-neo-text)] font-normal">
+                    {prob.desc}
                   </p>
                 </div>
               ))}
@@ -241,36 +318,53 @@ export default function Home() {
         </Container>
       </section>
 
-      <section className="bg-slate-50 py-16 dark:bg-slate-950">
+      {/* 4. Feature Grid Section */}
+      <section className="py-16">
         <Container>
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge variant="info">Fitur utama</Badge>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Semua alur koordinasi kreatif di satu tempat.
+          <div className="mx-auto max-w-3xl text-center flex flex-col items-center">
+            <div className="jd-neo-badge jd-neo-badge-blue mb-4">
+              Fitur Andalan
+            </div>
+            <h2 className="text-3xl font-black tracking-tight text-[var(--jd-neo-text)] sm:text-4xl">
+              Alur kerja teratur, tim bergerak sinkron.
             </h2>
-            <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-              Dari pembagian PIC sampai approval desain, JobDex.in menjaga
-              pekerjaan tetap terlihat dan mudah ditindaklanjuti.
+            <p className="mt-4 text-sm leading-relaxed text-[var(--jd-neo-muted)] max-w-xl font-normal">
+              Dari pengajuan tugas pertama sampai persetujuan akhir koordinator,
+              JobDex.in merangkum semua koordinasi visual Anda di satu tempat
+              terpusat.
             </p>
           </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => {
-              const Icon = feature.icon;
+
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {features.map((feat) => {
+              const Icon = feat.icon;
 
               return (
                 <div
-                  key={feature.title}
-                  className="rounded-[8px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-900/80"
+                  key={feat.title}
+                  className="jd-neo-card p-6 bg-[var(--jd-neo-surface)] border-2 border-[var(--jd-neo-border)] shadow-[4px_4px_0px_var(--jd-neo-shadow)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_var(--jd-neo-shadow)] duration-150 transition-all flex flex-col items-start justify-between"
                 >
-                  <div className="flex size-11 items-center justify-center rounded-[8px] bg-slate-950 text-white dark:bg-white dark:text-slate-950">
-                    <Icon className="size-5" />
+                  <div className="w-full">
+                    <div
+                      className={`flex size-11 items-center justify-center rounded-lg border-2 border-[var(--jd-neo-border)] ${feat.iconBg} text-neutral-950 shadow-[2px_2px_0px_rgba(0,0,0,1)]`}
+                    >
+                      <Icon className="size-5 shrink-0" />
+                    </div>
+
+                    <h3 className="mt-4 font-black text-sm text-[var(--jd-neo-text)]">
+                      {feat.title}
+                    </h3>
+
+                    <p className="mt-2 text-xs leading-relaxed text-[var(--jd-neo-muted)] font-normal">
+                      {feat.desc}
+                    </p>
                   </div>
-                  <h3 className="mt-4 font-semibold text-slate-950 dark:text-white">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {feature.description}
-                  </p>
+
+                  <span
+                    className={`jd-neo-badge ${feat.badgeColor} mt-4 text-[9px] font-extrabold shrink-0`}
+                  >
+                    {feat.badge}
+                  </span>
                 </div>
               );
             })}
@@ -278,29 +372,33 @@ export default function Home() {
         </Container>
       </section>
 
-      <section className="border-y border-slate-200 bg-white py-16 dark:border-slate-800 dark:bg-slate-950">
+      {/* 5. Workflow Path Section */}
+      <section className="py-16 border-t-2 border-b-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-surface)]">
         <Container>
           <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
-            <div>
-              <Badge variant="success">Workflow</Badge>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-                Dari brief sampai approved, statusnya jelas.
+            <div className="flex flex-col items-start">
+              <div className="jd-neo-badge jd-neo-badge-green mb-4">
+                Siklus Kerja
+              </div>
+              <h2 className="text-3xl font-black tracking-tight text-[var(--jd-neo-text)]">
+                Bagaimana Humas bekerja di JobDex.in?
               </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                Koordinator bisa melihat siapa yang memegang task, kapan
-                deadline, apa kendalanya, dan kapan desain siap disetujui.
+              <p className="mt-4 text-sm leading-relaxed text-[var(--jd-neo-muted)] font-normal">
+                Sistem kami dirancang mengikuti dinamika pengerjaan tim media
+                kreatif di lingkungan kampus secara terstruktur.
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+
+            <div className="grid gap-4 sm:grid-cols-2">
               {workflowSteps.map((step, index) => (
                 <div
                   key={step}
-                  className="rounded-[8px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900"
+                  className="jd-neo-card-soft p-4 bg-[var(--jd-neo-bg)] border-2 border-[var(--jd-neo-border)] shadow-[3px_3px_0px_var(--jd-neo-shadow)] flex gap-3.5 items-center"
                 >
-                  <span className="flex size-8 items-center justify-center rounded-full bg-slate-950 text-sm font-bold text-white dark:bg-white dark:text-slate-950">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-yellow)] text-xs font-black text-neutral-900 shadow-[1px_1px_0px_rgba(0,0,0,1)]">
                     {index + 1}
                   </span>
-                  <p className="mt-4 text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  <p className="text-xs font-bold text-[var(--jd-neo-text)]">
                     {step}
                   </p>
                 </div>
@@ -310,119 +408,52 @@ export default function Home() {
         </Container>
       </section>
 
-      <section className="dark jd-hero py-16 text-white">
+      {/* 6. CTA / Final Action Card */}
+      <section className="py-16 bg-[var(--jd-neo-bg)]">
         <Container>
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="rounded-[8px] border border-white/10 bg-white/10 p-6 backdrop-blur">
-              <Bot className="size-10 text-sky-300" />
-              <h2 className="mt-5 text-3xl font-bold">
-                AI Assistant untuk ringkasan progress.
+          <div className="jd-neo-card max-w-4xl mx-auto p-8 sm:p-12 bg-[var(--jd-neo-surface)] border-2 border-[var(--jd-neo-border)] shadow-[8px_8px_0px_var(--jd-neo-shadow)] text-center flex flex-col items-center relative overflow-hidden">
+            {/* Doodle background accent circles */}
+            <div className="absolute -top-12 -left-12 size-36 rounded-full border-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-purple)] opacity-10 dark:opacity-20" />
+            <div className="absolute -bottom-12 -right-12 size-36 rounded-full border-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-cyan)] opacity-10 dark:opacity-20" />
+
+            <div className="relative z-10 flex flex-col items-center">
+              <Sparkles className="size-10 text-[var(--jd-neo-yellow)] fill-current shrink-0 animate-bounce" />
+
+              <h2 className="mt-4 text-3xl font-black tracking-tight text-[var(--jd-neo-text)] sm:text-4xl">
+                Mulai Rapikan Koordinasi Tim Kreatifmu
               </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                Tanyakan siapa yang stuck, task mana yang menunggu approval,
-                deadline terdekat, atau minta dibuatkan update singkat untuk
-                grup.
+
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-[var(--jd-neo-muted)] font-normal">
+                Bawa tim Anda keluar dari tumpukan chat koordinasi harian yang
+                melelahkan. Masuk ke dashboard yang teratur, terpantau, dan
+                dibantu asisten AI responsif.
               </p>
-              <div className="mt-5 rounded-[8px] border border-white/10 bg-slate-950/70 p-4 text-sm text-slate-300">
-                <p className="font-semibold text-white">
-                  !jobdex siapa yang stuck?
-                </p>
-                <p className="mt-2">
-                  Bot WhatsApp membaca data JobDex.in dan membalas ringkas ke
-                  grup.
-                </p>
-              </div>
-            </div>
-            <div className="rounded-[8px] border border-white/10 bg-white/10 p-6 backdrop-blur">
-              <MessageCircle className="size-10 text-emerald-300" />
-              <h2 className="mt-5 text-3xl font-bold">
-                WhatsApp tetap dipakai, tapi lebih terarah.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                Update status, upload hasil desain, revisi, approve, dan
-                ringkasan AI bisa dikirim otomatis ke grup koordinasi.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {[
-                  "Status otomatis",
-                  "Upload notification",
-                  "Ringkasan AI",
-                  "Webhook bot",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="rounded-[8px] border border-white/10 bg-white/[0.06] p-3 text-sm font-semibold text-white"
+
+              <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full justify-center">
+                <Button
+                  asChild
+                  variant="primary"
+                  size="lg"
+                  className="w-full sm:w-auto font-black shadow-[4px_4px_0px_rgba(0,0,0,1)]"
+                >
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-1.5 justify-center"
                   >
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      <section className="bg-white py-16 dark:bg-slate-950">
-        <Container>
-          <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
-            <div>
-              <Badge variant="info">Arsip referensi desain</Badge>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-                Referensi tahun lalu tidak lagi tercecer.
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                Simpan link Drive, thumbnail, style notes, supergrafis, color
-                palette, dan catatan tambahan agar anggota baru cepat memahami
-                gaya visual organisasi.
-              </p>
-            </div>
-            <div className="rounded-[8px] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900">
-              <div className="flex items-center gap-3">
-                <Palette className="size-9 text-sky-600 dark:text-sky-300" />
-                <div>
-                  <p className="font-semibold text-slate-950 dark:text-white">
-                    PKKMB 2025 - Poster
-                  </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Style notes, Drive, dan palette.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 flex gap-2">
-                {["#0F172A", "#185FA5", "#22C55E", "#E6F1FB"].map((color) => (
-                  <span
-                    key={color}
-                    className="size-10 rounded-[8px] border border-slate-200 dark:border-slate-700"
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      <section className="bg-slate-50 py-16 dark:bg-slate-950">
-        <Container>
-          <div className="rounded-[8px] border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-              <div>
-                <Sparkles className="size-9 text-emerald-600 dark:text-emerald-300" />
-                <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-                  Mulai rapikan koordinasi tim kreatifmu.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                  JobDex.in membantu organisasi bergerak lebih tenang: pekerjaan
-                  jelas, progress terbaca, dan update grup tidak lagi manual
-                  semuanya.
-                </p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild size="lg">
-                  <Link href="/dashboard">Masuk Dashboard</Link>
+                    <span>Masuk Dashboard</span>
+                    <ArrowRight className="size-4 shrink-0" />
+                  </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link href="/login">Login</Link>
+
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto font-black bg-[var(--jd-neo-surface)] hover:bg-neutral-50 dark:hover:bg-neutral-800 shadow-[4px_4px_0px_rgba(0,0,0,1)]"
+                >
+                  <Link href="/login" className="justify-center">
+                    Login Anggota
+                  </Link>
                 </Button>
               </div>
             </div>
@@ -430,12 +461,16 @@ export default function Home() {
         </Container>
       </section>
 
-      <footer className="border-t border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-        <Container className="flex flex-col gap-2 py-6 text-sm text-slate-500 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <p>JobDex.in MVP</p>
-          <p>
-            Untuk Humas dan Media Kreatif organisasi mahasiswa -{" "}
-            {new Date().getFullYear()}
+      {/* 7. Footer */}
+      <footer className="border-t-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-surface)] transition-colors">
+        <Container className="flex flex-col gap-4 py-8 text-xs font-bold text-[var(--jd-neo-muted)] sm:flex-row sm:items-center sm:justify-between">
+          <p className="uppercase tracking-wider">
+            JobDex<span className="text-[#8fa882]">.in</span> MVP &bull; Humas &
+            Media
+          </p>
+          <p className="font-normal text-[var(--jd-neo-muted)]">
+            Dibuat untuk divisi Humas dan Media Kreatif organisasi mahasiswa
+            &copy; {new Date().getFullYear()}
           </p>
         </Container>
       </footer>

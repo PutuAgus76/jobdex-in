@@ -82,9 +82,9 @@ export function NeoTopbar() {
               title={isDark ? "Aktifkan light mode" : "Aktifkan dark mode"}
             >
               {isDark ? (
-                <Sun size={18} className="text-yellow-400 fill-yellow-400" />
+                <Sun size={18} color="#facc15" fill="#facc15" className="shrink-0" />
               ) : (
-                <Moon size={18} className="text-neutral-950 fill-neutral-950" />
+                <Moon size={18} color="#1a1a1a" fill="#1a1a1a" className="shrink-0" />
               )}
             </button>
           )}

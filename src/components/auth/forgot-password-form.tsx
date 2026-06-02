@@ -49,7 +49,7 @@ export function ForgotPasswordForm() {
       <div>
         <label
           htmlFor="email"
-          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1 block text-xs font-bold uppercase tracking-wider text-[var(--jd-neo-text)]"
         >
           Email
         </label>
@@ -64,18 +64,18 @@ export function ForgotPasswordForm() {
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+        <p className="jd-neo-badge jd-neo-badge-red text-xs w-full py-2 flex items-center justify-center font-bold">
           {error}
         </p>
       ) : null}
 
       {successMessage ? (
-        <p className="rounded-[8px] bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <p className="jd-neo-badge jd-neo-badge-green text-xs w-full py-2 flex items-center justify-center font-bold">
           {successMessage}
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button type="submit" className="w-full font-black shadow-[3px_3px_0px_rgba(0,0,0,1)]" disabled={isSubmitting}>
         {isSubmitting ? "Mengirim..." : "Kirim email reset"}
       </Button>
     </form>

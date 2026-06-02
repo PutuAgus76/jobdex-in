@@ -61,7 +61,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="email"
-          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1 block text-xs font-bold uppercase tracking-wider text-[var(--jd-neo-text)]"
         >
           Email
         </label>
@@ -77,7 +77,7 @@ export function LoginForm() {
       <div>
         <label
           htmlFor="password"
-          className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          className="mb-1 block text-xs font-bold uppercase tracking-wider text-[var(--jd-neo-text)]"
         >
           Password
         </label>
@@ -92,18 +92,18 @@ export function LoginForm() {
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+        <p className="jd-neo-badge jd-neo-badge-red text-xs w-full py-2 flex items-center justify-center font-bold">
           {error}
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <Link href="/forgot-password" className="font-semibold text-slate-950 dark:text-slate-50">
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <Link href="/forgot-password" className="font-bold text-[var(--jd-neo-text)] underline hover:text-[#8fa882]">
           Lupa password?
         </Link>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting || loading}>
+      <Button type="submit" className="w-full font-black shadow-[3px_3px_0px_rgba(0,0,0,1)]" disabled={isSubmitting || loading}>
         {isSubmitting ? "Memproses..." : "Masuk"}
       </Button>
     </form>
