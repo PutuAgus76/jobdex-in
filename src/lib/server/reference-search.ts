@@ -289,13 +289,14 @@ export async function searchDesignReferencesFromQuestion(question: string): Prom
     if (ref.notes) resultLines.push(`   Catatan: ${ref.notes}`);
 
     if (ref.file_inventory && ref.file_inventory.length > 0) {
-      const scoredFiles = ref.file_inventory
+      const allScoredFiles = ref.file_inventory
         .map((file) => ({
           file: file as InventoryFile,
           score: scoreFile(file as InventoryFile, cleanQuestion, keywords),
         }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 5);
+        .sort((a, b) => b.score - a.score);
+
+      const scoredFiles = allScoredFiles.slice(0, 2);
 
       if (scoredFiles.length > 0) {
         resultLines.push("   File terkait:");
@@ -305,10 +306,17 @@ export async function searchDesignReferencesFromQuestion(question: string): Prom
           if (f.mime_type) resultLines.push(`     Type: ${f.mime_type}`);
           if (f.url) resultLines.push(`     Link: ${f.url}`);
         });
+
+        if (allScoredFiles.length > 2) {
+          const remainingCount = allScoredFiles.length - 2;
+          resultLines.push(`   ...dan ${remainingCount} file lainnya. Buka dashboard Referensi untuk detail lengkap.`);
+        }
       }
     }
     resultLines.push(""); // Spacing between references
   });
+
+  resultLines.push("Untuk hasil lengkap, buka dashboard Referensi JobDex.in.");
 
   return resultLines.join("\n").trim();
 }

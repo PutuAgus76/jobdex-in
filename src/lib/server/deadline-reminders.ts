@@ -3,6 +3,7 @@ import "server-only";
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
 import type { Task, UserProfile } from "@/types";
+import { sanitizePinFromMessage } from "./whatsapp-command-executor";
 
 export { getTaskDeadlineDiffDays };
 
@@ -491,9 +492,12 @@ export async function logWhatsAppDispatch(data: {
   recipient: string;
   recipientType: "group" | "personal";
   messageContent: string;
-  status: "sent" | "failed";
+  status: string;
   wablasResponse?: string;
   errorMessage?: string;
+  errorCode?: string | number;
+  cooldownUntil?: Date | null;
+  rateLimitReason?: string;
 }): Promise<string> {
   const db = getAdminDb();
   const logRef = db.collection("whatsapp_logs").doc();
@@ -503,13 +507,18 @@ export async function logWhatsAppDispatch(data: {
     organization_id: data.task.organization_id || "main_org",
     task_id: data.task.id,
     event_type: "deadline_reminder",
-    message_content: data.messageContent,
+    message_content: sanitizePinFromMessage(data.messageContent),
     recipient: data.recipient,
     recipient_type: data.recipientType,
     is_group: data.recipientType === "group",
     status: data.status,
+    send_status: data.status,
+    error_code: data.errorCode || null,
+    error_message: data.errorMessage || null,
+    cooldown_until: data.cooldownUntil || null,
+    message_length: data.messageContent.length,
+    rate_limit_reason: data.rateLimitReason || null,
     ...(data.wablasResponse ? { wablas_response: data.wablasResponse } : {}),
-    ...(data.errorMessage ? { error_message: data.errorMessage } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
   });

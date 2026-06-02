@@ -102,6 +102,9 @@ WABLAS_DEVICE_ID=
 WABLAS_DEFAULT_GROUP_ID=
 WABLAS_ALLOWED_GROUP_IDS=
 WABLAS_WEBHOOK_SECRET=
+WABLAS_MIN_SEND_INTERVAL_SECONDS=60
+WABLAS_RATE_LIMIT_COOLDOWN_MINUTES=60
+WABLAS_MAX_SENDS_PER_HOUR=25
 
 # GEMINI - SERVER ONLY
 GEMINI_API_KEY=
@@ -153,6 +156,11 @@ Cloudinary preview memakai `next/image` dan domain `res.cloudinary.com` sudah di
 4. Log tersimpan di `whatsapp_logs`.
 
 Payload group memakai `isGroup: "true"` agar Wablas memproses sebagai group message.
+
+Untuk mencegah nomor WhatsApp terblokir atau dibatasi (Error 463), atur juga parameter pengaman berikut:
+- `WABLAS_MIN_SEND_INTERVAL_SECONDS`: Jeda minimal (dalam detik) antar pengiriman pesan global untuk menghindari burst.
+- `WABLAS_RATE_LIMIT_COOLDOWN_MINUTES`: Durasi cooldown (dalam menit) penghentian pengiriman otomatis jika terdeteksi Error 463.
+- `WABLAS_MAX_SENDS_PER_HOUR`: Batas aman maksimum jumlah pengiriman pesan per jam.
 
 ## Wablas Webhook Setup
 

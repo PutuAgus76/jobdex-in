@@ -111,37 +111,37 @@ export function TaskDetail({
         </CardContent>
       </Card>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card>
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 w-full max-w-full min-w-0">
+        <Card className="w-full min-w-0 max-w-full">
           <CardHeader>
             <CardTitle>Redaksi dan referensi</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm">
+          <CardContent className="space-y-4 text-sm w-full min-w-0 max-w-full">
             <Block label="Copywriting" value={task.copywriting} />
             <LinkBlock label="Google Docs redaksi" href={task.copywriting_docs_url} />
             <LinkBlock label="Referensi desain" href={task.design_reference_url} />
             <LinkBlock label="Google Drive referensi" href={task.drive_reference_url} />
             
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 w-full min-w-0 max-w-full">
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 onClick={() => setRefDialogOpen(true)}
-                className="w-full text-xs font-semibold py-1.5 h-auto"
+                className="w-full text-xs font-semibold py-1.5 h-auto whitespace-normal break-words"
               >
                 Perlu Referensi Cerdas
               </Button>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="w-full min-w-0 max-w-full">
           <CardHeader>
             <CardTitle>Arahan visual</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm">
+          <CardContent className="space-y-4 text-sm w-full min-w-0 max-w-full">
             <Block label="Arahan visual/supergrafis" value={task.visual_direction} />
-            <div>
+            <div className="w-full min-w-0 max-w-full">
               <p className="font-semibold text-slate-950 dark:text-slate-50">Color palette</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {task.color_palette?.length ? (
@@ -183,21 +183,28 @@ export function TaskDetail({
   );
 }
 
+// Subcomponents helper
+
 function Block({ label, value }: { label: string; value?: string }) {
   return (
-    <div>
+    <div className="w-full min-w-0 max-w-full">
       <p className="font-semibold text-slate-950 dark:text-slate-50">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-600 dark:text-slate-300">{value || "-"}</p>
+      <p className="mt-1 whitespace-pre-wrap leading-6 text-slate-600 dark:text-slate-300 jd-safe-text">{value || "-"}</p>
     </div>
   );
 }
 
 function LinkBlock({ label, href }: { label: string; href?: string }) {
   return (
-    <div>
+    <div className="w-full min-w-0 max-w-full">
       <p className="font-semibold text-slate-950 dark:text-slate-50">{label}</p>
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-200">
+        <a 
+          href={href} 
+          target="_blank" 
+          rel="noreferrer" 
+          className="mt-1 inline-block text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-200 jd-safe-text"
+        >
           {href}
         </a>
       ) : (

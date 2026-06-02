@@ -12,6 +12,7 @@ import {
   getWhatsAppRecipientType,
   isWhatsAppGroupRecipient,
   sendWhatsAppMessage as baseSendWhatsAppMessage,
+  WhatsAppRateLimitError,
 } from "@/lib/server/whatsapp";
 import {
   extractJobDexQuestion,
@@ -125,13 +126,19 @@ async function baseCreateWhatsAppLog({
   errorMessage,
   recipient,
   isGroup,
+  errorCode,
+  cooldownUntil,
+  rateLimitReason,
 }: {
   message: string;
-  status: "sent" | "failed";
+  status: string;
   response?: string;
   errorMessage?: string;
   recipient?: string;
   isGroup?: boolean;
+  errorCode?: string | number;
+  cooldownUntil?: Date | null;
+  rateLimitReason?: string;
 }) {
   const logRef = getAdminDb().collection("whatsapp_logs").doc();
 
@@ -144,8 +151,13 @@ async function baseCreateWhatsAppLog({
     recipient_type: isGroup !== undefined ? (isGroup ? "group" : "personal") : getWhatsAppRecipientType(),
     is_group: isGroup !== undefined ? isGroup : isWhatsAppGroupRecipient(),
     status,
+    send_status: status,
+    error_code: errorCode || null,
+    error_message: errorMessage || null,
+    cooldown_until: cooldownUntil || null,
+    message_length: message.length,
+    rate_limit_reason: rateLimitReason || null,
     ...(response ? { wablas_response: response } : {}),
-    ...(errorMessage ? { error_message: errorMessage } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
   });
@@ -1297,6 +1309,28 @@ export async function POST(request: NextRequest) {
     await updateDebugIntent("gemini_fallback", null);
     return NextResponse.json({ ok: true });
   } catch (error) {
+    if (error instanceof WhatsAppRateLimitError) {
+      try {
+        await baseCreateWhatsAppLog({
+          message: incoming.message || "",
+          status: error.status,
+          errorMessage: error.message,
+          recipient: incoming.groupId || getDefaultGroupId(),
+          isGroup: true,
+          cooldownUntil: error.cooldownUntil,
+          rateLimitReason: error.message,
+        });
+      } catch (logErr) {
+        console.error("Failed to write rate limit log:", logErr);
+      }
+
+      return NextResponse.json({
+        ok: false,
+        error: error.message,
+        status: error.status,
+      });
+    }
+
     const errorReply = [
       "[JobDex.in AI]",
       GEMINI_EMPTY_ANSWER_FALLBACK,
@@ -1310,13 +1344,23 @@ export async function POST(request: NextRequest) {
         response: sendResult.responseText,
       });
     } catch (sendError) {
-      await createWhatsAppLog({
+      let status = "failed";
+      let errorMsg = sendError instanceof Error ? sendError.message : "Gagal mengirim error reply ke WhatsApp.";
+      let cooldownUntil: Date | null = null;
+      
+      if (sendError instanceof WhatsAppRateLimitError) {
+        status = sendError.status;
+        errorMsg = sendError.message;
+        cooldownUntil = sendError.cooldownUntil;
+      }
+
+      await baseCreateWhatsAppLog({
         message: errorReply,
-        status: "failed",
-        errorMessage:
-          sendError instanceof Error
-            ? sendError.message
-            : "Gagal mengirim error reply ke WhatsApp.",
+        status,
+        errorMessage: errorMsg,
+        recipient: incoming.groupId || getDefaultGroupId(),
+        isGroup: true,
+        cooldownUntil,
       });
     }
 

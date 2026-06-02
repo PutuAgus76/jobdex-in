@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/server/firebase-admin";
-import { sendWhatsAppMessage, getWhatsAppRecipient } from "@/lib/server/whatsapp";
+import { sendWhatsAppMessage, getWhatsAppRecipient, WhatsAppRateLimitError } from "@/lib/server/whatsapp";
 import {
   getTaskDeadlineDiffDays,
   shouldSendDeadlineReminder,
@@ -49,7 +49,82 @@ async function handleCron(request: Request) {
     personalRemindersSent: 0,
     skippedAlreadySent: 0,
     skippedCompleted: 0,
+    sent: 0,
+    skipped_min_interval: 0,
+    skipped_hourly_limit: 0,
+    skipped_cooldown: 0,
+    rate_limited: 0,
+    failed: 0,
     errors: [] as string[],
+  };
+
+  const dispatchReminder = async (
+    task: Task,
+    recipient: string,
+    recipientType: "group" | "personal",
+    messageContent: string,
+    reminderType: string
+  ) => {
+    try {
+      const dispatchResult = await sendWhatsAppMessage(messageContent, recipientType === "personal" ? recipient : undefined);
+      
+      const whatsappLogId = await logWhatsAppDispatch({
+        task,
+        recipient,
+        recipientType,
+        messageContent,
+        status: "sent",
+        wablasResponse: dispatchResult.responseText,
+      });
+
+      await createTaskReminderLog({
+        task,
+        reminderType,
+        channel: recipientType,
+        recipient,
+        messageContent,
+        whatsappLogId,
+      });
+
+      summary.sent++;
+      if (recipientType === "group") {
+        summary.groupRemindersSent++;
+      } else {
+        summary.personalRemindersSent++;
+      }
+    } catch (err: unknown) {
+      let status = "failed";
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      let cooldownUntil: Date | null = null;
+      let rateLimitReason: string | undefined = undefined;
+
+      if (err instanceof WhatsAppRateLimitError) {
+        status = err.status;
+        cooldownUntil = err.cooldownUntil;
+        rateLimitReason = err.message;
+      }
+
+      // Increment summary counts
+      if (status === "skipped_min_interval") summary.skipped_min_interval++;
+      else if (status === "skipped_hourly_limit") summary.skipped_hourly_limit++;
+      else if (status === "skipped_cooldown") summary.skipped_cooldown++;
+      else if (status === "rate_limited") summary.rate_limited++;
+      else {
+        summary.failed++;
+        summary.errors.push(`Failed to send reminder for task ${task.id}: ${errorMsg}`);
+      }
+
+      await logWhatsAppDispatch({
+        task,
+        recipient,
+        recipientType,
+        messageContent,
+        status,
+        errorMessage: errorMsg,
+        cooldownUntil,
+        rateLimitReason,
+      });
+    }
   };
 
   try {
@@ -152,37 +227,7 @@ async function handleCron(request: Request) {
             divisionOrEventName,
             missingMaterial
           );
-          try {
-            const dispatchResult = await sendWhatsAppMessage(groupMsg);
-            const whatsappLogId = await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "sent",
-              wablasResponse: dispatchResult.responseText,
-            });
-            await createTaskReminderLog({
-              task,
-              reminderType: type,
-              channel: "group",
-              recipient: groupId,
-              messageContent: groupMsg,
-              whatsappLogId,
-            });
-            summary.groupRemindersSent++;
-          } catch (err: unknown) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            summary.errors.push(`Failed to send group reminder for task ${task.id}: ${errorMsg}`);
-            await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "failed",
-              errorMessage: errorMsg,
-            });
-          }
+          await dispatchReminder(task, groupId, "group", groupMsg, type);
         } else {
           summary.skippedAlreadySent++;
         }
@@ -197,39 +242,7 @@ async function handleCron(request: Request) {
           );
           if (!isPersonalAlreadySent) {
             const personalMsg = buildPersonalReminderMessage(task, picUser.name);
-            try {
-              const dispatchResult = await sendWhatsAppMessage(personalMsg, picUser.whatsapp_number);
-              const whatsappLogId = await logWhatsAppDispatch({
-                task,
-                recipient: picUser.whatsapp_number,
-                recipientType: "personal",
-                messageContent: personalMsg,
-                status: "sent",
-                wablasResponse: dispatchResult.responseText,
-              });
-              await createTaskReminderLog({
-                task,
-                reminderType: type,
-                channel: "personal",
-                recipient: picUser.whatsapp_number,
-                messageContent: personalMsg,
-                whatsappLogId,
-              });
-              summary.personalRemindersSent++;
-            } catch (err: unknown) {
-              const errorMsg = err instanceof Error ? err.message : String(err);
-              summary.errors.push(
-                `Failed to send personal reminder to PIC ${picUser.name} for task ${task.id}: ${errorMsg}`
-              );
-              await logWhatsAppDispatch({
-                task,
-                recipient: picUser.whatsapp_number,
-                recipientType: "personal",
-                messageContent: personalMsg,
-                status: "failed",
-                errorMessage: errorMsg,
-              });
-            }
+            await dispatchReminder(task, picUser.whatsapp_number, "personal", personalMsg, type);
           } else {
             summary.skippedAlreadySent++;
           }
@@ -245,37 +258,7 @@ async function handleCron(request: Request) {
             divisionOrEventName,
             false
           );
-          try {
-            const dispatchResult = await sendWhatsAppMessage(groupMsg);
-            const whatsappLogId = await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "sent",
-              wablasResponse: dispatchResult.responseText,
-            });
-            await createTaskReminderLog({
-              task,
-              reminderType: "missing_material",
-              channel: "group",
-              recipient: groupId,
-              messageContent: groupMsg,
-              whatsappLogId,
-            });
-            summary.groupRemindersSent++;
-          } catch (err: unknown) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            summary.errors.push(`Failed to send missing_material reminder for task ${task.id}: ${errorMsg}`);
-            await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "failed",
-              errorMessage: errorMsg,
-            });
-          }
+          await dispatchReminder(task, groupId, "group", groupMsg, "missing_material");
         } else {
           summary.skippedAlreadySent++;
         }
@@ -290,37 +273,7 @@ async function handleCron(request: Request) {
             divisionOrEventName,
             false
           );
-          try {
-            const dispatchResult = await sendWhatsAppMessage(groupMsg);
-            const whatsappLogId = await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "sent",
-              wablasResponse: dispatchResult.responseText,
-            });
-            await createTaskReminderLog({
-              task,
-              reminderType: "stuck_escalation",
-              channel: "group",
-              recipient: groupId,
-              messageContent: groupMsg,
-              whatsappLogId,
-            });
-            summary.groupRemindersSent++;
-          } catch (err: unknown) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
-            summary.errors.push(`Failed to send stuck_escalation reminder for task ${task.id}: ${errorMsg}`);
-            await logWhatsAppDispatch({
-              task,
-              recipient: groupId,
-              recipientType: "group",
-              messageContent: groupMsg,
-              status: "failed",
-              errorMessage: errorMsg,
-            });
-          }
+          await dispatchReminder(task, groupId, "group", groupMsg, "stuck_escalation");
         } else {
           summary.skippedAlreadySent++;
         }

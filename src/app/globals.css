@@ -747,3 +747,11 @@ a {
   border-color: var(--jd-neo-gray) !important;
 }
 
+/* 6. SAFE TEXT WRAPPING FOR RESPONSIBILITY */
+.jd-safe-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+}
+
