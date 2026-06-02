@@ -193,41 +193,6 @@ function normalizePhone(value: string): string {
     .replace(/^8/, "628");
 }
 
-function findGroupParticipantSender(payload: unknown): {
-  normalized: string;
-  source: string;
-  raw: string;
-} | null {
-  const root = getRecord(payload);
-  const data = getRecord(root?.data);
-  const group = getRecord(root?.group) ?? getRecord(data?.group);
-  const participants = getArray(group?.participants);
-
-  const groupId = normalizePhone(getString(root?.phone) || getString(group?.group_id));
-  const deviceSender = normalizePhone(getString(root?.sender));
-
-  for (let i = 0; i < participants.length; i++) {
-    const participant = getRecord(participants[i]);
-    const rawSender = getString(participant?.sender);
-    const normalized = normalizePhone(rawSender);
-
-    if (
-      normalized &&
-      normalized.startsWith("62") &&
-      normalized !== groupId &&
-      normalized !== deviceSender &&
-      !normalized.startsWith("120363")
-    ) {
-      return {
-        normalized,
-        raw: rawSender,
-        source: `group.participants[${i}].sender`,
-      };
-    }
-  }
-
-  return null;
-}
 
 function extractCandidates(payload: unknown): Record<string, string> {
   const candidates: Record<string, string> = {};
@@ -269,24 +234,19 @@ function extractCandidates(payload: unknown): Record<string, string> {
   const group = getRecord(root?.group) ?? getRecord(data?.group);
   const participants = getArray(group?.participants);
 
-  const getParticipantSender = (idx: number): string => {
-    const p = getRecord(participants[idx]);
-    if (p) {
-      return normalizePhone(getString(p.sender));
-    }
-    return "";
-  };
-
-  candidates["group.participants[0].sender"] = getParticipantSender(0);
-  candidates["group.participants[1].sender"] = getParticipantSender(1);
-  candidates["group.participants[2].sender"] = getParticipantSender(2);
-
   const allSenders: string[] = [];
   for (let i = 0; i < participants.length; i++) {
     const p = getRecord(participants[i]);
     if (p) {
-      const s = normalizePhone(getString(p.sender));
-      if (s) allSenders.push(s);
+      const rawSender = getString(p.sender);
+      const s = normalizePhone(rawSender);
+      const isLid = rawSender.toLowerCase().includes("@lid");
+      
+      candidates[`group.participants[${i}].sender`] = s;
+      
+      if (s && !isLid) {
+        allSenders.push(s);
+      }
     }
   }
   candidates["group_participant_senders"] = allSenders.join(", ");
@@ -355,70 +315,98 @@ export async function POST(request: NextRequest) {
   const dataPayloadObj = getRecord(rootObj.data) || {};
   const detailedCandidates: CandidateSource[] = [];
 
-  // 1. Try finding group participant sender using explicit helper
-  const participantSender = findGroupParticipantSender(payload);
+  const group = getRecord(rootObj.group) ?? getRecord(dataPayloadObj.group);
+  const participants = getArray(group?.participants);
+
+  const groupId = normalizePhone(getString(rootObj.phone) || getString(group?.group_id) || incoming.groupId);
+  const deviceSender = "6287798799068";
+
+  // Gather participant candidates
+  const participantCandidates: CandidateSource[] = [];
+  for (let i = 0; i < participants.length; i++) {
+    const participant = getRecord(participants[i]);
+    const rawSender = getString(participant?.sender);
+    const normalized = normalizePhone(rawSender);
+    const isLid = rawSender.toLowerCase().includes("@lid");
+
+    const isValid = 
+      normalized &&
+      !isLid &&
+      normalized.startsWith("62") &&
+      normalized !== groupId &&
+      normalized !== deviceSender &&
+      !normalized.startsWith("120363");
+
+    if (isValid) {
+      participantCandidates.push({
+        source: `group.participants[${i}].sender`,
+        raw: rawSender,
+        normalized: normalized,
+      });
+    }
+  }
+
+  // Gather fallback candidates
+  const fallbackCandidates: CandidateSource[] = [];
+  const addFallbackCandidate = (sourceKey: string, val: unknown) => {
+    const rawVal = String(val || "");
+    const cleaned = cleanPhone(val);
+    const isLid = rawVal.toLowerCase().includes("@lid");
+    if (
+      cleaned && 
+      !isLid &&
+      cleaned !== deviceSender && 
+      cleaned !== groupId && 
+      !cleaned.startsWith("120363")
+    ) {
+      if (
+        !participantCandidates.some((c) => c.normalized === cleaned) &&
+        !fallbackCandidates.some((c) => c.normalized === cleaned)
+      ) {
+        fallbackCandidates.push({
+          source: sourceKey,
+          raw: rawVal,
+          normalized: cleaned,
+        });
+      }
+    }
+  };
+
+  const keyObj = getRecord(rootObj.key) || {};
+  const dataKeyObj = getRecord(dataPayloadObj.key) || {};
+
+  addFallbackCandidate("participant", rootObj.participant);
+  addFallbackCandidate("author", rootObj.author);
+  addFallbackCandidate("key.participant", keyObj.participant);
+  addFallbackCandidate("data.participant", dataPayloadObj.participant);
+  addFallbackCandidate("data.author", dataPayloadObj.author);
+  addFallbackCandidate("data.key.participant", dataKeyObj.participant);
+  addFallbackCandidate("sender", rootObj.sender);
+  addFallbackCandidate("from", rootObj.from);
+  addFallbackCandidate("phone", rootObj.phone);
+  addFallbackCandidate("sender_number", rootObj.sender_number);
+  addFallbackCandidate("phone_number", rootObj.phone_number);
+  addFallbackCandidate("key.remoteJid", keyObj.remoteJid);
+  addFallbackCandidate("data.sender", dataPayloadObj.sender);
+  addFallbackCandidate("data.from", dataPayloadObj.from);
+  addFallbackCandidate("data.phone", dataPayloadObj.phone);
+  addFallbackCandidate("data.key.remoteJid", dataKeyObj.remoteJid);
+
+  detailedCandidates.push(...participantCandidates, ...fallbackCandidates);
 
   let senderUserProfile: UserProfile | null = null;
   let resolvedSenderNumber = "";
   let senderSource = "";
 
-  if (participantSender) {
-    resolvedSenderNumber = participantSender.normalized;
-    senderSource = participantSender.source;
-    detailedCandidates.push({
-      source: participantSender.source,
-      raw: participantSender.raw,
-      normalized: participantSender.normalized,
-    });
+  if (participantCandidates.length > 0) {
+    resolvedSenderNumber = participantCandidates[0].normalized;
+    senderSource = participantCandidates[0].source;
+  } else if (detailedCandidates.length > 0) {
+    resolvedSenderNumber = detailedCandidates[0].normalized;
+    senderSource = detailedCandidates[0].source;
   } else {
-    resolvedSenderNumber = incoming.sender;
+    resolvedSenderNumber = normalizePhone(incoming.sender);
     senderSource = "fallback";
-
-    // Populate backup fallback candidates
-    const keyObj = getRecord(rootObj.key) || {};
-    const dataKeyObj = getRecord(dataPayloadObj.key) || {};
-
-    const addDirectSource = (key: string, val: unknown) => {
-      const rawVal = String(val || "");
-      const cleaned = cleanPhone(val);
-      if (cleaned && cleaned !== "6287798799068" && cleaned !== resolvedSenderNumber) {
-        detailedCandidates.push({
-          source: key,
-          raw: rawVal,
-          normalized: cleaned,
-        });
-      }
-    };
-
-    addDirectSource("participant", rootObj.participant);
-    addDirectSource("author", rootObj.author);
-    addDirectSource("key.participant", keyObj.participant);
-    addDirectSource("data.participant", dataPayloadObj.participant);
-    addDirectSource("data.author", dataPayloadObj.author);
-    addDirectSource("data.key.participant", dataKeyObj.participant);
-
-    const isBotOrGroup = (val: string) => {
-      return val === "6287798799068" || val.startsWith("120363") || val.includes("g.us");
-    };
-
-    const addRootSource = (key: string, val: unknown) => {
-      const rawVal = String(val || "");
-      const cleaned = cleanPhone(val);
-      if (cleaned && !isBotOrGroup(cleaned) && cleaned !== resolvedSenderNumber) {
-        detailedCandidates.push({
-          source: key,
-          raw: rawVal,
-          normalized: cleaned,
-        });
-      }
-    };
-
-    addRootSource("sender", rootObj.sender);
-    addRootSource("from", rootObj.from);
-    addRootSource("phone", rootObj.phone);
-    addRootSource("data.sender", dataPayloadObj.sender);
-    addRootSource("data.from", dataPayloadObj.from);
-    addRootSource("data.phone", dataPayloadObj.phone);
   }
 
   // Firestore user lookup
@@ -475,6 +463,7 @@ export async function POST(request: NextRequest) {
       group_participant_senders: candidatesDump["group_participant_senders"] || "",
       available_top_level_keys,
       available_data_keys,
+      intent_debug: null,
     });
   } catch (debugError) {
     console.error("Failed to write wablas incoming debug log:", debugError);
@@ -498,7 +487,8 @@ export async function POST(request: NextRequest) {
 
     const updateDebugIntent = async (
       routedTo: "task_command" | "task_help" | "reference_search" | "gemini_fallback",
-      parsedTaskIntent: string | null
+      parsedTaskIntent: string | null,
+      refQuery: string | null = null
     ) => {
       if (!debugRefId) return;
       try {
@@ -508,6 +498,7 @@ export async function POST(request: NextRequest) {
             parsed_task_intent: parsedTaskIntent,
             is_reference_search: isRefSearch,
             routed_to: routedTo,
+            reference_query: refQuery,
           }
         });
       } catch (err) {
@@ -1207,7 +1198,7 @@ export async function POST(request: NextRequest) {
         response: sendResult.responseText,
       });
 
-      await updateDebugIntent("reference_search", null);
+      await updateDebugIntent("reference_search", null, question);
       return NextResponse.json({ ok: true });
     }
 
