@@ -55,13 +55,13 @@ export const dashboardNavigation: DashboardNavConfig[] = [
     visible: (profile) => isSuperAdmin(profile),
   },
   {
-    label: "Pengaturan",
-    href: "/dashboard/settings",
-    visible: (profile) => isSuperAdmin(profile),
-  },
-  {
     label: "Profile",
     href: "/dashboard/profile",
+    visible: allUsers,
+  },
+  {
+    label: "Pengaturan",
+    href: "/dashboard/settings",
     visible: allUsers,
   },
 ];

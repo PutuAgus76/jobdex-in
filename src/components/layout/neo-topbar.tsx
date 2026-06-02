@@ -31,7 +31,11 @@ function getInitials(name?: string | null): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-export function NeoTopbar() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function NeoTopbar(props: {
+  isCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userProfile } = useAuth();
