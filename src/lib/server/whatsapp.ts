@@ -8,17 +8,28 @@ function normalizeBaseUrl(value: string) {
   return value.replace(/\/$/, "");
 }
 
-export async function sendWhatsAppMessage(message: string, customPhone?: string) {
+export async function sendWhatsAppMessage(message: string, customPhone?: string, customGroupId?: string) {
   const apiUrl = process.env.WABLAS_API_URL;
   const token = process.env.WABLAS_API_TOKEN;
   const secret = process.env.WABLAS_SECRET_KEY;
-  const groupId = process.env.WABLAS_GROUP_ID;
   const deviceId = process.env.WABLAS_DEVICE_ID;
-  const sendToGroup = customPhone ? false : isWhatsAppGroupRecipient();
-  const recipient = customPhone ? customPhone : groupId;
+  
+  let recipient = "";
+  let sendToGroup = false;
+
+  if (customPhone) {
+    recipient = customPhone;
+    sendToGroup = false;
+  } else if (customGroupId) {
+    recipient = customGroupId;
+    sendToGroup = true;
+  } else {
+    recipient = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+    sendToGroup = isWhatsAppGroupRecipient();
+  }
 
   if (!recipient) {
-    throw new Error("Penerima WhatsApp belum diatur (groupId dan customPhone kosong).");
+    throw new Error("Penerima WhatsApp belum diatur (groupId, customPhone, dan customGroupId kosong).");
   }
 
   if (!apiUrl || !token || !secret) {
@@ -58,7 +69,7 @@ export async function sendWhatsAppMessage(message: string, customPhone?: string)
 }
 
 export function getWhatsAppRecipient() {
-  return process.env.WABLAS_GROUP_ID ?? "";
+  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
 }
 
 export function getWhatsAppRecipientType() {

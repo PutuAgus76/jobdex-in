@@ -11,7 +11,7 @@ import {
   getWhatsAppRecipient,
   getWhatsAppRecipientType,
   isWhatsAppGroupRecipient,
-  sendWhatsAppMessage,
+  sendWhatsAppMessage as baseSendWhatsAppMessage,
 } from "@/lib/server/whatsapp";
 import {
   extractJobDexQuestion,
@@ -76,14 +76,32 @@ function getWebhookSecret() {
   return process.env.WABLAS_WEBHOOK_SECRET ?? "";
 }
 
-function isTargetGroup(groupId: string, sender: string) {
-  const targetGroupId = process.env.WABLAS_GROUP_ID;
+function getAllowedGroupIds(): string[] {
+  const allowedStr = process.env.WABLAS_ALLOWED_GROUP_IDS || "";
+  const allowed = allowedStr
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
 
-  if (!targetGroupId) {
-    return false;
+  const defaultId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+  if (defaultId && !allowed.includes(defaultId)) {
+    allowed.push(defaultId);
   }
+  return allowed;
+}
 
-  return groupId === targetGroupId || sender === targetGroupId;
+function isAllowedGroup(groupId: string): boolean {
+  if (!groupId) return false;
+  const allowed = getAllowedGroupIds();
+  return allowed.includes(groupId);
+}
+
+function getDefaultGroupId(): string {
+  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+}
+
+function isTargetGroup(groupId: string, sender: string) {
+  return isAllowedGroup(groupId) || isAllowedGroup(sender);
 }
 
 function getBotProfile() {
@@ -100,16 +118,20 @@ function getBotProfile() {
   } satisfies UserProfile;
 }
 
-async function createWhatsAppLog({
+async function baseCreateWhatsAppLog({
   message,
   status,
   response,
   errorMessage,
+  recipient,
+  isGroup,
 }: {
   message: string;
   status: "sent" | "failed";
   response?: string;
   errorMessage?: string;
+  recipient?: string;
+  isGroup?: boolean;
 }) {
   const logRef = getAdminDb().collection("whatsapp_logs").doc();
 
@@ -118,9 +140,9 @@ async function createWhatsAppLog({
     organization_id: "main_org",
     event_type: "whatsapp_ai_bot_reply",
     message_content: message,
-    recipient: getWhatsAppRecipient(),
-    recipient_type: getWhatsAppRecipientType(),
-    is_group: isWhatsAppGroupRecipient(),
+    recipient: recipient ?? getWhatsAppRecipient(),
+    recipient_type: isGroup !== undefined ? (isGroup ? "group" : "personal") : getWhatsAppRecipientType(),
+    is_group: isGroup !== undefined ? isGroup : isWhatsAppGroupRecipient(),
     status,
     ...(response ? { wablas_response: response } : {}),
     ...(errorMessage ? { error_message: errorMessage } : {}),
@@ -305,6 +327,23 @@ export async function POST(request: NextRequest) {
   const incoming = parseWablasIncomingPayload(payload);
   const question = extractJobDexQuestion(incoming.message);
 
+  const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
+    return baseSendWhatsAppMessage(message, customPhone, incoming.groupId);
+  };
+
+  const createWhatsAppLog = async (args: {
+    message: string;
+    status: "sent" | "failed";
+    response?: string;
+    errorMessage?: string;
+  }) => {
+    return baseCreateWhatsAppLog({
+      ...args,
+      recipient: incoming.groupId || getDefaultGroupId(),
+      isGroup: true,
+    });
+  };
+
   interface CandidateSource {
     source: string;
     raw: string;
@@ -464,6 +503,10 @@ export async function POST(request: NextRequest) {
       available_top_level_keys,
       available_data_keys,
       intent_debug: null,
+      incoming_group_id: incoming.groupId || "",
+      allowed_group_ids: getAllowedGroupIds(),
+      is_allowed_group: isAllowedGroup(incoming.groupId),
+      reply_target_group_id: incoming.groupId || getDefaultGroupId(),
     });
   } catch (debugError) {
     console.error("Failed to write wablas incoming debug log:", debugError);

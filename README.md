@@ -99,7 +99,8 @@ WABLAS_API_URL=
 WABLAS_API_TOKEN=
 WABLAS_SECRET_KEY=
 WABLAS_DEVICE_ID=
-WABLAS_GROUP_ID=
+WABLAS_DEFAULT_GROUP_ID=
+WABLAS_ALLOWED_GROUP_IDS=
 WABLAS_WEBHOOK_SECRET=
 
 # GEMINI - SERVER ONLY
@@ -146,9 +147,9 @@ Cloudinary preview memakai `next/image` dan domain `res.cloudinary.com` sudah di
 
 ## Wablas Setup
 
-1. Isi `WABLAS_API_URL`, `WABLAS_API_TOKEN`, `WABLAS_SECRET_KEY`, `WABLAS_DEVICE_ID`, dan `WABLAS_GROUP_ID`.
+1. Isi `WABLAS_API_URL`, `WABLAS_API_TOKEN`, `WABLAS_SECRET_KEY`, `WABLAS_DEVICE_ID`, `WABLAS_DEFAULT_GROUP_ID`, dan `WABLAS_ALLOWED_GROUP_IDS`.
 2. Pastikan group id valid.
-3. Sistem mengirim notifikasi status, upload, revisi, approve, dan ringkasan AI ke WhatsApp group.
+3. Sistem mengirim notifikasi status, upload, revisi, approve, dan ringkasan AI ke WhatsApp group default.
 4. Log tersimpan di `whatsapp_logs`.
 
 Payload group memakai `isGroup: "true"` agar Wablas memproses sebagai group message.
@@ -347,7 +348,7 @@ https://jobdex-in.vercel.app/api/webhooks/wablas/gemini?secret=ISI_SECRET
 - Localhost butuh ngrok atau Cloudflare Tunnel.
 - Pastikan query `secret` sama dengan `WABLAS_WEBHOOK_SECRET`.
 - Pastikan incoming message dimulai dengan `!jobdex`.
-- Pastikan payload mengandung group id/phone/from yang cocok dengan `WABLAS_GROUP_ID`.
+- Pastikan payload mengandung group id/phone/from yang terdaftar di `WABLAS_ALLOWED_GROUP_IDS`.
 
 ### Gemini AI
 
