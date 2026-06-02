@@ -645,6 +645,161 @@ export async function confirmPreviewCommand(
         };
       }
 
+      case "create_reference_preview": {
+        const scope = String(fields.scope || "divisi").toLowerCase();
+        const isAcara = scope === "acara";
+        const isDivisi = scope === "divisi";
+        const judul = fields.judul || fields.title || "";
+        const tahunRaw = fields.tahun || fields.year || "";
+        const jenis = fields.jenis || fields.category || "";
+        
+        const linkDrive = fields["link drive"] || fields.link_drive || "";
+        const linkCanva = fields["link canva"] || fields.link_canva || "";
+        const linkDocs = fields["link docs"] || fields.link_docs || "";
+        const linkLain = fields["link lain"] || fields.link_lain || fields.link || "";
+
+        const warna = fields.warna || "-";
+        const arahanVisual = fields["arahan visual"] || fields.arahan_visual || "-";
+        const catatan = fields.catatan || fields.notes || "-";
+        const acaraRaw = fields.acara || "";
+        const divisiRaw = fields.divisi || "";
+
+        // Resolve Acara if scope is acara
+        let eventId = "";
+        let resolvedEventName = "";
+
+        if (isAcara) {
+          if (!acaraRaw) {
+            return {
+              success: false,
+              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Field 'acara' wajib disuplai untuk referensi scope 'acara'.`,
+            };
+          }
+          const event = findEventByName(acaraRaw, allEvents) as { id: string; name: string; coordinator_id: string } | null;
+          if (!event) {
+            return {
+              success: false,
+              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
+            };
+          }
+          eventId = event.id;
+          resolvedEventName = event.name;
+
+          // Koordinator Acara check
+          if (user.role === "koordinator_acara" && event.coordinator_id !== user.id) {
+            return {
+              success: false,
+              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat referensi untuk acara yang Anda koordinasikan sendiri.`,
+            };
+          }
+        } else if (isDivisi) {
+          if (user.role === "koordinator_acara") {
+            return {
+              success: false,
+              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat referensi scope divisi.`,
+            };
+          }
+          
+          if (user.role === "koordinator_divisi" && user.division_id && divisiRaw && user.division_id.toLowerCase() !== divisiRaw.toLowerCase()) {
+            return {
+              success: false,
+              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Sebagai Koordinator Divisi, Anda hanya boleh menambah referensi untuk divisi Anda sendiri (${user.division_id}).`,
+            };
+          }
+        }
+
+        // Link auto-classification & multi-link parsing
+        const driveLinks = linkDrive ? linkDrive.split(/,\s*/).filter(Boolean) : [];
+        const canvaLinks = linkCanva ? linkCanva.split(/,\s*/).filter(Boolean) : [];
+        const docLinks = linkDocs ? linkDocs.split(/,\s*/).filter(Boolean) : [];
+        let otherLinks = linkLain ? linkLain.split(/,\s*/).filter(Boolean) : [];
+
+        const classifiedOther: string[] = [];
+        for (const link of otherLinks) {
+          if (link.includes("drive.google.com")) {
+            driveLinks.push(link);
+          } else if (link.includes("docs.google.com")) {
+            if (link.includes("/document/")) {
+              docLinks.push(link);
+            } else {
+              driveLinks.push(link);
+            }
+          } else if (link.includes("canva.com")) {
+            canvaLinks.push(link);
+          } else {
+            classifiedOther.push(link);
+          }
+        }
+        otherLinks = classifiedOther;
+
+        // Map design type
+        const designTypeMapped = mapDesignType(jenis);
+
+        // Parse colors
+        const colors = warna !== "-" ? warna.split(",").map((s: string) => s.trim()).filter(Boolean) : [];
+
+        // Save reference to Firestore design_references
+        const refRef = db.collection("design_references").doc();
+        const batch = db.batch();
+
+        batch.set(refRef, {
+          id: refRef.id,
+          organization_id: "main_org",
+          title: judul,
+          event_name: resolvedEventName,
+          design_type: designTypeMapped,
+          year: parseInt(tahunRaw, 10) || new Date().getFullYear(),
+          drive_url: driveLinks[0] || "",
+          thumbnail_url: "",
+          style_notes: arahanVisual !== "-" ? arahanVisual : "",
+          color_palette: colors,
+          notes: catatan !== "-" ? catatan : "",
+          is_archived: false,
+          created_by: user.id,
+          created_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+          // New fields
+          scope: scope,
+          category: mapCategoryFromLinks(driveLinks, canvaLinks, docLinks, otherLinks, scope),
+          event_id: isAcara ? eventId : "",
+          drive_links: driveLinks,
+          canva_links: canvaLinks,
+          doc_links: docLinks,
+          other_links: otherLinks,
+          summary_notes: "",
+          file_inventory_notes: "",
+        });
+
+        // Update preview state
+        batch.update(previewDoc.ref, {
+          status: "confirmed",
+          confirmed_by: user.id,
+          confirmed_by_name: user.name,
+          confirmed_at: FieldValue.serverTimestamp(),
+          created_reference_ids: [refRef.id],
+          updated_at: FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
+
+        return {
+          success: true,
+          replyText: [
+            `✅ Referensi desain berhasil dibuat.`,
+            ``,
+            `Judul: ${judul}`,
+            `Scope: ${scope.charAt(0).toUpperCase() + scope.slice(1).toLowerCase()}`,
+            isAcara ? `Acara: ${resolvedEventName}` : null,
+            isDivisi ? `Divisi: ${divisiRaw || "Humas & Media Kreatif"}` : null,
+            `Tahun: ${tahunRaw}`,
+            `Jenis: ${designTypeMapped}`,
+            `Dibuat oleh: ${user.name}`,
+          ]
+            .filter((line) => line !== null)
+            .join("\n"),
+        };
+      }
+
       default: {
         return {
           success: false,
@@ -720,4 +875,34 @@ export async function recalculateEventProgressAdmin(eventId: string) {
     console.error("Gagal menghitung progress acara (Admin SDK):", error);
     return 0;
   }
+}
+
+function mapDesignType(rawType: string): string {
+  const norm = String(rawType || "").toLowerCase().trim();
+  if (norm.includes("poster") || norm.includes("pamflet") || norm.includes("flyer") || norm.includes("brosur")) return "poster";
+  if (norm.includes("nametag") || norm.includes("name tag") || norm.includes("id card")) return "name_tag";
+  if (norm.includes("twibbon") || norm.includes("twib")) return "twibbon";
+  if (norm.includes("feed")) return "feed_ig";
+  if (norm.includes("story")) return "story_ig";
+  if (norm.includes("banner") || norm.includes("spanduk") || norm.includes("backdrop")) return "banner";
+  if (norm.includes("sertifikat") || norm.includes("piagam")) return "sertifikat";
+  if (norm.includes("dokumentasi") || norm.includes("foto")) return "dokumentasi";
+  if (norm.includes("animasi") || norm.includes("video") || norm.includes("reels") || norm.includes("tiktok")) return "animasi";
+  if (norm.includes("merchandise") || norm.includes("kaos") || norm.includes("stiker")) return "merchandise";
+  return "lainnya";
+}
+
+function mapCategoryFromLinks(
+  driveLinks: string[],
+  canvaLinks: string[],
+  docLinks: string[],
+  otherLinks: string[],
+  scope: string
+): string {
+  if (canvaLinks.length > 0) return "canva";
+  if (driveLinks.length > 0) return "drive";
+  if (docLinks.length > 0) return "dokumen";
+  if (scope === "divisi") return "divisi";
+  if (scope === "acara") return "acara";
+  return "lainnya";
 }

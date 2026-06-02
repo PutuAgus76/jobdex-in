@@ -629,8 +629,10 @@ export async function POST(request: NextRequest) {
       const pin = String(parsedCommand.fields.pin || "");
 
       if (!pin) {
+        const isRef = parsedCommand.fields.type === "reference";
+        const refWord = isRef ? "referensi " : "";
         const replyMessage = [
-          "[JobDex.in Task]",
+          "[JobDex.in AI]",
           "",
           "Saya membaca perintah konfirmasi / batal:",
           `Kode: ${code}`,
@@ -638,7 +640,7 @@ export async function POST(request: NextRequest) {
           "Namun PIN belum disertakan.",
           "",
           "Gunakan:",
-          `!jobdex ${intent === "confirm_command" ? "konfirmasi" : "batal"} ${code} pin: 9703`
+          `!jobdex ${intent === "confirm_command" ? "konfirmasi" : "batal"} ${refWord}${code} pin: 9703`
         ].join("\n");
 
         await updateDebugIntent("task_help", intent);
@@ -1142,7 +1144,8 @@ export async function POST(request: NextRequest) {
       intent === "create_task_preview" ||
       intent === "create_event_preview" ||
       intent === "bulk_create_task_preview" ||
-      intent === "approve_task_preview";
+      intent === "approve_task_preview" ||
+      intent === "create_reference_preview";
 
     if (isStructured) {
       // 2. Parse command
@@ -1167,10 +1170,15 @@ export async function POST(request: NextRequest) {
         // Replace the placeholder note or append
         const oldNote = "Preview ini belum disimpan ke database.";
         const oldNote2 = "Preview ini belum dijalankan.";
+        const isReference = parsedCommand.intent === "create_reference_preview";
+        const confirmCmd = isReference 
+          ? `!jobdex konfirmasi referensi ${confirmationCode} pin: 1234` 
+          : `!jobdex konfirmasi ${confirmationCode} pin: 1234`;
+
         const instruction = [
           `Preview ID: ${confirmationCode}`,
           `Untuk menyimpan ke database, balas:`,
-          `!jobdex konfirmasi ${confirmationCode} pin: 1234`
+          confirmCmd
         ].join("\n");
 
         if (replyMessage.includes(oldNote)) {

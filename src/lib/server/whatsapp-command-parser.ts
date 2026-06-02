@@ -19,6 +19,7 @@ export type WhatsAppCommandIntent =
   | "archive_task"
   | "confirm_archive"
   | "checklist_task"
+  | "create_reference_preview"
   | "unknown";
 
 export interface ParsedWhatsAppCommand {
@@ -401,6 +402,17 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
   }
 
   // Fallback to original parsing methods
+  const isAddReference =
+    lowerCleaned.startsWith("tambah referensi") ||
+    lowerCleaned.startsWith("tambahkan referensi") ||
+    lowerCleaned.startsWith("tambah arsip referensi") ||
+    lowerCleaned.startsWith("tambah referensi desain") ||
+    lowerCleaned.startsWith("tambahkan referensi ini");
+
+  if (isAddReference) {
+    return parseReferenceCommand(rawText, cleaned);
+  }
+
   if (lowerCleaned.startsWith("konfirmasi")) {
     return parseConfirmCommand(rawText, cleaned);
   } else if (lowerCleaned.startsWith("batal")) {
@@ -560,16 +572,24 @@ function parseApproveTaskCommand(rawText: string, cleaned: string): ParsedWhatsA
 
 function parseConfirmCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
   const fields: Record<string, string> = {};
-  const match = cleaned.match(/^konfirmasi\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+  const match = cleaned.match(/^konfirmasi\s+(?:referensi\s+)?([a-z0-9]{6})(?:\s+pin\s*:?\s*(\d+))?/i);
   if (match) {
     fields["code"] = match[1].trim().toUpperCase();
-    fields["pin"] = match[2].trim();
+    fields["pin"] = match[2] ? match[2].trim() : "";
+    if (cleaned.toLowerCase().includes("referensi")) {
+      fields["type"] = "reference";
+    }
   } else {
     const parts = cleaned.split(/\s+/);
-    if (parts.length >= 2) {
-      fields["code"] = parts[1].trim().toUpperCase();
+    let codeIndex = 1;
+    if (parts[1]?.toLowerCase() === "referensi") {
+      codeIndex = 2;
+      fields["type"] = "reference";
     }
-    const pinMatch = cleaned.match(/pin:\s*(\d+)/i);
+    if (parts[codeIndex]) {
+      fields["code"] = parts[codeIndex].trim().toUpperCase();
+    }
+    const pinMatch = cleaned.match(/pin\s*:?\s*(\d+)/i);
     if (pinMatch) {
       fields["pin"] = pinMatch[1].trim();
     }
@@ -584,16 +604,24 @@ function parseConfirmCommand(rawText: string, cleaned: string): ParsedWhatsAppCo
 
 function parseCancelCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
   const fields: Record<string, string> = {};
-  const match = cleaned.match(/^batal\s+([a-z0-9]{6})\s+pin:\s*(\d+)/i);
+  const match = cleaned.match(/^batal\s+(?:referensi\s+)?([a-z0-9]{6})(?:\s+pin\s*:?\s*(\d+))?/i);
   if (match) {
     fields["code"] = match[1].trim().toUpperCase();
-    fields["pin"] = match[2].trim();
+    fields["pin"] = match[2] ? match[2].trim() : "";
+    if (cleaned.toLowerCase().includes("referensi")) {
+      fields["type"] = "reference";
+    }
   } else {
     const parts = cleaned.split(/\s+/);
-    if (parts.length >= 2) {
-      fields["code"] = parts[1].trim().toUpperCase();
+    let codeIndex = 1;
+    if (parts[1]?.toLowerCase() === "referensi") {
+      codeIndex = 2;
+      fields["type"] = "reference";
     }
-    const pinMatch = cleaned.match(/pin:\s*(\d+)/i);
+    if (parts[codeIndex]) {
+      fields["code"] = parts[codeIndex].trim().toUpperCase();
+    }
+    const pinMatch = cleaned.match(/pin\s*:?\s*(\d+)/i);
     if (pinMatch) {
       fields["pin"] = pinMatch[1].trim();
     }
@@ -601,6 +629,42 @@ function parseCancelCommand(rawText: string, cleaned: string): ParsedWhatsAppCom
 
   return {
     intent: "cancel_command",
+    rawText,
+    fields,
+  };
+}
+
+function parseReferenceCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
+  const lines = cleaned.split("\n");
+  const fields: Record<string, string> = {};
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    const lowerTrimmed = trimmed.toLowerCase();
+    if (
+      lowerTrimmed.startsWith("tambah referensi") ||
+      lowerTrimmed.startsWith("tambahkan referensi") ||
+      lowerTrimmed.startsWith("tambah arsip referensi") ||
+      lowerTrimmed.startsWith("tambah referensi desain") ||
+      lowerTrimmed.startsWith("tambahkan referensi ini")
+    ) {
+      continue;
+    }
+
+    const colonIndex = trimmed.indexOf(":");
+    if (colonIndex !== -1) {
+      const key = trimmed.slice(0, colonIndex).trim().toLowerCase();
+      const val = trimmed.slice(colonIndex + 1).trim();
+      if (key && val) {
+        fields[key] = val;
+      }
+    }
+  }
+
+  return {
+    intent: "create_reference_preview",
     rawText,
     fields,
   };

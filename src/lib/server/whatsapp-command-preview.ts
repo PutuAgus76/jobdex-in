@@ -99,6 +99,30 @@ tanggal: 1 Agustus 2026
 koordinator: Sumesta C
 deskripsi: Acara pengenalan kampus mahasiswa baru`;
 
+const CASE_REF_TEMPLATE = `[JobDex.in AI]
+
+Silakan lengkapi format tambah referensi desain berikut:
+
+!jobdex tambah referensi
+scope: divisi/acara
+acara: ...
+divisi: ...
+tahun: ...
+judul: ...
+jenis: poster/feed/story/nametag/video/audio/dokumen/google_drive/canva/lainnya
+link drive: ...
+link canva: ...
+link docs: ...
+link lain: ...
+warna: ...
+arahan visual: ...
+catatan: ...
+
+Catatan:
+- Gunakan scope: acara jika referensi terkait kegiatan tertentu.
+- Gunakan scope: divisi jika referensi milik divisi.
+- Minimal isi salah satu link.`;
+
 export const TASK_STATUS_LABELS: Record<string, string> = {
   todo: "Belum Mulai",
   in_progress: "Sedang Dikerjakan",
@@ -600,6 +624,228 @@ export async function buildWhatsAppCommandPreview(
       ].join("\n");
 
       return { isValid: false, previewText };
+    }
+
+    case "create_reference_preview": {
+      const cleanedCmd = parsed.rawText.trim().toLowerCase().replace(/^!jobdex/i, "").trim();
+      const isCmdEmpty = 
+        cleanedCmd === "tambah referensi" || 
+        cleanedCmd === "tambahkan referensi" || 
+        cleanedCmd === "tambah arsip referensi" || 
+        cleanedCmd === "tambah referensi desain" || 
+        cleanedCmd === "tambahkan referensi ini";
+
+      if (isCmdEmpty) {
+        return {
+          isValid: false,
+          previewText: CASE_REF_TEMPLATE,
+        };
+      }
+
+      const scope = fields.scope || "";
+      const isAcara = scope.toLowerCase() === "acara";
+      const isDivisi = scope.toLowerCase() === "divisi";
+
+      const judul = fields.judul || fields.title || "";
+      const tahun = fields.tahun || fields.year || "";
+      
+      const linkDrive = fields["link drive"] || fields.link_drive || "";
+      const linkCanva = fields["link canva"] || fields.link_canva || "";
+      const linkDocs = fields["link docs"] || fields.link_docs || "";
+      const linkLain = fields["link lain"] || fields.link_lain || fields.link || "";
+
+      // Gather missing required fields
+      const missingFields: string[] = [];
+      if (!scope) {
+        missingFields.push("scope");
+      } else if (scope.toLowerCase() !== "acara" && scope.toLowerCase() !== "divisi") {
+        missingFields.push("scope (harus divisi/acara)");
+      }
+      
+      if (!judul) missingFields.push("judul");
+      if (!tahun) missingFields.push("tahun");
+      
+      if (!linkDrive && !linkCanva && !linkDocs && !linkLain) {
+        missingFields.push("minimal satu link (link drive/canva/docs/lain)");
+      }
+
+      if (scope.toLowerCase() === "acara" && !fields.acara) missingFields.push("acara");
+      if (scope.toLowerCase() === "divisi" && !fields.divisi) missingFields.push("divisi");
+
+      if (missingFields.length > 0) {
+        // Build incomplete guidance
+        const readFields: string[] = [];
+        if (scope) readFields.push(`- Scope: ${scope}`);
+        if (isAcara && fields.acara) readFields.push(`- Acara: ${fields.acara}`);
+        if (isDivisi && fields.divisi) readFields.push(`- Divisi: ${fields.divisi}`);
+        if (judul) readFields.push(`- Judul: ${judul}`);
+        if (tahun) readFields.push(`- Tahun: ${tahun}`);
+        if (fields.jenis || fields.category) readFields.push(`- Jenis: ${fields.jenis || fields.category}`);
+        if (linkDrive) readFields.push(`- Link Drive: ${linkDrive}`);
+        if (linkCanva) readFields.push(`- Link Canva: ${linkCanva}`);
+        if (linkDocs) readFields.push(`- Link Docs: ${linkDocs}`);
+        if (linkLain) readFields.push(`- Link Lain: ${linkLain}`);
+
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+
+        const dynamicTemplate = [
+          `!jobdex tambah referensi`,
+          `scope: ${fields.scope || "divisi/acara"}`,
+          isAcara || scope.toLowerCase() === "acara" ? `acara: ${fields.acara || "..."}` : null,
+          isDivisi || scope.toLowerCase() === "divisi" ? `divisi: ${fields.divisi || "..."}` : null,
+          `tahun: ${fields.tahun || "..."}`,
+          `judul: ${fields.judul || "..."}`,
+          `jenis: ${fields.jenis || "..."}`,
+          `link drive: ${fields["link drive"] || "..."}`,
+          `link canva: ${fields["link canva"] || "..."}`,
+          `link docs: ${fields["link docs"] || "..."}`,
+          `link lain: ${fields["link lain"] || "..."}`,
+          fields.warna ? `warna: ${fields.warna}` : null,
+          fields["arahan visual"] || fields.arahan_visual ? `arahan visual: ${fields["arahan visual"] || fields.arahan_visual}` : null,
+          fields.catatan || fields.notes ? `catatan: ${fields.catatan || fields.notes}` : null,
+        ].filter(Boolean).join("\n");
+
+        const previewText = [
+          `[JobDex.in AI]`,
+          ``,
+          `Data referensi sudah mulai terbaca, tetapi masih kurang:`,
+          ``,
+          readSection,
+          ``,
+          missingSection,
+          ``,
+          `Silakan kirim ulang dengan format:`,
+          ``,
+          dynamicTemplate
+        ].join("\n");
+
+        return {
+          isValid: false,
+          previewText,
+        };
+      }
+
+      // Check Acara validity if scope is acara
+      const validations: string[] = [];
+      let isValid = true;
+      let eventObj = null;
+
+      if (isAcara && fields.acara) {
+        eventObj = findEventByName(fields.acara, events);
+        if (eventObj) {
+          validations.push(`- Acara ditemukan: ${eventObj.name}`);
+        } else {
+          validations.push(
+            `- Acara belum ditemukan ("${fields.acara}"). Harap buat acara terlebih dahulu menggunakan "!jobdex tambah acara" agar dapat menambahkan referensi ini.`
+          );
+          isValid = false;
+        }
+      }
+
+      // Check role authorization
+      if (!senderProfile) {
+        validations.push(`- Otorisasi dibatasi (Nomor belum terdaftar di JobDex.in)`);
+        isValid = false;
+      } else {
+        const role = senderProfile.role;
+        if (role === "anggota") {
+          validations.push(`- Akses ditolak: Anggota biasa tidak diizinkan menambahkan referensi.`);
+          isValid = false;
+        } else if (role === "koordinator_divisi") {
+          const userDiv = senderProfile.division_id || "";
+          const targetDiv = fields.divisi || "";
+          if (isDivisi && targetDiv && userDiv.toLowerCase() !== targetDiv.toLowerCase()) {
+            validations.push(`- Akses ditolak: Sebagai Koordinator Divisi, Anda hanya boleh menambah referensi untuk divisi Anda sendiri (${userDiv}).`);
+            isValid = false;
+          } else {
+            validations.push(`- Akses diizinkan: Koordinator Divisi`);
+          }
+        } else if (role === "koordinator_acara") {
+          if (isAcara && eventObj) {
+            const evDoc = await db.collection("events").doc(eventObj.id).get();
+            const evData = evDoc.data();
+            if (evData && evData.coordinator_id !== senderProfile.id) {
+              validations.push(`- Akses ditolak: Anda bukan koordinator untuk acara "${eventObj.name}".`);
+              isValid = false;
+            } else {
+              validations.push(`- Akses diizinkan: Koordinator Acara`);
+            }
+          } else if (isDivisi) {
+            validations.push(`- Akses ditolak: Koordinator Acara tidak diizinkan menambahkan referensi scope Divisi.`);
+            isValid = false;
+          } else {
+            validations.push(`- Akses diizinkan: Koordinator Acara`);
+          }
+        } else if (role === "super_admin") {
+          validations.push(`- Akses diizinkan: Super Admin`);
+        } else {
+          validations.push(`- Akses ditolak: Peran tidak dikenali.`);
+          isValid = false;
+        }
+      }
+
+      // Link auto-classification & multi-link parsing
+      const driveLinks = linkDrive ? linkDrive.split(/,\s*/).filter(Boolean) : [];
+      const canvaLinks = linkCanva ? linkCanva.split(/,\s*/).filter(Boolean) : [];
+      const docLinks = linkDocs ? linkDocs.split(/,\s*/).filter(Boolean) : [];
+      let otherLinks = linkLain ? linkLain.split(/,\s*/).filter(Boolean) : [];
+
+      const classifiedOther: string[] = [];
+      for (const link of otherLinks) {
+        if (link.includes("drive.google.com")) {
+          driveLinks.push(link);
+        } else if (link.includes("docs.google.com")) {
+          if (link.includes("/document/")) {
+            docLinks.push(link);
+          } else {
+            driveLinks.push(link);
+          }
+        } else if (link.includes("canva.com")) {
+          canvaLinks.push(link);
+        } else {
+          classifiedOther.push(link);
+        }
+      }
+      otherLinks = classifiedOther;
+
+      validations.push(`- Field wajib lengkap`);
+      validations.push(`- Minimal satu link tersedia`);
+
+      const jenis = fields.jenis || fields.category || "-";
+      const warna = fields.warna || "-";
+      const arahanVisual = fields["arahan visual"] || fields.arahan_visual || "-";
+      const catatan = fields.catatan || fields.notes || "-";
+
+      const previewText = [
+        `[JobDex.in AI Preview]`,
+        ``,
+        `Saya membaca rencana tambah referensi desain:`,
+        ``,
+        `Scope: ${scope.charAt(0).toUpperCase() + scope.slice(1).toLowerCase()}`,
+        isAcara ? `Acara: ${eventObj ? eventObj.name : fields.acara}` : null,
+        isDivisi ? `Divisi: ${fields.divisi}` : null,
+        `Tahun: ${tahun}`,
+        `Judul: ${judul}`,
+        `Jenis: ${jenis}`,
+        driveLinks.length > 0 ? `Link Drive: ${driveLinks.join(", ")}` : null,
+        canvaLinks.length > 0 ? `Link Canva: ${canvaLinks.join(", ")}` : null,
+        docLinks.length > 0 ? `Link Docs: ${docLinks.join(", ")}` : null,
+        otherLinks.length > 0 ? `Link Lain: ${otherLinks.join(", ")}` : null,
+        warna !== "-" ? `Warna: ${warna}` : null,
+        arahanVisual !== "-" ? `Arahan visual: ${arahanVisual}` : null,
+        catatan !== "-" ? `Catatan: ${catatan}` : null,
+        ``,
+        `Status validasi:`,
+        ...validations,
+        getSenderWarning(),
+        ``,
+        `Preview ini belum disimpan ke database.`
+      ]
+        .filter((line) => line !== null)
+        .join("\n");
+
+      return { isValid, previewText };
     }
 
     default: {
