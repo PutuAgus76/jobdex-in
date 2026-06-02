@@ -270,12 +270,12 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
       </div>
 
       {/* Selected Day Task List (Sidebar/Details) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="jd-neo-card p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             Tugas Deadline
           </h3>
-          <p className="text-base font-bold text-slate-900 dark:text-slate-100 mt-1">
+          <p className="text-base font-black text-neutral-900 dark:text-white mt-1">
             {selectedDate
               ? selectedDate.toLocaleDateString("id-ID", {
                   weekday: "long",
@@ -293,7 +293,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
             <div className="h-20 bg-slate-100 dark:bg-slate-900 rounded-xl"></div>
           </div>
         ) : selectedDayTasks.length === 0 ? (
-          <div className="py-12 text-center text-sm text-slate-400 dark:text-slate-500 border border-dashed border-slate-100 dark:border-slate-800 rounded-xl">
+          <div className="py-12 text-center text-sm text-slate-400 dark:text-slate-500 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl">
             Tidak ada tugas deadline di tanggal ini.
           </div>
         ) : (
@@ -315,7 +315,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               return (
                 <div
                   key={task.id}
-                  className="p-3 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/50 space-y-2 flex flex-col justify-between"
+                  className="p-3 rounded-xl border-2 border-neutral-950 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 shadow-[2px_2px_0px_var(--jd-neo-shadow)] space-y-2 flex flex-col justify-between"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
@@ -323,23 +323,23 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                         className="size-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: riskColor }}
                       ></span>
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         {divisionOrEventName}
                       </span>
                     </div>
-                    <h4 className="font-bold text-slate-800 dark:text-slate-100 text-xs line-clamp-2">
+                    <h4 className="font-bold text-neutral-900 dark:text-white text-xs line-clamp-2">
                       {task.name}
                     </h4>
                     <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 pt-1">
                       <span>PIC: {picUser ? picUser.name : "-"}</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-350">
+                      <span className="font-bold text-neutral-800 dark:text-neutral-300">
                         {statusLabels[task.status] || task.status}
                       </span>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 mt-1">
+                  <div className="pt-2 border-t border-dashed border-neutral-200 dark:border-neutral-800 mt-1">
                     <Link href={`/dashboard/tasks/${task.id}`} passHref legacyBehavior>
-                      <Button variant="ghost" size="sm" className="w-full text-[10px] font-semibold py-1 h-auto">
+                      <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold py-1.5 h-auto">
                         Buka Detail Task
                       </Button>
                     </Link>

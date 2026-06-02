@@ -195,9 +195,9 @@ export function AIChat() {
   return (
     <div className="space-y-4">
       {/* Scrollable Chat Area */}
-      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto rounded-[12px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800/80 dark:bg-slate-950/40">
+      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto jd-neo-card bg-[#fcf9f2] p-4 dark:bg-neutral-900/30">
         {historyLoading ? (
-          <div className="rounded-[8px] border border-slate-200 bg-white p-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          <div className="jd-neo-card p-4 text-sm font-normal text-slate-500 bg-white">
             Memuat riwayat chat...
           </div>
         ) : groupedLogs.length ? (
@@ -240,30 +240,30 @@ export function AIChat() {
 
       {/* Copy / Action Alerts */}
       {copyMessage ? (
-        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
           {copyMessage}
-        </p>
+        </div>
       ) : null}
       {whatsAppMessage ? (
-        <p className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
           {whatsAppMessage}
-        </p>
+        </div>
       ) : null}
       {error ? (
-        <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-200">
+        <div className="jd-neo-badge jd-neo-badge-red text-xs font-bold w-full py-2 flex items-center justify-center">
           {error}
-        </p>
+        </div>
       ) : null}
 
       {/* Quick Prompts & Prompt Input Group (ChatGPT style, anchored at the bottom) */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Pertanyaan Cepat</span>
+          <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pertanyaan Cepat</span>
           <button
             type="button"
             onClick={loadHistory}
             disabled={historyLoading}
-            className="text-[11px] font-bold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+            className="text-[11px] font-bold text-neutral-800 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white transition-colors underline"
           >
             {historyLoading ? "Memuat..." : "Refresh Riwayat"}
           </button>

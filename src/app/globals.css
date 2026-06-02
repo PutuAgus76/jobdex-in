@@ -438,3 +438,312 @@ a {
     bottom: calc(4.75rem + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* ========================================================
+   Boron-Inspired Soft Neo-Brutalism UI System (Prefix: jd-neo-)
+   ======================================================== */
+
+:root {
+  --jd-neo-bg: #fcf9f2;
+  --jd-neo-surface: #ffffff;
+  --jd-neo-sidebar: #fcf9f2;
+  --jd-neo-text: #1a1a1a;
+  --jd-neo-muted: #5e6470;
+  --jd-neo-border: #1a1a1a;
+  --jd-neo-shadow: #1a1a1a;
+  --jd-neo-green: #8fa882;
+  --jd-neo-blue: #95bdff;
+  --jd-neo-red: #ff9f9f;
+  --jd-neo-yellow: #ffe699;
+  --jd-neo-purple: #d6c1f5;
+  --jd-neo-cyan: #b6f0f5;
+  --jd-neo-gray: #e2e8f0;
+  --jd-neo-orange: #ffd0b5;
+}
+
+.dark {
+  --jd-neo-bg: #12141c;
+  --jd-neo-surface: #1a1d28;
+  --jd-neo-sidebar: #0b0c10;
+  --jd-neo-text: #f3f4f6;
+  --jd-neo-muted: #9ca3af;
+  --jd-neo-border: #f3f4f6;
+  --jd-neo-shadow: #000000;
+  --jd-neo-green: #5c7251;
+  --jd-neo-blue: #4f73a6;
+  --jd-neo-red: #b85a5a;
+  --jd-neo-yellow: #b59b36;
+  --jd-neo-purple: #604e7a;
+  --jd-neo-cyan: #35585c;
+  --jd-neo-gray: #334155;
+  --jd-neo-orange: #8a573c;
+}
+
+.jd-neo-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--jd-neo-bg);
+  color: var(--jd-neo-text);
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-weight: 400;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.jd-neo-sidebar {
+  background-color: var(--jd-neo-sidebar) !important;
+  border-right: 2px solid var(--jd-neo-border) !important;
+  color: var(--jd-neo-text) !important;
+}
+
+.jd-neo-topbar {
+  background-color: var(--jd-neo-bg) !important;
+  border-bottom: 2px solid var(--jd-neo-gray) !important;
+  color: var(--jd-neo-text) !important;
+}
+
+.jd-neo-border {
+  border: 2px solid var(--jd-neo-border) !important;
+}
+
+.jd-neo-shadow {
+  box-shadow: 4px 4px 0px var(--jd-neo-shadow) !important;
+}
+
+.jd-neo-card {
+  background-color: var(--jd-neo-surface) !important;
+  color: var(--jd-neo-text) !important;
+  border: 2px solid var(--jd-neo-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 5px 5px 0px var(--jd-neo-shadow) !important;
+  transition: transform 150ms ease, box-shadow 150ms ease !important;
+}
+
+.jd-neo-card:hover {
+  transform: translate(-2px, -2px) !important;
+  box-shadow: 7px 7px 0px var(--jd-neo-shadow) !important;
+}
+
+.jd-neo-card-soft {
+  background-color: var(--jd-neo-surface) !important;
+  color: var(--jd-neo-text) !important;
+  border: 2px dashed var(--jd-neo-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 3px 3px 0px var(--jd-neo-shadow) !important;
+}
+
+.jd-neo-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-weight: 700;
+  border: 2px solid var(--jd-neo-border) !important;
+  border-radius: 10px !important;
+  background-color: var(--jd-neo-surface);
+  color: var(--jd-neo-text) !important;
+  box-shadow: 3px 3px 0px var(--jd-neo-shadow) !important;
+  transition: transform 100ms ease, box-shadow 100ms ease !important;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none !important;
+}
+
+.jd-neo-button:hover {
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 4px 4px 0px var(--jd-neo-shadow) !important;
+}
+
+.jd-neo-button:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0px var(--jd-neo-shadow) !important;
+}
+
+/* Button colors */
+.jd-neo-btn-blue {
+  background-color: var(--jd-neo-blue) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-yellow {
+  background-color: var(--jd-neo-yellow) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-red {
+  background-color: var(--jd-neo-red) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-green {
+  background-color: var(--jd-neo-green) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-purple {
+  background-color: var(--jd-neo-purple) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-cyan {
+  background-color: var(--jd-neo-cyan) !important;
+  color: #1a1a1a !important;
+}
+.jd-neo-btn-gray {
+  background-color: var(--jd-neo-gray) !important;
+  color: var(--jd-neo-text) !important;
+}
+
+.dark .jd-neo-btn-blue,
+.dark .jd-neo-btn-yellow,
+.dark .jd-neo-btn-red,
+.dark .jd-neo-btn-green,
+.dark .jd-neo-btn-purple,
+.dark .jd-neo-btn-cyan {
+  color: #ffffff !important;
+}
+
+.jd-neo-button-primary {
+  background-color: var(--jd-neo-yellow) !important;
+  color: #1a1a1a !important;
+}
+
+.jd-neo-button-muted {
+  background-color: var(--jd-neo-surface) !important;
+  color: var(--jd-neo-muted) !important;
+}
+
+.jd-neo-input {
+  background-color: var(--jd-neo-surface) !important;
+  color: var(--jd-neo-text) !important;
+  border: 2px solid var(--jd-neo-border) !important;
+  border-radius: 10px !important;
+  padding: 0.625rem 0.875rem !important;
+  outline: none !important;
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05) !important;
+}
+
+.jd-neo-input:focus {
+  border-color: var(--jd-neo-yellow) !important;
+  box-shadow: 3px 3px 0px var(--jd-neo-shadow) !important;
+}
+
+.jd-neo-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--jd-neo-surface);
+  border: 2px solid var(--jd-neo-border) !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.jd-neo-table th {
+  background-color: var(--jd-neo-yellow) !important;
+  color: #1a1a1a !important;
+  font-weight: 800;
+  border-bottom: 2px solid var(--jd-neo-border);
+  padding: 0.75rem 1rem;
+}
+
+.jd-neo-table td {
+  border-bottom: 1.5px solid var(--jd-neo-border);
+  padding: 0.75rem 1rem;
+}
+
+.jd-neo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  border: 1.5px solid var(--jd-neo-border) !important;
+  border-radius: 6px !important;
+  box-shadow: 2px 2px 0px var(--jd-neo-shadow) !important;
+}
+
+/* Badge colors */
+.jd-neo-badge-green {
+  background-color: rgba(143, 168, 130, 0.18) !important;
+  color: #4a5c41 !important;
+  border-color: var(--jd-neo-green) !important;
+}
+.dark .jd-neo-badge-green {
+  background-color: rgba(92, 114, 81, 0.25) !important;
+  color: #a8bfa0 !important;
+  border-color: var(--jd-neo-green) !important;
+}
+
+.jd-neo-badge-red {
+  background-color: rgba(255, 159, 159, 0.18) !important;
+  color: #9e3636 !important;
+  border-color: var(--jd-neo-red) !important;
+}
+.dark .jd-neo-badge-red {
+  background-color: rgba(184, 90, 90, 0.25) !important;
+  color: #f7a0a0 !important;
+  border-color: var(--jd-neo-red) !important;
+}
+
+.jd-neo-badge-blue {
+  background-color: rgba(149, 189, 255, 0.18) !important;
+  color: #2f548f !important;
+  border-color: var(--jd-neo-blue) !important;
+}
+.dark .jd-neo-badge-blue {
+  background-color: rgba(79, 115, 166, 0.25) !important;
+  color: #9cbfe8 !important;
+  border-color: var(--jd-neo-blue) !important;
+}
+
+.jd-neo-badge-yellow {
+  background-color: rgba(255, 230, 153, 0.18) !important;
+  color: #735e18 !important;
+  border-color: var(--jd-neo-yellow) !important;
+}
+.dark .jd-neo-badge-yellow {
+  background-color: rgba(181, 155, 54, 0.25) !important;
+  color: #e5d38c !important;
+  border-color: var(--jd-neo-yellow) !important;
+}
+
+.jd-neo-badge-purple {
+  background-color: rgba(214, 193, 245, 0.18) !important;
+  color: #59407e !important;
+  border-color: var(--jd-neo-purple) !important;
+}
+.dark .jd-neo-badge-purple {
+  background-color: rgba(96, 78, 122, 0.25) !important;
+  color: #cbbae3 !important;
+  border-color: var(--jd-neo-purple) !important;
+}
+
+.jd-neo-badge-orange {
+  background-color: rgba(255, 208, 181, 0.18) !important;
+  color: #8c4e2e !important;
+  border-color: var(--jd-neo-orange) !important;
+}
+.dark .jd-neo-badge-orange {
+  background-color: rgba(138, 87, 60, 0.25) !important;
+  color: #ebbba2 !important;
+  border-color: var(--jd-neo-orange) !important;
+}
+
+.jd-neo-badge-cyan {
+  background-color: rgba(182, 240, 245, 0.18) !important;
+  color: #2b6569 !important;
+  border-color: var(--jd-neo-cyan) !important;
+}
+.dark .jd-neo-badge-cyan {
+  background-color: rgba(67, 107, 112, 0.25) !important;
+  color: #b3dfe3 !important;
+  border-color: var(--jd-neo-cyan) !important;
+}
+
+.jd-neo-badge-gray {
+  background-color: rgba(226, 232, 240, 0.18) !important;
+  color: #3b4757 !important;
+  border-color: var(--jd-neo-gray) !important;
+}
+.dark .jd-neo-badge-gray {
+  background-color: rgba(51, 65, 85, 0.25) !important;
+  color: #94a3b8 !important;
+  border-color: var(--jd-neo-gray) !important;
+}
+

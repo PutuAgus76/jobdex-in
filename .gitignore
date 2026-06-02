@@ -20,3 +20,10 @@ out
 
 # dependencies
 node_modules
+
+# templates & downloads
+Boron-template/
+wowdash-next-js-admin-dashboard-template/
+_templates/
+wowdash-next/
+Wowdash-template/

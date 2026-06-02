@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "Boron-template/**",
+    "wowdash-next-js-admin-dashboard-template/**",
   ]),
 ]);
 

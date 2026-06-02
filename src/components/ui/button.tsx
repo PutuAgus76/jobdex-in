@@ -20,17 +20,17 @@ type ButtonVariant =
 type ButtonSize = "sm" | "md" | "lg";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "jd-btn jd-btn-dark",
-  dark: "jd-btn jd-btn-dark",
-  light: "jd-btn jd-btn-light",
-  heroPrimary: "jd-btn jd-btn-light",
-  heroOutline: "jd-btn jd-btn-hero-outline",
-  outline: "jd-btn jd-btn-outline",
-  secondary: "jd-btn jd-btn-outline",
-  ghost: "jd-btn jd-btn-ghost",
-  destructive: "jd-btn jd-btn-danger",
-  success: "jd-btn jd-btn-success",
-  warning: "jd-btn jd-btn-outline", // warning fallback to outline
+  primary: "jd-neo-button jd-neo-btn-yellow",
+  dark: "jd-neo-button jd-neo-btn-gray",
+  light: "jd-neo-button jd-neo-btn-gray",
+  heroPrimary: "jd-neo-button jd-neo-btn-yellow",
+  heroOutline: "jd-neo-button jd-neo-btn-blue",
+  outline: "jd-neo-button jd-neo-btn-gray",
+  secondary: "jd-neo-button jd-neo-btn-blue",
+  ghost: "inline-flex items-center justify-center gap-2 rounded-lg font-bold transition-all duration-150 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 p-2 text-sm text-neutral-800 dark:text-neutral-200",
+  destructive: "jd-neo-button jd-neo-btn-red",
+  success: "jd-neo-button jd-neo-btn-green",
+  warning: "jd-neo-button jd-neo-btn-yellow",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

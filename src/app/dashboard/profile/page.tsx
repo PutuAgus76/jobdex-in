@@ -41,30 +41,41 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-3xl mx-auto">
       <section>
         <Badge variant="info">Profil</Badge>
-        <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">
+        <h1 className="mt-3 text-3xl font-black text-neutral-900 dark:text-white">
           Profil anggota
         </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
           Data dasar akun yang tersimpan di Firestore collection users.
         </p>
       </section>
 
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Informasi akun</CardTitle>
+      <Card>
+        <CardHeader className="border-b-2 border-neutral-950 dark:border-neutral-800 pb-4">
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userProfile.name || "User")}&background=95bdff&color=1a1a1a&bold=true&rounded=true&size=128`}
+              alt={userProfile.name}
+              className="size-12 rounded-full border-2 border-neutral-950 shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+            />
+            <div>
+              <CardTitle className="text-lg font-black text-neutral-900 dark:text-white">Informasi Akun</CardTitle>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Verifikasi data divisi & otorisasi peran</p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <dl className="divide-y divide-slate-200 dark:divide-slate-800">
+        <CardContent className="pt-4">
+          <dl className="divide-y divide-dashed divide-neutral-200 dark:divide-neutral-850">
             {profileRows.map(([label, value]) => (
               <div
                 key={label}
-                className="grid gap-1 py-4 sm:grid-cols-[180px_1fr] sm:gap-4"
+                className="grid gap-1 py-4 sm:grid-cols-[180px_1fr] sm:gap-4 align-middle"
               >
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</dt>
-                <dd className="text-sm font-semibold text-slate-950 dark:text-slate-50">
+                <dt className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{label}</dt>
+                <dd className="text-sm font-bold text-neutral-900 dark:text-white">
                   {value}
                 </dd>
               </div>

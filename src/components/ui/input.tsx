@@ -8,7 +8,7 @@ export function Input({
   return (
     <input
       className={cn(
-        "h-11 w-full px-3 text-sm jd-input transition-all disabled:opacity-50",
+        "w-full text-sm jd-neo-input transition-all disabled:opacity-50",
         className,
       )}
       {...props}

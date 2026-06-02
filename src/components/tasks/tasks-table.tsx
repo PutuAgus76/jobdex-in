@@ -3,11 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { TaskPriorityBadge } from "@/components/tasks/task-priority-badge";
 import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { formatTaskDate } from "@/lib/firebase/tasks";
-import { getRiskLevelFromTask, getRiskColor, getRiskLabel } from "@/lib/task-risk";
+import { getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
 import type { Event, Task, UserProfile } from "@/types";
 
@@ -32,10 +31,10 @@ export function TasksTable({
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
   return (
-    <div className="overflow-hidden jd-table">
+    <div className="overflow-hidden jd-neo-table">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] text-left text-sm">
-          <thead className="text-xs uppercase">
+        <table className="w-full min-w-[1100px] text-left text-sm border-collapse">
+          <thead>
             <tr>
               <th className="px-4 py-3">Judul</th>
               <th className="px-4 py-3">PIC</th>
@@ -48,24 +47,30 @@ export function TasksTable({
               <th className="px-4 py-3">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+          <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-800">
             {tasks.map((task) => {
               const riskLevel = getRiskLevelFromTask(task);
-              const riskColor = getRiskColor(riskLevel);
               const riskLabel = getRiskLabel(riskLevel);
               const eventName =
                 task.type === "acara"
                   ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"
                   : task.division_id || "Humas & Media Kreatif";
 
+              const riskBadgeClasses = {
+                red: "jd-neo-badge jd-neo-badge-red text-[10px] font-bold",
+                orange: "jd-neo-badge jd-neo-badge-orange text-[10px] font-bold",
+                yellow: "jd-neo-badge jd-neo-badge-yellow text-[10px] font-bold",
+                none: "jd-neo-badge jd-neo-badge-gray text-[10px] font-bold",
+              }[riskLevel] || "jd-neo-badge jd-neo-badge-gray text-[10px] font-bold";
+
               return (
-                <tr key={task.id} className="align-middle hover:bg-slate-50 dark:hover:bg-slate-950">
-                  <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
-                  <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                <tr key={task.id} className="align-middle hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40">
+                  <td className="px-4 py-4 font-black text-slate-900 dark:text-slate-100">{task.name}</td>
+                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-300">
                     {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                   </td>
-                  <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{eventName}</td>
-                  <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
+                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-300">{eventName}</td>
+                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
                   <td className="px-4 py-4">
                     <TaskPriorityBadge priority={task.priority} />
                   </td>
@@ -73,17 +78,9 @@ export function TasksTable({
                     <TaskStatusBadge status={task.status} />
                   </td>
                   <td className="px-4 py-4">
-                    <Badge
-                      className="text-[10px] font-bold"
-                      style={{
-                        backgroundColor: `${riskColor}15`,
-                        color: riskColor,
-                        borderColor: `${riskColor}30`,
-                        borderWidth: 1,
-                      }}
-                    >
+                    <span className={riskBadgeClasses}>
                       {riskLabel}
-                    </Badge>
+                    </span>
                   </td>
                   <td className="px-4 py-4">
                     <Button
@@ -94,22 +91,22 @@ export function TasksTable({
                         setSelectedTask(task);
                         setRefDialogOpen(true);
                       }}
-                      className="text-xs font-semibold py-1 h-auto"
+                      className="text-xs font-bold py-1 h-auto"
                     >
                       Perlu Referensi
                     </Button>
                   </td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="secondary">
+                      <Button asChild size="sm" variant="secondary" className="text-xs font-bold py-1 h-auto">
                         <Link href={`/dashboard/tasks/${task.id}`}>Detail</Link>
                       </Button>
                       {canEdit(task) ? (
                         <>
-                          <Button type="button" size="sm" variant="secondary" onClick={() => onEdit(task)}>
+                          <Button type="button" size="sm" variant="warning" className="text-xs font-bold py-1 h-auto" onClick={() => onEdit(task)}>
                             Edit
                           </Button>
-                          <Button type="button" size="sm" variant="warning" onClick={() => onArchive(task)}>
+                          <Button type="button" size="sm" variant="destructive" className="text-xs font-bold py-1 h-auto" onClick={() => onArchive(task)}>
                             Archive
                           </Button>
                         </>

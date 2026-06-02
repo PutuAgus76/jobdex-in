@@ -5,7 +5,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "jd-surface",
+        "jd-neo-card",
         className,
       )}
       {...props}

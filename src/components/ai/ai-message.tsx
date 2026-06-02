@@ -24,34 +24,34 @@ export function AIMessage({
   const isAssistant = role === "assistant";
 
   return (
-    <div className={cn("flex", isAssistant ? "justify-start" : "justify-end")}>
+    <div className={cn("flex my-2", isAssistant ? "justify-start" : "justify-end")}>
       <article
         className={cn(
-          "max-w-[78%] md:max-w-[68%] rounded-[12px] border p-3.5 shadow-sm transition-all",
+          "max-w-[85%] md:max-w-[70%] rounded-[12px] border-2 border-neutral-950 dark:border-neutral-700 p-3.5 shadow-[3px_3px_0px_var(--jd-neo-shadow)] transition-all",
           isAssistant
-            ? "border-slate-100 bg-white dark:border-slate-800/80 dark:bg-slate-900/40"
-            : "border-slate-900 bg-slate-950 text-white dark:border-slate-700 dark:bg-slate-800",
+            ? "bg-white dark:bg-neutral-900"
+            : "bg-[#ffe699] text-neutral-900 dark:bg-neutral-850 dark:text-white",
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <p
             className={cn(
-              "text-xs font-semibold uppercase tracking-wide",
-              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-slate-300",
+              "text-[10px] font-black uppercase tracking-wider",
+              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-neutral-700 dark:text-slate-300",
             )}
           >
             {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
           </p>
           {time ? (
-            <span className={cn("text-xs", isAssistant ? "text-slate-400" : "text-slate-300")}>
+            <span className={cn("text-[10px] font-semibold", isAssistant ? "text-slate-400" : "text-neutral-600 dark:text-slate-400")}>
               {time}
             </span>
           ) : null}
         </div>
         <div
           className={cn(
-            "mt-2 whitespace-pre-wrap text-sm leading-6",
-            isAssistant ? "text-slate-700 dark:text-slate-300" : "text-white",
+            "mt-2 whitespace-pre-wrap text-sm leading-6 break-words [overflow-wrap:anywhere] font-normal",
+            isAssistant ? "text-neutral-800 dark:text-neutral-250" : "text-neutral-900 dark:text-white",
           )}
         >
           {content}
