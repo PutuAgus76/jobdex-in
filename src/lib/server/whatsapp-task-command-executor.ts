@@ -480,7 +480,27 @@ export async function handleUpdateTaskStatusCommand(
   try {
     const statusEnum = normalizeStatusFromText(statusText);
     if (!statusEnum) {
-      return { success: false, replyText: `[JobDex.in Status]\n\nFormat status tidak dikenali. Pilih salah satu status standar.` };
+      return {
+        success: false,
+        replyText: [
+          "[JobDex.in Status]",
+          "",
+          "Format status tidak dikenali.",
+          "",
+          "Pilih salah satu status yang didukung:",
+          "- belum dimulai",
+          "- sedang dikerjakan",
+          "- butuh bantuan",
+          "- stuck",
+          "- menunggu materi",
+          "- draft selesai",
+          "- perlu revisi",
+          "- revisi dikerjakan",
+          "- menunggu approval",
+          "- approve / approved / acc",
+          "- ditunda"
+        ].join("\n")
+      };
     }
 
     // Stuck, butuh bantuan, waiting material requires notes!
@@ -528,6 +548,10 @@ export async function handleUpdateTaskStatusCommand(
       updateParams.stuck_notes = notes;
     } else if (statusEnum === "butuh_bantuan" || statusEnum === "menunggu_materi") {
       updateParams.stuck_notes = notes; // save to general stuck notes
+    } else if (statusEnum === "approved") {
+      updateParams.approval_status = "approved";
+      updateParams.approved_by = user.id;
+      updateParams.approved_at = FieldValue.serverTimestamp();
     }
 
     // Update task
@@ -1214,7 +1238,28 @@ function normalizeStatusFromText(text: string): import("@/types").TaskStatus | n
   if (clean.includes("perlu revisi") || clean.includes("revisi")) return "perlu_revisi";
   if (clean.includes("revisi dikerjakan")) return "revisi_dikerjakan";
   if (clean.includes("menunggu approval") || clean.includes("approval")) return "menunggu_approval";
-  if (clean.includes("approved") || clean.includes("selesai") || clean.includes("acc")) return "approved";
+
+  // Alias List for Approved
+  const approvedKeywords = [
+    "approve",
+    "approved",
+    "acc",
+    "approve task",
+    "setujui",
+    "disetujui",
+    "sudah approve",
+    "sudah approved",
+    "selesai approve",
+    "final approve",
+  ];
+  if (
+    approvedKeywords.some(kw => clean === kw || clean.includes(kw)) ||
+    clean.includes("selesai") ||
+    clean === "approved"
+  ) {
+    return "approved";
+  }
+
   if (clean.includes("ditunda") || clean.includes("tunda")) return "ditunda";
 
   return null;

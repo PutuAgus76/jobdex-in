@@ -206,7 +206,27 @@ function _formatStatusVal(status: string): string {
   if (clean.includes("perlu revisi") || clean.includes("revisi") || clean === "perlu_revisi") return "Perlu Revisi";
   if (clean.includes("revisi dikerjakan") || clean === "revisi_dikerjakan") return "Revisi Dikerjakan";
   if (clean.includes("menunggu approval") || clean.includes("approval") || clean === "menunggu_approval") return "Menunggu Approval";
-  if (clean.includes("approved") || clean.includes("selesai") || clean.includes("acc") || clean === "approved") return "Approved";
+  
+  const approvedKeywords = [
+    "approve",
+    "approved",
+    "acc",
+    "approve task",
+    "setujui",
+    "disetujui",
+    "sudah approve",
+    "sudah approved",
+    "selesai approve",
+    "final approve",
+  ];
+  if (
+    approvedKeywords.some(kw => clean === kw || clean.includes(kw)) ||
+    clean.includes("selesai") ||
+    clean === "approved"
+  ) {
+    return "Approved";
+  }
+
   if (clean.includes("ditunda") || clean.includes("tunda") || clean === "ditunda") return "Ditunda";
   return status;
 }
@@ -348,8 +368,8 @@ export async function POST(request: NextRequest) {
   const payload = await parseRequestBody(request);
   const incoming = parseWablasIncomingPayload(payload);
 
-  const messageText = (incoming.message || "").trim();
-  if (!messageText.toLowerCase().startsWith("!jobdex")) {
+  const message = incoming.message || "";
+  if (!message.trim().toLowerCase().startsWith("!jobdex")) {
     return NextResponse.json({
       ok: true,
       ignored: true,
