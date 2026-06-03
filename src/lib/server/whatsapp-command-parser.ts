@@ -20,6 +20,7 @@ export type WhatsAppCommandIntent =
   | "confirm_archive"
   | "checklist_task"
   | "create_reference_preview"
+  | "cek_pengirim"
   | "unknown";
 
 export interface ParsedWhatsAppCommand {
@@ -79,6 +80,15 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
   if (lowerCleaned === "bantuan task" || lowerCleaned === "bantuan") {
     return {
       intent: "bantuan_task",
+      rawText,
+      fields: {},
+    };
+  }
+
+  // 1.b cek pengirim
+  if (lowerCleaned === "cek pengirim") {
+    return {
+      intent: "cek_pengirim",
       rawText,
       fields: {},
     };

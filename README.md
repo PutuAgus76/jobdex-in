@@ -99,6 +99,7 @@ WABLAS_API_URL=
 WABLAS_API_TOKEN=
 WABLAS_SECRET_KEY=
 WABLAS_DEVICE_ID=
+WABLAS_DEVICE_PHONE=6287798799068
 WABLAS_DEFAULT_GROUP_ID=
 WABLAS_ALLOWED_GROUP_IDS=
 WABLAS_WEBHOOK_SECRET=
@@ -150,7 +151,7 @@ Cloudinary preview memakai `next/image` dan domain `res.cloudinary.com` sudah di
 
 ## Wablas Setup
 
-1. Isi `WABLAS_API_URL`, `WABLAS_API_TOKEN`, `WABLAS_SECRET_KEY`, `WABLAS_DEVICE_ID`, `WABLAS_DEFAULT_GROUP_ID`, dan `WABLAS_ALLOWED_GROUP_IDS`.
+1. Isi `WABLAS_API_URL`, `WABLAS_API_TOKEN`, `WABLAS_SECRET_KEY`, `WABLAS_DEVICE_ID`, `WABLAS_DEVICE_PHONE` (nomor bot/device), `WABLAS_DEFAULT_GROUP_ID`, dan `WABLAS_ALLOWED_GROUP_IDS`.
 2. Pastikan group id valid.
 3. Sistem mengirim notifikasi status, upload, revisi, approve, dan ringkasan AI ke WhatsApp group default.
 4. Log tersimpan di `whatsapp_logs`.

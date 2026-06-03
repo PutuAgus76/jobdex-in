@@ -38,6 +38,7 @@ import {
   validateCommandPin,
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile } from "@/types";
+import { USER_ROLE_LABELS } from "@/lib/roles";
 import {
   isReferenceSearchQuestion,
   searchDesignReferencesFromQuestion,
@@ -227,6 +228,19 @@ function normalizePhone(value: string): string {
     .replace(/^8/, "628");
 }
 
+function getNestedProperty(obj: unknown, path: string): unknown {
+  if (!obj || typeof obj !== "object") return undefined;
+  const parts = path.split(".");
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current && typeof current === "object" && part in current) {
+      current = (current as Record<string, unknown>)[part];
+    } else {
+      return undefined;
+    }
+  }
+  return current;
+}
 
 function extractCandidates(payload: unknown): Record<string, string> {
   const candidates: Record<string, string> = {};
@@ -317,16 +331,6 @@ function scrubPinFromPayload(obj: unknown): unknown {
   return scrubbed;
 }
 
-function cleanPhone(val: unknown): string {
-  const str = getString(val);
-  if (!str) return "";
-  const cleaned = normalizePhone(str);
-  if (cleaned.length >= 7 && cleaned.length <= 15) {
-    return cleaned;
-  }
-  return "";
-}
-
 export async function POST(request: NextRequest) {
   const configuredSecret = getWebhookSecret();
   const requestSecret = request.nextUrl.searchParams.get("secret") ?? "";
@@ -337,6 +341,16 @@ export async function POST(request: NextRequest) {
 
   const payload = await parseRequestBody(request);
   const incoming = parseWablasIncomingPayload(payload);
+
+  const messageText = (incoming.message || "").trim();
+  if (!messageText.toLowerCase().startsWith("!jobdex")) {
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "non_jobdex_message",
+    });
+  }
+
   const question = extractJobDexQuestion(incoming.message);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
@@ -356,134 +370,212 @@ export async function POST(request: NextRequest) {
     });
   };
 
-  interface CandidateSource {
+  interface EvaluatedCandidate {
     source: string;
     raw: string;
     normalized: string;
+    accepted: boolean;
+    reason: string;
   }
 
   const rootObj = getRecord(payload) || {};
   const dataPayloadObj = getRecord(rootObj.data) || {};
-  const detailedCandidates: CandidateSource[] = [];
 
   const group = getRecord(rootObj.group) ?? getRecord(dataPayloadObj.group);
   const participants = getArray(group?.participants);
 
-  const groupId = normalizePhone(getString(rootObj.phone) || getString(group?.group_id) || incoming.groupId);
-  const deviceSender = "6287798799068";
+  const devicePhoneEnv = process.env.WABLAS_DEVICE_PHONE || "6287798799068";
+  const deviceSender = normalizePhone(devicePhoneEnv);
 
-  // Gather participant candidates
-  const participantCandidates: CandidateSource[] = [];
-  for (let i = 0; i < participants.length; i++) {
-    const participant = getRecord(participants[i]);
-    const rawSender = getString(participant?.sender);
-    const normalized = normalizePhone(rawSender);
-    const isLid = rawSender.toLowerCase().includes("@lid");
+  const allowedGroupIds = getAllowedGroupIds();
+  const defaultGroupId = getDefaultGroupId();
 
-    const isValid = 
-      normalized &&
-      !isLid &&
-      normalized.startsWith("62") &&
-      normalized !== groupId &&
-      normalized !== deviceSender &&
-      !normalized.startsWith("120363");
+  const groupOwnerRaw = getString(
+    getNestedProperty(payload, "group.owner") || 
+    getNestedProperty(payload, "data.group.owner") ||
+    getNestedProperty(payload, "raw_body_sanitized.group.owner")
+  );
+  const groupOwner = groupOwnerRaw ? normalizePhone(groupOwnerRaw) : "";
 
-    if (isValid) {
-      participantCandidates.push({
-        source: `group.participants[${i}].sender`,
-        raw: rawSender,
-        normalized: normalized,
+  const candidatesList: { source: string; raw: string; normalized: string }[] = [];
+
+  // 1. Group sender fields (Tugas 2)
+  const priorityPaths = [
+    "group.sender",
+    "data.group.sender",
+    "raw_body_sanitized.group.sender",
+    "body.group.sender",
+    "body.data.group.sender"
+  ];
+  for (const path of priorityPaths) {
+    const rawVal = getString(getNestedProperty(payload, path));
+    if (rawVal) {
+      candidatesList.push({
+        source: path,
+        raw: rawVal,
+        normalized: normalizePhone(rawVal)
       });
     }
   }
 
-  // Gather fallback candidates
-  const fallbackCandidates: CandidateSource[] = [];
-  const addFallbackCandidate = (sourceKey: string, val: unknown) => {
-    const rawVal = String(val || "");
-    const cleaned = cleanPhone(val);
-    const isLid = rawVal.toLowerCase().includes("@lid");
-    if (
-      cleaned && 
-      !isLid &&
-      cleaned !== deviceSender && 
-      cleaned !== groupId && 
-      !cleaned.startsWith("120363")
-    ) {
-      if (
-        !participantCandidates.some((c) => c.normalized === cleaned) &&
-        !fallbackCandidates.some((c) => c.normalized === cleaned)
-      ) {
-        fallbackCandidates.push({
-          source: sourceKey,
-          raw: rawVal,
-          normalized: cleaned,
+  // 2. Group participants
+  for (let i = 0; i < participants.length; i++) {
+    const participant = getRecord(participants[i]);
+    if (participant) {
+      const rawSender = getString(participant.sender);
+      if (rawSender) {
+        candidatesList.push({
+          source: `group.participants[${i}].sender`,
+          raw: rawSender,
+          normalized: normalizePhone(rawSender)
         });
       }
     }
-  };
+  }
 
-  const keyObj = getRecord(rootObj.key) || {};
-  const dataKeyObj = getRecord(dataPayloadObj.key) || {};
+  // 3. Fallbacks
+  const fallbackPaths = [
+    "participant",
+    "author",
+    "key.participant",
+    "data.participant",
+    "data.author",
+    "data.key.participant",
+    "sender",
+    "from",
+    "phone",
+    "sender_number",
+    "phone_number",
+    "key.remoteJid",
+    "data.sender",
+    "data.from",
+    "data.phone",
+    "data.key.remoteJid"
+  ];
+  for (const path of fallbackPaths) {
+    const rawVal = getString(getNestedProperty(payload, path));
+    if (rawVal) {
+      candidatesList.push({
+        source: path,
+        raw: rawVal,
+        normalized: normalizePhone(rawVal)
+      });
+    }
+  }
 
-  addFallbackCandidate("participant", rootObj.participant);
-  addFallbackCandidate("author", rootObj.author);
-  addFallbackCandidate("key.participant", keyObj.participant);
-  addFallbackCandidate("data.participant", dataPayloadObj.participant);
-  addFallbackCandidate("data.author", dataPayloadObj.author);
-  addFallbackCandidate("data.key.participant", dataKeyObj.participant);
-  addFallbackCandidate("sender", rootObj.sender);
-  addFallbackCandidate("from", rootObj.from);
-  addFallbackCandidate("phone", rootObj.phone);
-  addFallbackCandidate("sender_number", rootObj.sender_number);
-  addFallbackCandidate("phone_number", rootObj.phone_number);
-  addFallbackCandidate("key.remoteJid", keyObj.remoteJid);
-  addFallbackCandidate("data.sender", dataPayloadObj.sender);
-  addFallbackCandidate("data.from", dataPayloadObj.from);
-  addFallbackCandidate("data.phone", dataPayloadObj.phone);
-  addFallbackCandidate("data.key.remoteJid", dataKeyObj.remoteJid);
+  // 4. incoming.sender and incoming.groupId as fallback candidates
+  if (incoming.sender) {
+    candidatesList.push({
+      source: "incoming.sender",
+      raw: incoming.sender,
+      normalized: normalizePhone(incoming.sender)
+    });
+  }
+  if (incoming.groupId) {
+    candidatesList.push({
+      source: "incoming.groupId",
+      raw: incoming.groupId,
+      normalized: normalizePhone(incoming.groupId)
+    });
+  }
 
-  detailedCandidates.push(...participantCandidates, ...fallbackCandidates);
+  const evaluatedCandidates: EvaluatedCandidate[] = [];
+  const seenCandidates = new Set<string>();
 
-  let senderUserProfile: UserProfile | null = null;
+  for (const cand of candidatesList) {
+    const key = `${cand.source}:${cand.normalized}`;
+    if (seenCandidates.has(key)) continue;
+    seenCandidates.add(key);
+
+    let accepted = true;
+    let reason = "valid_candidate";
+
+    if (!cand.normalized) {
+      accepted = false;
+      reason = "empty";
+    } else if (cand.normalized === deviceSender) {
+      accepted = false;
+      reason = "wablas_device_phone";
+    } else if (groupOwner && cand.normalized === groupOwner && incoming.isGroup) {
+      accepted = false;
+      reason = "group_owner";
+    } else if (cand.normalized === defaultGroupId || allowedGroupIds.includes(cand.normalized)) {
+      accepted = false;
+      reason = "group_id";
+    } else if (cand.normalized.startsWith("120363")) {
+      accepted = false;
+      reason = "group_id";
+    } else if (cand.raw.toLowerCase().includes("@lid")) {
+      accepted = false;
+      reason = "contains_lid";
+    }
+
+    evaluatedCandidates.push({
+      source: cand.source,
+      raw: cand.raw,
+      normalized: cand.normalized,
+      accepted,
+      reason
+    });
+  }
+
+  const selectedSenderObj = evaluatedCandidates.find((c) => c.accepted);
   let resolvedSenderNumber = "";
   let senderSource = "";
 
-  if (participantCandidates.length > 0) {
-    resolvedSenderNumber = participantCandidates[0].normalized;
-    senderSource = participantCandidates[0].source;
-  } else if (detailedCandidates.length > 0) {
-    resolvedSenderNumber = detailedCandidates[0].normalized;
-    senderSource = detailedCandidates[0].source;
+  if (selectedSenderObj) {
+    resolvedSenderNumber = selectedSenderObj.normalized;
+    senderSource = selectedSenderObj.source;
+    if (priorityPaths.includes(selectedSenderObj.source)) {
+      selectedSenderObj.reason = "group_sender_priority";
+    } else if (selectedSenderObj.source.startsWith("group.participants")) {
+      selectedSenderObj.reason = "group_participant";
+    } else {
+      selectedSenderObj.reason = "fallback_priority";
+    }
   } else {
-    resolvedSenderNumber = normalizePhone(incoming.sender);
-    senderSource = "fallback";
+    const normalizedIncomingSender = normalizePhone(incoming.sender);
+    if (normalizedIncomingSender === deviceSender) {
+      resolvedSenderNumber = "";
+      senderSource = "fallback_rejected_device";
+    } else {
+      resolvedSenderNumber = normalizedIncomingSender;
+      senderSource = "fallback";
+    }
   }
 
-  // Firestore user lookup
-  const userSnapshot = await getAdminDb()
-    .collection("users")
-    .where("whatsapp_number", "==", resolvedSenderNumber)
-    .limit(1)
-    .get();
+  if (resolvedSenderNumber === deviceSender) {
+    resolvedSenderNumber = "";
+  }
+  if (resolvedSenderNumber === defaultGroupId || allowedGroupIds.includes(resolvedSenderNumber) || resolvedSenderNumber.startsWith("120363")) {
+    resolvedSenderNumber = "";
+  }
 
-  if (!userSnapshot.empty) {
-    senderUserProfile = userSnapshot.docs[0].data() as UserProfile;
-  } else {
-    // Try fallback candidates in order
-    for (const cand of detailedCandidates) {
-      if (cand.normalized === resolvedSenderNumber) continue;
-      const fbSnapshot = await getAdminDb()
-        .collection("users")
-        .where("whatsapp_number", "==", cand.normalized)
-        .limit(1)
-        .get();
-      if (!fbSnapshot.empty) {
-        senderUserProfile = fbSnapshot.docs[0].data() as UserProfile;
-        resolvedSenderNumber = cand.normalized;
-        senderSource = cand.source;
-        break;
+  // Firestore user lookup with multi-field normalized check (Tugas 5)
+  let senderUserProfile: UserProfile | null = null;
+  let isSenderMatched = false;
+
+  if (resolvedSenderNumber) {
+    const usersSnap = await getAdminDb().collection("users").get();
+    for (const doc of usersSnap.docs) {
+      const u = doc.data() as UserProfile;
+      const fieldsToCheck = [
+        (u as Record<string, unknown>).whatsapp,
+        u.whatsapp_number,
+        (u as Record<string, unknown>).phone,
+        (u as Record<string, unknown>).phone_number
+      ];
+      for (const f of fieldsToCheck) {
+        if (f) {
+          const norm = normalizePhone(String(f));
+          if (norm === resolvedSenderNumber) {
+            senderUserProfile = { ...u, id: doc.id };
+            isSenderMatched = true;
+            break;
+          }
+        }
       }
+      if (isSenderMatched) break;
     }
   }
 
@@ -498,12 +590,18 @@ export async function POST(request: NextRequest) {
     const available_top_level_keys = Object.keys(payload && typeof payload === "object" ? payload : {});
     const available_data_keys = dataPayloadObj ? Object.keys(dataPayloadObj) : [];
 
+    const isSelectedSenderDevice = resolvedSenderNumber === deviceSender;
+    const isSelectedSenderGroupId = 
+      resolvedSenderNumber === defaultGroupId || 
+      allowedGroupIds.includes(resolvedSenderNumber) || 
+      resolvedSenderNumber.startsWith("120363");
+
     await debugRef.set({
       created_at: FieldValue.serverTimestamp(),
       raw_body_sanitized: JSON.parse(JSON.stringify(sanitizedBody)),
       extracted_candidates: candidatesDump,
-      raw_sender_candidates: detailedCandidates,
-      selected_sender: resolvedSenderNumber, // force selection
+      raw_sender_candidates: evaluatedCandidates,
+      selected_sender: resolvedSenderNumber,
       normalized_sender: resolvedSenderNumber,
       matched_user_id: senderUserProfile?.id ?? "",
       matched_user_name: senderUserProfile?.name ?? "",
@@ -516,9 +614,14 @@ export async function POST(request: NextRequest) {
       available_data_keys,
       intent_debug: null,
       incoming_group_id: incoming.groupId || "",
-      allowed_group_ids: getAllowedGroupIds(),
+      allowed_group_ids: allowedGroupIds,
       is_allowed_group: isAllowedGroup(incoming.groupId),
-      reply_target_group_id: incoming.groupId || getDefaultGroupId(),
+      reply_target_group_id: incoming.groupId || defaultGroupId,
+      is_jobdex_command: true,
+      is_group_message: incoming.isGroup,
+      is_sender_matched: isSenderMatched,
+      is_selected_sender_device_phone: isSelectedSenderDevice,
+      is_selected_sender_group_id: isSelectedSenderGroupId,
     });
   } catch (debugError) {
     console.error("Failed to write wablas incoming debug log:", debugError);
@@ -563,6 +666,69 @@ export async function POST(request: NextRequest) {
 
     const parsedCommand = parseWhatsAppCommand(incoming.message);
     const intent = parsedCommand.intent;
+
+    // Tugas 8: Cek Pengirim Command
+    if (intent === "cek_pengirim") {
+      const replyMessage = [
+        "[JobDex.in Debug Pengirim]",
+        "",
+        `Nomor terdeteksi: ${resolvedSenderNumber || "Tidak terdeteksi"}`,
+        `Sumber: ${senderSource || "Tidak diketahui"}`,
+        `User: ${senderUserProfile ? senderUserProfile.name : "Tidak terdaftar"}`,
+        `Role: ${senderUserProfile ? (USER_ROLE_LABELS[senderUserProfile.role] || senderUserProfile.role) : "Tidak terdaftar"}`,
+        `Group ID: ${incoming.groupId || "Personal Chat"}`
+      ].join("\n");
+
+      await updateDebugIntent("task_command", "cek_pengirim");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Tugas 5: Write Command Guard
+    const isWriteCommand = 
+      intent === "approve_task" ||
+      intent === "update_status" ||
+      intent === "edit_task" ||
+      intent === "archive_task" ||
+      intent === "checklist_task" ||
+      intent === "confirm_command" ||
+      intent === "cancel_command" ||
+      intent === "confirm_edit" ||
+      intent === "cancel_edit" ||
+      intent === "confirm_archive" ||
+      intent === "create_task_preview" ||
+      intent === "create_event_preview" ||
+      intent === "bulk_create_task_preview" ||
+      intent === "approve_task_preview" ||
+      intent === "create_reference_preview";
+
+    if (isWriteCommand && !isSenderMatched) {
+      const replyMessage = [
+        "[JobDex.in Command]",
+        "",
+        "Perintah eksekusi ditolak.",
+        "",
+        `Nomor WhatsApp Anda (${resolvedSenderNumber || incoming.sender}) belum terhubung dengan akun JobDex.in.`,
+        "",
+        "Silakan hubungkan nomor WhatsApp Anda di halaman pengaturan Profil dashboard web JobDex.in."
+      ].join("\n");
+
+      await updateDebugIntent("task_help", intent || "unauthorized");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "failed",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     // Fase 15C: Bantuan Task Command
     if (intent === "bantuan_task") {
