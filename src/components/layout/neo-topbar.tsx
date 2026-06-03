@@ -66,7 +66,7 @@ export function NeoTopbar(props: {
         
         {/* Title and Badge Info */}
         <div className="flex items-center gap-3">
-          <span className="jd-neo-badge bg-[var(--jd-neo-green)] text-neutral-950">
+          <span className="jd-neo-badge bg-main text-main-foreground">
             {getPageTitle(pathname)}
           </span>
           <p className="hidden md:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
@@ -82,13 +82,13 @@ export function NeoTopbar(props: {
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-10 h-10 flex items-center justify-center rounded-lg jd-neo-button p-0 bg-[var(--jd-neo-surface)] hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-900 dark:text-white"
+              className="w-10 h-10 flex items-center justify-center jd-neo-button p-0"
               title={isDark ? "Aktifkan light mode" : "Aktifkan dark mode"}
             >
               {isDark ? (
                 <Sun size={18} color="#facc15" fill="#facc15" className="shrink-0" />
               ) : (
-                <Moon size={18} color="#1a1a1a" fill="#1a1a1a" className="shrink-0" />
+                <Moon size={18} color="currentColor" fill="currentColor" className="shrink-0" />
               )}
             </button>
           )}
@@ -99,7 +99,7 @@ export function NeoTopbar(props: {
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="jd-neo-button py-1 px-1 sm:py-1.5 sm:px-3 flex items-center gap-2 text-sm bg-[var(--jd-neo-surface)]"
+                className="jd-neo-button py-1 px-1 sm:py-1.5 sm:px-3 flex items-center gap-2 text-sm"
               >
                 {/* Avatar */}
                 {userProfile?.avatar_url ? (
@@ -107,17 +107,17 @@ export function NeoTopbar(props: {
                   <img
                     src={userProfile.avatar_url}
                     alt={userProfile?.name || "Avatar"}
-                    className="size-8 rounded-full border-2 border-neutral-950 object-cover shrink-0"
+                    className="size-8 rounded-full border-2 border-border object-cover shrink-0"
                   />
                 ) : (
-                  <div className="size-8 rounded-full border-2 border-neutral-950 bg-[var(--jd-neo-orange)] flex items-center justify-center text-xs font-black text-neutral-900 shrink-0">
+                  <div className="size-8 rounded-full border-2 border-border bg-[var(--jd-neo-orange)] flex items-center justify-center text-xs font-black text-neutral-900 shrink-0">
                     {getInitials(userProfile?.name || user?.displayName)}
                   </div>
                 )}
 
                 {/* Name & Role (Desktop) */}
                 <div className="hidden sm:flex flex-col items-start text-left leading-tight">
-                  <span className="font-bold text-neutral-900 dark:text-white text-xs truncate max-w-[120px]">
+                  <span className="font-bold text-foreground text-xs truncate max-w-[120px]">
                     {userProfile?.name ?? user?.displayName ?? "User"}
                   </span>
                   <span className="text-[10px] font-normal text-neutral-500 dark:text-neutral-400">
@@ -125,16 +125,16 @@ export function NeoTopbar(props: {
                   </span>
                 </div>
 
-                <ChevronDown size={14} className="text-neutral-900 dark:text-white shrink-0 hidden sm:block" />
+                <ChevronDown size={14} className="text-foreground shrink-0 hidden sm:block" />
               </button>
 
               {dropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-                  <div className="absolute right-0 mt-2 w-48 z-20 jd-neo-card p-2 flex flex-col gap-1 bg-[var(--jd-neo-surface)] border-2 border-neutral-950 dark:border-neutral-700 shadow-md">
+                  <div className="absolute right-0 mt-2 w-48 z-20 jd-neo-card p-2 flex flex-col gap-1 shadow-shadow">
                     <div className="px-2 py-1.5 border-b border-neutral-100 dark:border-neutral-800 mb-1">
                       <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Akun Anda</p>
-                      <p className="text-xs font-black text-neutral-900 dark:text-white truncate">
+                      <p className="text-xs font-black text-foreground truncate">
                         {userProfile?.name ?? user?.displayName ?? "Anggota"}
                       </p>
                     </div>

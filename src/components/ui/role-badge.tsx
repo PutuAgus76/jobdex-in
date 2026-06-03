@@ -11,7 +11,14 @@ export function RoleBadge({ role }: RoleBadgeProps) {
     return <Badge>Profil belum lengkap</Badge>;
   }
 
-  const variant = role === "super_admin" ? "success" : "info";
+  const variant =
+    role === "super_admin"
+      ? "purple"
+      : role === "koordinator_divisi"
+      ? "orange"
+      : role === "koordinator_acara"
+      ? "cyan"
+      : "info";
 
   return <Badge variant={variant}>{USER_ROLE_LABELS[role]}</Badge>;
 }

@@ -9,6 +9,7 @@ import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import { getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
+import { Badge } from "@/components/ui/badge";
 import type { Event, Task, UserProfile } from "@/types";
 
 type TaskCardProps = {
@@ -37,12 +38,14 @@ export function TaskCard({
       ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"
       : task.division_id || "Humas & Media Kreatif";
 
-  const riskBadgeClasses = {
-    red: "jd-neo-badge-red",
-    orange: "jd-neo-badge-orange",
-    yellow: "jd-neo-badge-yellow",
-    none: "jd-neo-badge-gray",
-  }[riskLevel] || "jd-neo-badge-gray";
+  const riskVariant =
+    riskLevel === "red"
+      ? "error"
+      : riskLevel === "orange"
+      ? "orange"
+      : riskLevel === "yellow"
+      ? "warning"
+      : "neutral";
 
   return (
     <Card className="flex flex-col justify-between m-1">
@@ -77,9 +80,9 @@ export function TaskCard({
             <div className="flex justify-between gap-3 items-center">
               <dt className="text-slate-500 dark:text-slate-400 font-medium">Risiko</dt>
               <dd className="font-bold">
-                <span className={`jd-neo-badge ${riskBadgeClasses} text-[10px] font-bold`}>
+                <Badge variant={riskVariant} className="text-[10px] font-bold">
                   {riskLabel}
-                </span>
+                </Badge>
               </dd>
             </div>
           </dl>

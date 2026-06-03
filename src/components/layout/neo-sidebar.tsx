@@ -49,20 +49,20 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
       }`}
     >
       {/* Brand Header */}
-      <div className="border-b-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-sidebar)] dark:bg-[#12131a] px-4 py-5 flex items-center justify-between gap-1">
+      <div className="border-b-2 border-border bg-[var(--jd-neo-sidebar)] px-4 py-5 flex items-center justify-between gap-1">
         {!isCollapsed ? (
           <div className="min-w-0 flex-1">
-            <Link href="/" className="text-2xl font-black tracking-wider text-neutral-950 dark:text-white hover:opacity-90 block">
-              JobDex<span className="text-[#059669] dark:text-[#10b981]">.in</span>
+            <Link href="/" className="text-2xl font-black tracking-wider text-foreground hover:opacity-90 block">
+              JobDex<span className="text-[var(--main)]">.in</span>
             </Link>
-            <p className="mt-1 text-[10px] opacity-80 tracking-wide uppercase font-bold text-neutral-500 dark:text-neutral-400 truncate">
+            <p className="mt-1 text-[10px] opacity-80 tracking-wide uppercase font-bold text-neutral-500 dark:text-neutral-455 truncate">
               Humas & Media Kreatif
             </p>
           </div>
         ) : (
           <div className="flex-1 flex justify-center">
-            <Link href="/" className="text-2xl font-black tracking-wider text-neutral-950 dark:text-white hover:opacity-90 block">
-              J<span className="text-[#059669] dark:text-[#10b981]">D</span>
+            <Link href="/" className="text-2xl font-black tracking-wider text-foreground hover:opacity-90 block">
+              J<span className="text-[var(--main)]">D</span>
             </Link>
           </div>
         )}
@@ -72,7 +72,7 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
           <button
             type="button"
             onClick={onToggle}
-            className="p-1.5 rounded-md border border-neutral-950 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white shadow-[1px_1px_0px_var(--jd-neo-shadow)] hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_var(--jd-neo-shadow)] active:translate-y-[1px] active:shadow-[0px_0px_0px_var(--jd-neo-shadow)] transition-all cursor-pointer shrink-0"
+            className="p-1.5 rounded-base border-2 border-border bg-secondary-background text-foreground shadow-[2px_2px_0px_var(--border)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer shrink-0"
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -85,7 +85,7 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
-              ? pathname === item.href
+               ? pathname === item.href
               : pathname.startsWith(item.href);
 
           const IconComponent = sidebarIconMap[item.href];
@@ -95,12 +95,12 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
               key={item.href}
               href={item.href}
               title={item.label}
-              className={`relative flex items-center rounded-lg border-2 font-semibold text-sm transition-all ${
+              className={`relative flex items-center rounded-base border-2 font-semibold text-sm transition-all ${
                 isCollapsed ? "justify-center p-2.5" : "justify-between px-4 py-2.5"
               } ${
                 isActive
-                  ? "bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white border-neutral-950 dark:border-neutral-50 shadow-[3px_3px_0px_var(--jd-neo-shadow)]"
-                  : "bg-transparent text-neutral-700 dark:text-neutral-300 border-transparent hover:text-neutral-950 dark:hover:text-white hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50"
+                  ? "bg-[var(--main)] text-neutral-955 border-border shadow-[3px_3px_0px_var(--border)]"
+                  : "bg-transparent text-neutral-700 dark:text-neutral-300 border-transparent hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5"
               }`}
             >
               <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5"}`}>
@@ -108,7 +108,7 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
                 {!isCollapsed && <span>{item.label}</span>}
               </div>
               {!isCollapsed && isActive && (
-                <span className="w-2.5 h-2.5 rounded-full bg-[#ffe699] border border-neutral-950 dark:border-neutral-50 shrink-0" />
+                <span className="w-2.5 h-2.5 rounded-full bg-neutral-950 border border-border shrink-0 dark:bg-white" />
               )}
             </Link>
           );
@@ -117,7 +117,7 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
 
       {/* Footer Area */}
       {!isCollapsed && (
-        <div className="border-t-2 border-[var(--jd-neo-border)] p-4 text-center bg-[var(--jd-neo-sidebar)] dark:bg-[#0b0c10]">
+        <div className="border-t-2 border-border p-4 text-center bg-[var(--jd-neo-sidebar)]">
           <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider block">
             JobDex.in Workspace
           </span>

@@ -11,7 +11,14 @@ export function EventStatusBadge({ status }: EventStatusBadgeProps) {
     return <Badge>Tanpa status</Badge>;
   }
 
-  const variant = status === "selesai" ? "success" : status === "dibatalkan" ? "warning" : "info";
+  const variant =
+    status === "selesai"
+      ? "success"
+      : status === "dibatalkan"
+      ? "error"
+      : status === "berlangsung"
+      ? "orange"
+      : "info";
 
   return <Badge variant={variant}>{EVENT_STATUS_LABELS[status]}</Badge>;
 }

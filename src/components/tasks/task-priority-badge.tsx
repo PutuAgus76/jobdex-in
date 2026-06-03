@@ -7,7 +7,14 @@ export function TaskPriorityBadge({ priority }: { priority?: TaskPriority }) {
     return <Badge>Tanpa prioritas</Badge>;
   }
 
-  const variant = priority === "kritis" || priority === "tinggi" ? "warning" : "default";
+  const variant =
+    priority === "kritis"
+      ? "error"
+      : priority === "tinggi"
+      ? "orange"
+      : priority === "sedang"
+      ? "warning"
+      : "success";
 
   return <Badge variant={variant}>{TASK_PRIORITY_LABELS[priority]}</Badge>;
 }

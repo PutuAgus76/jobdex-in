@@ -660,9 +660,9 @@ export function ReferenceBulkImportDialog({
               </div>
 
               {/* Preview Cards / Table */}
-              <div className="overflow-x-auto rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-                <table className="w-full min-w-[800px] text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold uppercase">
+              <div className="overflow-x-auto jd-neo-table">
+                <table className="w-full min-w-[800px] text-left text-xs border-collapse">
+                  <thead>
                     <tr>
                       <th className="px-3 py-2">Judul Referensi</th>
                       <th className="px-3 py-2">Scope</th>
@@ -672,7 +672,7 @@ export function ReferenceBulkImportDialog({
                       <th className="px-3 py-2 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-900">
+                  <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-850">
                     {previewItems.map((item, idx) => {
                       const isDup = duplicateIndices.has(idx);
                       const isTitleEmpty = !item.title || item.title === "Arsip Tanpa Judul";

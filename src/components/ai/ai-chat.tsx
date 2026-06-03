@@ -195,7 +195,7 @@ export function AIChat() {
   return (
     <div className="space-y-4">
       {/* Scrollable Chat Area */}
-      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto jd-neo-card bg-[#fcf9f2] p-4 dark:bg-neutral-900/30">
+      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30">
         {historyLoading ? (
           <div className="jd-neo-card p-4 text-sm font-normal text-slate-500 bg-white">
             Memuat riwayat chat...

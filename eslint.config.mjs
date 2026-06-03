@@ -14,6 +14,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "Boron-template/**",
     "wowdash-next-js-admin-dashboard-template/**",
+    "neobrutalism-components/**",
+    "neobrutalism-reference/**",
+    "wowdash-next/**",
+    "Wowdash-template/**",
   ]),
 ]);
 

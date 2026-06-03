@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "@/components/theme/theme-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Sun, Moon, Layout, Columns } from "lucide-react";
 
 export default function SettingsPage() {
@@ -55,7 +56,7 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-4xl">
       <section>
         <div className="flex items-center gap-2">
-          <Badge variant="default" className="border-neutral-950 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-xs font-bold px-2.5 py-0.5 text-neutral-900 dark:text-white">
+          <Badge variant="default">
             Preferensi UX
           </Badge>
         </div>
@@ -67,10 +68,10 @@ export default function SettingsPage() {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Tampilan Tema */}
-        <Card className="jd-neo-card bg-[var(--jd-neo-surface)] border-2 border-neutral-950 dark:border-neutral-700 shadow-[4px_4px_0px_var(--jd-neo-shadow)]">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white animate-fade-in">
-              {theme === "dark" ? <Moon className="size-5 text-yellow-400" /> : <Sun className="size-5 text-amber-500" />}
+            <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
+              {theme === "dark" ? <Moon className="size-5 text-[var(--main)]" /> : <Sun className="size-5 text-[var(--main)]" />}
               Tampilan Tema
             </CardTitle>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
@@ -82,10 +83,10 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setTheme("light")}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--border-radius)] border-2 border-[var(--border)] font-bold text-sm transition-all duration-100 cursor-pointer ${
                   theme === "light"
-                    ? "bg-[var(--jd-neo-yellow)] text-neutral-950 border-neutral-950 shadow-[3px_3px_0px_var(--jd-neo-shadow)] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-neutral-600 border-neutral-200 dark:bg-neutral-850 dark:text-neutral-400 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600"
+                    ? "bg-[var(--main)] text-neutral-950 translate-x-[3px] translate-y-[3px] shadow-none"
+                    : "bg-[var(--secondary-background)] text-[var(--foreground)] shadow-[3px_3px_0px_var(--border)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_var(--border)]"
                 }`}
               >
                 <Sun className="size-4" />
@@ -94,10 +95,10 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setTheme("dark")}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--border-radius)] border-2 border-[var(--border)] font-bold text-sm transition-all duration-100 cursor-pointer ${
                   theme === "dark"
-                    ? "bg-[var(--jd-neo-yellow)] text-neutral-950 border-neutral-950 dark:border-neutral-50 shadow-[3px_3px_0px_var(--jd-neo-shadow)] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-neutral-600 border-neutral-200 dark:bg-neutral-850 dark:text-neutral-400 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600"
+                    ? "bg-[var(--main)] text-neutral-950 translate-x-[3px] translate-y-[3px] shadow-none"
+                    : "bg-[var(--secondary-background)] text-[var(--foreground)] shadow-[3px_3px_0px_var(--border)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_var(--border)]"
                 }`}
               >
                 <Moon className="size-4" />
@@ -108,10 +109,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Tampilan Sidebar */}
-        <Card className="jd-neo-card bg-[var(--jd-neo-surface)] border-2 border-neutral-950 dark:border-neutral-700 shadow-[4px_4px_0px_var(--jd-neo-shadow)]">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
-              {isCollapsed ? <Columns className="size-5 text-[#8fa882]" /> : <Layout className="size-5 text-[#8fa882]" />}
+              {isCollapsed ? <Columns className="size-5 text-[var(--main)]" /> : <Layout className="size-5 text-[var(--main)]" />}
               Menu Sidebar
             </CardTitle>
             <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
@@ -123,10 +124,10 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => handleSidebarToggle(false)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--border-radius)] border-2 border-[var(--border)] font-bold text-sm transition-all duration-100 cursor-pointer ${
                   !isCollapsed
-                    ? "bg-[var(--jd-neo-yellow)] text-neutral-950 border-neutral-950 shadow-[3px_3px_0px_var(--jd-neo-shadow)] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-neutral-600 border-neutral-200 dark:bg-neutral-850 dark:text-neutral-400 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600"
+                    ? "bg-[var(--main)] text-neutral-950 translate-x-[3px] translate-y-[3px] shadow-none"
+                    : "bg-[var(--secondary-background)] text-[var(--foreground)] shadow-[3px_3px_0px_var(--border)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_var(--border)]"
                 }`}
               >
                 <Layout className="size-4" />
@@ -135,10 +136,10 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => handleSidebarToggle(true)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--border-radius)] border-2 border-[var(--border)] font-bold text-sm transition-all duration-100 cursor-pointer ${
                   isCollapsed
-                    ? "bg-[var(--jd-neo-yellow)] text-neutral-950 border-neutral-950 dark:border-neutral-50 shadow-[3px_3px_0px_var(--jd-neo-shadow)] translate-x-[-1px] translate-y-[-1px]"
-                    : "bg-white text-neutral-600 border-neutral-200 dark:bg-neutral-850 dark:text-neutral-400 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-600"
+                    ? "bg-[var(--main)] text-neutral-950 translate-x-[3px] translate-y-[3px] shadow-none"
+                    : "bg-[var(--secondary-background)] text-[var(--foreground)] shadow-[3px_3px_0px_var(--border)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_var(--border)]"
                 }`}
               >
                 <Columns className="size-4" />
@@ -150,12 +151,14 @@ export default function SettingsPage() {
       </div>
 
       {/* Info Lanjutan */}
-      <Card className="jd-neo-card-soft border-2 border-dashed border-neutral-950 dark:border-neutral-700 bg-[var(--jd-neo-surface)] p-6 shadow-[3px_3px_0px_var(--jd-neo-shadow)]">
-        <h3 className="font-bold text-sm text-neutral-800 dark:text-neutral-200">ℹ️ Pengaturan Lanjutan</h3>
-        <p className="mt-2 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">
-          Konfigurasi organisasi workspace, webhook WhatsApp, integrasi Google Calendar, dan detail hak akses tim akan hadir pada fase rilis berikutnya. Saat ini preferensi Anda disimpan secara lokal pada perangkat Anda.
-        </p>
-      </Card>
+      <Alert variant="default">
+        <div className="flex flex-col gap-1.5">
+          <AlertTitle>ℹ️ Pengaturan Lanjutan</AlertTitle>
+          <AlertDescription>
+            Konfigurasi organisasi workspace, webhook WhatsApp, integrasi Google Calendar, dan detail hak akses tim akan hadir pada fase rilis berikutnya. Saat ini preferensi Anda disimpan secara lokal pada perangkat Anda.
+          </AlertDescription>
+        </div>
+      </Alert>
     </div>
   );
 }

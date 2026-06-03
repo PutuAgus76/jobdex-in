@@ -168,11 +168,11 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Calendar Grid Container */}
-      <div className="lg:col-span-2 space-y-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+      <div className="lg:col-span-2 space-y-4 bg-[var(--secondary-background)] border-2 border-[var(--border)] rounded-[var(--border-radius)] p-5 shadow-[4px_4px_0px_var(--border)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="size-5 text-slate-500" />
-            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">
+            <Calendar className="size-5 text-[var(--main)]" />
+            <h2 className="text-lg font-black text-[var(--foreground)]">
               {monthNames[currentMonth]} {currentYear}
             </h2>
           </div>
@@ -190,7 +190,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
         </div>
 
         {/* Days of Week Header */}
-        <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="grid grid-cols-7 text-center text-xs font-bold text-[var(--jd-neo-muted)] uppercase tracking-wider pb-2 border-b-2 border-[var(--border)]">
           <div>Min</div>
           <div>Sen</div>
           <div>Sel</div>
@@ -201,7 +201,7 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
         </div>
 
         {/* 6-Week Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {daysGrid.map((day, idx) => {
             const isCurrentMonth = day.getMonth() === currentMonth;
             const isToday = isSameDay(day, new Date());
@@ -226,14 +226,12 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               <button
                 key={idx}
                 onClick={() => setSelectedDate(day)}
-                className={`relative h-16 p-1.5 rounded-lg border text-left flex flex-col justify-between transition-all duration-150 ${
-                  isCurrentMonth
-                    ? "bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800/50"
-                    : "bg-slate-100/30 dark:bg-slate-950/10 border-transparent text-slate-300 dark:text-slate-700"
-                } ${
+                className={`relative h-16 p-1.5 rounded-[var(--border-radius)] border-2 border-[var(--border)] text-left flex flex-col justify-between transition-all duration-100 cursor-pointer ${
                   isSelected
-                    ? "ring-2 ring-slate-800 dark:ring-slate-300 border-transparent"
-                    : "hover:border-slate-300 dark:hover:border-slate-700"
+                    ? "bg-[var(--main)] text-neutral-950 shadow-[2px_2px_0px_var(--border)] z-10"
+                    : isCurrentMonth
+                    ? "bg-[var(--secondary-background)] text-[var(--foreground)] hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                    : "bg-[var(--background)] text-[var(--jd-neo-muted)] opacity-60 hover:bg-neutral-100 dark:hover:bg-neutral-900"
                 }`}
               >
                 {/* Date Number */}
@@ -241,10 +239,10 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
                   <span
                     className={`text-xs font-bold ${
                       isToday
-                        ? "inline-flex items-center justify-center size-5 rounded-full bg-slate-950 text-white dark:bg-slate-50 dark:text-slate-950"
-                        : isCurrentMonth
-                        ? "text-slate-700 dark:text-slate-350"
-                        : "text-slate-400 dark:text-slate-650"
+                        ? isSelected
+                          ? "inline-flex items-center justify-center size-5 rounded-full bg-neutral-950 text-white"
+                          : "inline-flex items-center justify-center size-5 rounded-full bg-neutral-950 text-white dark:bg-white dark:text-neutral-950"
+                        : "text-inherit"
                     }`}
                   >
                     {day.getDate()}
@@ -253,13 +251,13 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
 
                 {/* Task Indicators */}
                 {dayTasks.length > 0 && (
-                  <div className="flex items-center gap-1 mt-auto">
+                  <div className="flex items-center gap-1 mt-auto text-[9px] font-extrabold">
                     <span
-                      className="size-2 rounded-full animate-pulse"
+                      className="size-2.5 rounded-full border border-neutral-950 shrink-0"
                       style={{ backgroundColor: maxRiskColor || "#94A3B8" }}
                     ></span>
-                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">
-                      {dayTasks.length} {dayTasks.length === 1 ? "Task" : "Tasks"}
+                    <span className={isSelected ? "text-neutral-950" : "text-[var(--jd-neo-muted)]"}>
+                      {dayTasks.length} Tugas
                     </span>
                   </div>
                 )}
@@ -272,10 +270,10 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
       {/* Selected Day Task List (Sidebar/Details) */}
       <div className="jd-neo-card p-5 space-y-4">
         <div>
-          <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          <h3 className="text-xs font-bold text-[var(--jd-neo-muted)] uppercase tracking-wider">
             Tugas Deadline
           </h3>
-          <p className="text-base font-black text-neutral-900 dark:text-white mt-1">
+          <p className="text-base font-black text-[var(--foreground)] mt-1">
             {selectedDate
               ? selectedDate.toLocaleDateString("id-ID", {
                   weekday: "long",
@@ -289,11 +287,11 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
 
         {loading ? (
           <div className="space-y-3 animate-pulse pt-2">
-            <div className="h-20 bg-slate-100 dark:bg-slate-900 rounded-xl"></div>
-            <div className="h-20 bg-slate-100 dark:bg-slate-900 rounded-xl"></div>
+            <div className="h-20 bg-neutral-100 dark:bg-neutral-800 rounded-base border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--border)]"></div>
+            <div className="h-20 bg-neutral-100 dark:bg-neutral-800 rounded-base border-2 border-[var(--border)] shadow-[2px_2px_0px_var(--border)]"></div>
           </div>
         ) : selectedDayTasks.length === 0 ? (
-          <div className="py-12 text-center text-sm text-slate-400 dark:text-slate-500 border-2 border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl">
+          <div className="py-8 px-4 text-center text-xs font-bold text-[var(--jd-neo-muted)] bg-[var(--jd-neo-surface)] border-2 border-[var(--border)] rounded-[var(--border-radius)] shadow-[2px_2px_0px_var(--border)]">
             Tidak ada tugas deadline di tanggal ini.
           </div>
         ) : (
@@ -315,29 +313,29 @@ export function TaskCalendar({ profile }: TaskCalendarProps) {
               return (
                 <div
                   key={task.id}
-                  className="p-3 rounded-xl border-2 border-neutral-950 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 shadow-[2px_2px_0px_var(--jd-neo-shadow)] space-y-2 flex flex-col justify-between"
+                  className="p-3 rounded-[var(--border-radius)] border-2 border-[var(--border)] bg-[var(--secondary-background)] shadow-[2px_2px_0px_var(--border)] space-y-2 flex flex-col justify-between hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--border)] duration-100 transition-all"
                 >
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span
-                        className="size-2.5 rounded-full shrink-0"
+                        className="size-2.5 rounded-full border border-neutral-950 shrink-0"
                         style={{ backgroundColor: riskColor }}
                       ></span>
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold text-[var(--jd-neo-muted)] uppercase tracking-wider">
                         {divisionOrEventName}
                       </span>
                     </div>
-                    <h4 className="font-bold text-neutral-900 dark:text-white text-xs line-clamp-2">
+                    <h4 className="font-black text-[var(--foreground)] text-xs line-clamp-2">
                       {task.name}
                     </h4>
-                    <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                    <div className="flex justify-between items-center text-[10px] text-[var(--jd-neo-muted)] pt-1">
                       <span>PIC: {picUser ? picUser.name : "-"}</span>
-                      <span className="font-bold text-neutral-800 dark:text-neutral-300">
+                      <span className="font-bold text-[var(--foreground)]">
                         {statusLabels[task.status] || task.status}
                       </span>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-dashed border-neutral-200 dark:border-neutral-800 mt-1">
+                  <div className="pt-2 border-t-2 border-[var(--border)] mt-1">
                     <Link href={`/dashboard/tasks/${task.id}`} passHref legacyBehavior>
                       <Button variant="secondary" size="sm" className="w-full text-[10px] font-bold py-1.5 h-auto">
                         Buka Detail Task

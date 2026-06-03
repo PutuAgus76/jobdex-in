@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "Boron-template", "wowdash-next-js-admin-dashboard-template"]
+  "exclude": ["node_modules", "Boron-template", "wowdash-next-js-admin-dashboard-template", "neobrutalism-components", "neobrutalism-reference", "wowdash-next", "Wowdash-template"]
 }

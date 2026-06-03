@@ -8,12 +8,16 @@ export default function AIAssistantPage() {
   return (
     <PermissionGuard canAccess={canAccessAI}>
       <div className="space-y-6 max-w-4xl mx-auto">
-        <section className="border-b border-slate-100 dark:border-slate-800/60 pb-4">
-          <h1 className="text-3xl font-bold text-slate-950 dark:text-slate-50">AI Assistant</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Tanya progress job desk, kendala, deadline, dan referensi desain secara real-time.
-          </p>
-        </section>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b-2 border-border">
+          <div className="flex items-center gap-2">
+            <span className="jd-neo-badge bg-main text-main-foreground font-black text-xs">
+              AI Assistant
+            </span>
+            <h1 className="text-sm font-bold text-[var(--jd-neo-muted)]">
+              Tanya progress, deadline, &amp; aset secara real-time
+            </h1>
+          </div>
+        </div>
         <AIChat />
       </div>
     </PermissionGuard>

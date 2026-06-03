@@ -52,7 +52,7 @@ export function NeoMobileNav() {
             href={item.href}
             className={`flex flex-col items-center gap-0.5 rounded-lg py-1 px-0.5 font-bold text-[10px] uppercase transition-all ${
               isActive
-                ? "bg-[var(--jd-neo-yellow)] text-neutral-950 border-2 border-neutral-950 shadow-[2px_2px_0px_rgba(0,0,0,1)]"
+                ? "bg-[var(--main)] text-neutral-950 border-2 border-neutral-950 shadow-[2px_2px_0px_rgba(0,0,0,1)]"
                 : "text-neutral-500 dark:text-neutral-400 border-2 border-transparent"
             }`}
           >

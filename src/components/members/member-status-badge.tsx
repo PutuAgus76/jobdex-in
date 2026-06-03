@@ -6,7 +6,7 @@ type MemberStatusBadgeProps = {
 
 export function MemberStatusBadge({ isActive }: MemberStatusBadgeProps) {
   return (
-    <Badge variant={isActive ? "success" : "warning"}>
+    <Badge variant={isActive ? "success" : "error"}>
       {isActive ? "Aktif" : "Nonaktif"}
     </Badge>
   );

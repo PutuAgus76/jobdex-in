@@ -5,5 +5,14 @@ import { DESIGN_TYPE_LABELS } from "@/lib/design-types";
 import type { DesignType } from "@/types";
 
 export function DesignTypeBadge({ type }: { type: DesignType }) {
-  return <Badge variant="info">{DESIGN_TYPE_LABELS[type] ?? type}</Badge>;
+  const variant =
+    type === "poster" || type === "banner"
+      ? "orange"
+      : type === "feed_ig" || type === "story_ig"
+      ? "purple"
+      : type === "sertifikat" || type === "twibbon"
+      ? "success"
+      : "info";
+
+  return <Badge variant={variant}>{DESIGN_TYPE_LABELS[type] ?? type}</Badge>;
 }

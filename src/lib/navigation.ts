@@ -52,7 +52,7 @@ export const dashboardNavigation: DashboardNavConfig[] = [
   {
     label: "Setup",
     href: "/dashboard/setup",
-    visible: (profile) => isSuperAdmin(profile),
+    visible: (profile) => process.env.NODE_ENV !== "production" && isSuperAdmin(profile),
   },
   {
     label: "Profile",

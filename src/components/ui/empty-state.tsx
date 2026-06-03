@@ -17,7 +17,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "p-8 text-center jd-surface border-dashed",
+        "p-8 text-center jd-neo-card bg-[var(--secondary-background)] text-[var(--foreground)]",
         className,
       )}
     >

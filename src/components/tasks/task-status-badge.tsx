@@ -7,7 +7,18 @@ export function TaskStatusBadge({ status }: { status?: TaskStatus }) {
     return <Badge>Tanpa status</Badge>;
   }
 
-  const variant = status === "approved" ? "success" : status === "stuck" ? "warning" : "info";
+  const variant =
+    status === "approved"
+      ? "success"
+      : status === "stuck"
+      ? "error"
+      : status === "butuh_bantuan"
+      ? "orange"
+      : status === "perlu_revisi"
+      ? "warning"
+      : status === "belum_dimulai"
+      ? "neutral"
+      : "info";
 
   return <Badge variant={variant}>{TASK_STATUS_LABELS[status]}</Badge>;
 }

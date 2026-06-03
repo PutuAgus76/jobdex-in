@@ -8,6 +8,7 @@ import { TaskStatusBadge } from "@/components/tasks/task-status-badge";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import { getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { SuggestedReferencesDialog } from "@/components/references/suggested-references-dialog";
+import { Badge } from "@/components/ui/badge";
 import type { Event, Task, UserProfile } from "@/types";
 
 type TasksTableProps = {
@@ -56,12 +57,14 @@ export function TasksTable({
                   ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"
                   : task.division_id || "Humas & Media Kreatif";
 
-              const riskBadgeClasses = {
-                red: "jd-neo-badge jd-neo-badge-red text-[10px] font-bold",
-                orange: "jd-neo-badge jd-neo-badge-orange text-[10px] font-bold",
-                yellow: "jd-neo-badge jd-neo-badge-yellow text-[10px] font-bold",
-                none: "jd-neo-badge jd-neo-badge-gray text-[10px] font-bold",
-              }[riskLevel] || "jd-neo-badge jd-neo-badge-gray text-[10px] font-bold";
+              const riskVariant =
+                riskLevel === "red"
+                  ? "error"
+                  : riskLevel === "orange"
+                  ? "orange"
+                  : riskLevel === "yellow"
+                  ? "warning"
+                  : "neutral";
 
               return (
                 <tr key={task.id} className="align-middle hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40">
@@ -78,9 +81,9 @@ export function TasksTable({
                     <TaskStatusBadge status={task.status} />
                   </td>
                   <td className="px-4 py-4">
-                    <span className={riskBadgeClasses}>
+                    <Badge variant={riskVariant} className="text-[10px] font-bold">
                       {riskLabel}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-4">
                     <Button

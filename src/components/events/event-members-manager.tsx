@@ -52,9 +52,9 @@ export function EventMembersManager({
           description="Tambahkan anggota yang terlibat agar koordinasi acara lebih jelas."
         />
       ) : (
-        <div className="overflow-hidden rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-          <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-900/60 text-xs uppercase text-slate-500 dark:text-slate-400">
+        <div className="overflow-hidden jd-neo-table">
+          <table className="w-full min-w-[720px] text-left text-sm border-collapse">
+            <thead>
               <tr>
                 <th className="px-4 py-3 font-semibold">Nama</th>
                 <th className="px-4 py-3 font-semibold">Email</th>
@@ -63,7 +63,7 @@ export function EventMembersManager({
                 <th className="px-4 py-3 font-semibold">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-850">
               {eventMembers.map((member) => {
                 const user = usersById.get(member.user_id);
 

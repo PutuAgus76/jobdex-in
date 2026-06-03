@@ -8,6 +8,7 @@ import {
 } from "@/lib/task-risk";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 
 type TaskRiskCardProps = {
   task: Task;
@@ -43,20 +44,22 @@ export function TaskRiskCard({ task, picUser, divisionOrEventName }: TaskRiskCar
     ditunda: "Ditunda",
   };
 
-  const riskBadgeClasses = {
-    red: "jd-neo-badge-red",
-    orange: "jd-neo-badge-orange",
-    yellow: "jd-neo-badge-yellow",
-    none: "jd-neo-badge-gray",
-  }[riskLevel] || "jd-neo-badge-gray";
+  const riskVariant =
+    riskLevel === "red"
+      ? "error"
+      : riskLevel === "orange"
+      ? "orange"
+      : riskLevel === "yellow"
+      ? "warning"
+      : "neutral";
 
   return (
     <div className="flex-none w-[290px] jd-neo-card p-4 flex flex-col justify-between space-y-4 m-1">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className={`jd-neo-badge ${riskBadgeClasses} text-[10px] font-bold`}>
+          <Badge variant={riskVariant} className="text-[10px] font-bold">
             {riskLabel}
-          </span>
+          </Badge>
           <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
             {diffDays < 0 ? "Overdue" : diffDays === 0 ? "Hari Ini" : `H-${diffDays}`}
           </span>

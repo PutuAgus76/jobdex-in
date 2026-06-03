@@ -27,17 +27,17 @@ export function AIMessage({
     <div className={cn("flex my-2", isAssistant ? "justify-start" : "justify-end")}>
       <article
         className={cn(
-          "max-w-[85%] md:max-w-[70%] rounded-[12px] border-2 border-neutral-950 dark:border-neutral-700 p-3.5 shadow-[3px_3px_0px_var(--jd-neo-shadow)] transition-all",
+          "max-w-[85%] md:max-w-[70%] rounded-base border-2 border-border p-3.5 shadow-shadow transition-all",
           isAssistant
-            ? "bg-white dark:bg-neutral-850"
-            : "bg-[#ffe699] text-neutral-950",
+            ? "bg-secondary-background text-foreground"
+            : "bg-main text-main-foreground",
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <p
             className={cn(
               "text-[10px] font-black uppercase tracking-wider",
-              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-neutral-800",
+              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-main-foreground/70",
             )}
           >
             {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
@@ -46,7 +46,7 @@ export function AIMessage({
             <span
               className={cn(
                 "text-[10px] font-bold",
-                isAssistant ? "text-slate-400 dark:text-slate-500" : "text-neutral-700"
+                isAssistant ? "text-slate-400 dark:text-slate-500" : "text-main-foreground/60"
               )}
             >
               {time}
@@ -57,17 +57,17 @@ export function AIMessage({
           style={{ overflowWrap: "anywhere" }}
           className={cn(
             "mt-2 whitespace-pre-wrap text-sm leading-6 break-words font-normal",
-            isAssistant ? "text-neutral-900 dark:text-slate-100" : "text-neutral-950",
+            isAssistant ? "text-foreground" : "text-main-foreground",
           )}
         >
           {content}
         </div>
         {isAssistant ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 dark:border-slate-700/60 pt-2.5">
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-border/10 pt-2.5">
             <button
               type="button"
               onClick={() => onCopy?.(content)}
-              className="inline-flex items-center justify-center text-[11px] font-black px-2.5 py-1.5 rounded-lg border-2 border-neutral-950 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white shadow-[2px_2px_0px_var(--jd-neo-shadow)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--jd-neo-shadow)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[0.5px_0.5px_0px_var(--jd-neo-shadow)] transition-all cursor-pointer"
+              className="jd-neo-button text-[11px] py-1 px-2.5 font-bold cursor-pointer"
             >
               Salin
             </button>
@@ -75,7 +75,7 @@ export function AIMessage({
               type="button"
               onClick={() => onSendWhatsApp?.(content)}
               disabled={sendingWhatsApp}
-              className="inline-flex items-center justify-center text-[11px] font-black px-2.5 py-1.5 rounded-lg border-2 border-neutral-950 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-950 dark:text-white shadow-[2px_2px_0px_var(--jd-neo-shadow)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--jd-neo-shadow)] active:translate-x-[0.5px] active:translate-y-[0.5px] active:shadow-[0.5px_0.5px_0px_var(--jd-neo-shadow)] transition-all cursor-pointer disabled:opacity-50"
+              className="jd-neo-button text-[11px] py-1 px-2.5 font-bold cursor-pointer disabled:opacity-50"
             >
               {sendingWhatsApp ? "Mengirim..." : "Kirim ke WA"}
             </button>
