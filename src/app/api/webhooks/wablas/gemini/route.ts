@@ -35,7 +35,13 @@ import {
   handleArchiveTaskCommand,
   handleConfirmArchiveCommand,
   handleChecklistCommand,
-  validateCommandPin,
+  handleTugasSayaCommand,
+  handleDetailTaskCommand,
+  handleUploadHasilCommand,
+  handleMintaRevisiCommand,
+  handleCekChecklistCommand,
+  handleTambahCatatanCommand,
+  handleGantiPicCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile } from "@/types";
 import { USER_ROLE_LABELS } from "@/lib/roles";
@@ -189,7 +195,7 @@ function sanitizePayload(obj: unknown): unknown {
   return sanitized;
 }
 
-function formatStatusVal(status: string): string {
+function _formatStatusVal(status: string): string {
   const clean = status.toLowerCase().replace(/[\s\-_]+/g, " ").trim();
   if (clean.includes("belum mulai") || clean.includes("belum dimulai") || clean === "belum_dimulai") return "Belum Dimulai";
   if (clean.includes("sedang dikerjakan") || clean.includes("dikerjakan") || clean.includes("kerja") || clean === "sedang_dikerjakan") return "Sedang Dikerjakan";
@@ -666,9 +672,10 @@ export async function POST(request: NextRequest) {
 
     const parsedCommand = parseWhatsAppCommand(incoming.message);
     const intent = parsedCommand.intent;
+    const isCekPengirim = intent === "cek_pengirim";
 
     // Tugas 8: Cek Pengirim Command
-    if (intent === "cek_pengirim") {
+    if (isCekPengirim) {
       const replyMessage = [
         "[JobDex.in Debug Pengirim]",
         "",
@@ -690,36 +697,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Tugas 5: Write Command Guard
-    const isWriteCommand = 
-      intent === "approve_task" ||
-      intent === "update_status" ||
-      intent === "edit_task" ||
-      intent === "archive_task" ||
-      intent === "checklist_task" ||
-      intent === "confirm_command" ||
-      intent === "cancel_command" ||
-      intent === "confirm_edit" ||
-      intent === "cancel_edit" ||
-      intent === "confirm_archive" ||
-      intent === "create_task_preview" ||
-      intent === "create_event_preview" ||
-      intent === "bulk_create_task_preview" ||
-      intent === "approve_task_preview" ||
-      intent === "create_reference_preview";
+    const isBantuan = intent === "bantuan_task" || intent === "template_help";
+    const requiresAuth = intent !== "unknown" && !isBantuan && !isCekPengirim;
 
-    if (isWriteCommand && !isSenderMatched) {
+    if (requiresAuth && !isSenderMatched) {
       const replyMessage = [
-        "[JobDex.in Command]",
+        "[JobDex.in Auth]",
         "",
-        "Perintah eksekusi ditolak.",
+        `Nomor WhatsApp kamu terdeteksi: ${resolvedSenderNumber || incoming.sender}`,
         "",
-        `Nomor WhatsApp Anda (${resolvedSenderNumber || incoming.sender}) belum terhubung dengan akun JobDex.in.`,
-        "",
-        "Silakan hubungkan nomor WhatsApp Anda di halaman pengaturan Profil dashboard web JobDex.in."
+        "Namun nomor ini belum terhubung dengan akun JobDex.in.",
+        "Silakan hubungi admin untuk menambahkan nomor WhatsApp ke profil akun."
       ].join("\n");
 
       await updateDebugIntent("task_help", intent || "unauthorized");
+
+      if (debugRefId) {
+        try {
+          await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+            auth_mode: "sender_identity",
+            pin_required: false,
+            sender_user_id: "",
+            sender_user_role: "",
+            authorization_result: "unmatched_user",
+            command_intent: intent,
+            target_task_id: "",
+            target_task_name: "",
+          });
+        } catch (err) {
+          console.error("Failed to update debug unmatched:", err);
+        }
+      }
 
       const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({
@@ -730,36 +738,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Bantuan Task Command
+    const authMode = "sender_identity";
+    const pinRequired = false;
+    const senderUserId = senderUserProfile?.id || "";
+    const senderUserRole = senderUserProfile?.role || "";
+    let authorizationResult = "allowed";
+    let targetTaskId = "";
+    let targetTaskName = "";
+
+    // 1. Bantuan Task Command
     if (intent === "bantuan_task") {
       const replyMessage = [
-        "[JobDex.in Bantuan Task]",
+        "[JobDex.in Bantuan]",
         "",
-        "Command yang tersedia:",
-        "",
-        "1. Cek deadline:",
-        "!jobdex deadline dekat",
-        "!jobdex tugas h-3",
-        "!jobdex tugas overdue",
-        "!jobdex siapa yang stuck",
-        "",
-        "2. Approve task:",
-        "!jobdex approve task Nama Task pin: 9703",
-        "",
-        "3. Update status:",
-        "!jobdex update status Nama Task menjadi sedang dikerjakan pin: 9703",
-        "!jobdex update status Nama Task menjadi stuck catatan: kurang materi pin: 9703",
-        "",
-        "4. Edit task:",
-        "!jobdex edit task Nama Task",
-        "deadline: 5 Juni 2026",
-        "prioritas: kritis",
-        "pic: Nama PIC",
-        "pin: 9703",
-        "",
-        "5. Checklist:",
-        "!jobdex checklist Nama Task redaksi selesai pin: 9703",
-        "!jobdex checklist Nama Task upload selesai pin: 9703"
+        "Command utama:",
+        "- !jobdex tugas saya",
+        "- !jobdex detail task [nama task]",
+        "- !jobdex update status [nama task] menjadi [status]",
+        "- !jobdex upload hasil [nama task]",
+        "  link: ...",
+        "  catatan: ...",
+        "- !jobdex minta revisi [nama task]",
+        "  catatan: ...",
+        "- !jobdex cek checklist [nama task]",
+        "- !jobdex checklist [nama task] redaksi selesai",
+        "- !jobdex tambah catatan [nama task]",
+        "  catatan: ...",
+        "- !jobdex ganti pic [nama task] ke [nama anggota]",
+        "- !jobdex cari referensi desain [keyword]",
+        "- !jobdex tambah referensi",
+        "  nama: ...",
+        "  jenis: ...",
+        "  acara: ...",
+        "  tahun: ...",
+        "  link: ..."
       ].join("\n");
 
       await updateDebugIntent("task_command", "bantuan_task");
@@ -773,7 +785,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Read-only Deadline & Risk Queries (No PIN needed)
+    // 2. Read-only Deadline & Risk Queries
     if (intent === "deadline_query") {
       const queryType = String(parsedCommand.fields.query_type || "dekat");
       const replyMessage = await handleDeadlineQuery(queryType);
@@ -789,61 +801,279 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 12C: Detect konfirmasi / batal command (tambah jobdesk / acara)
+    // 3. Tugas Saya
+    if (intent === "tugas_saya") {
+      const variation = String(parsedCommand.fields.variation || "all");
+      const result = await handleTugasSayaCommand(senderUserProfile!, variation);
+      
+      await updateDebugIntent("task_command", "tugas_saya");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // 4. Detail Task
+    if (intent === "detail_task") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const result = await handleDetailTaskCommand(taskName, isCode, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "detail_task");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 5. Upload Hasil
+    if (intent === "upload_hasil") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const link = String(parsedCommand.fields.link || "");
+      const catatan = String(parsedCommand.fields.catatan || "");
+      const result = await handleUploadHasilCommand(taskName, isCode, link, catatan, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "upload_hasil");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 6. Minta Revisi
+    if (intent === "minta_revisi") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const catatan = String(parsedCommand.fields.catatan || "");
+      const result = await handleMintaRevisiCommand(taskName, isCode, catatan, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "minta_revisi");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 7. Cek Checklist
+    if (intent === "cek_checklist") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const result = await handleCekChecklistCommand(taskName, isCode, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "cek_checklist");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 8. Tambah Catatan
+    if (intent === "tambah_catatan") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const catatan = String(parsedCommand.fields.catatan || "");
+      const result = await handleTambahCatatanCommand(taskName, isCode, catatan, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "tambah_catatan");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 9. Ganti PIC
+    if (intent === "ganti_pic") {
+      const taskName = String(parsedCommand.fields.task_name || "");
+      const isCode = parsedCommand.fields.is_code === "true";
+      const picName = String(parsedCommand.fields.pic_name || "");
+      const result = await handleGantiPicCommand(taskName, isCode, picName, senderUserProfile!);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
+      await updateDebugIntent("task_command", "ganti_pic");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // 10. Confirm Command & Cancel Command
     if (intent === "confirm_command" || intent === "cancel_command") {
       const code = String(parsedCommand.fields.code || "").toUpperCase();
-      const pin = String(parsedCommand.fields.pin || "");
-
-      if (!pin) {
-        const isRef = parsedCommand.fields.type === "reference";
-        const refWord = isRef ? "referensi " : "";
-        const replyMessage = [
-          "[JobDex.in AI]",
-          "",
-          "Saya membaca perintah konfirmasi / batal:",
-          `Kode: ${code}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex ${intent === "confirm_command" ? "konfirmasi" : "batal"} ${refWord}${code} pin: 9703`
-        ].join("\n");
-
-        await updateDebugIntent("task_help", intent);
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = `[JobDex.in AI]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.`;
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
 
       let result;
       if (intent === "confirm_command") {
-        result = await confirmPreviewCommand(code, pin);
+        result = await confirmPreviewCommand(code, senderUserProfile!);
       } else {
-        result = await cancelPreviewCommand(code, pin);
+        result = await cancelPreviewCommand(code, senderUserProfile!);
       }
 
       await updateDebugIntent("task_command", intent);
 
-      // Send execution reply to WhatsApp group
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
-      // Save WhatsApp reply log (scrub PIN!)
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
@@ -851,125 +1081,95 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Detect konfirmasi / batal edit / archive task
+    // 11. Confirm Edit & Cancel Edit & Confirm Archive
     if (intent === "confirm_edit" || intent === "cancel_edit" || intent === "confirm_archive") {
       const code = String(parsedCommand.fields.code || "").toUpperCase();
-      const pin = String(parsedCommand.fields.pin || "");
-
-      if (!pin) {
-        const actionStr = intent === "confirm_edit" ? "konfirmasi edit" : intent === "cancel_edit" ? "batal edit" : "konfirmasi archive";
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah konfirmasi / batal:",
-          `Kode: ${code}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex ${actionStr} ${code} pin: 9703`
-        ].join("\n");
-
-        await updateDebugIntent("task_help", intent);
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Command]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
 
       let result;
       if (intent === "confirm_edit") {
-        result = await handleConfirmEditTaskCommand(code, pin, validatedUser);
+        result = await handleConfirmEditTaskCommand(code, senderUserProfile!);
       } else if (intent === "cancel_edit") {
-        result = await handleCancelEditTaskCommand(code, pin, validatedUser);
+        result = await handleCancelEditTaskCommand(code, senderUserProfile!);
       } else {
-        result = await handleConfirmArchiveCommand(code, pin, validatedUser);
+        result = await handleConfirmArchiveCommand(code, senderUserProfile!);
       }
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
 
       await updateDebugIntent("task_command", intent);
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
 
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Approve Task
+    // 12. Approve Task
     if (intent === "approve_task") {
       const taskName = String(parsedCommand.fields.task_name || "");
-      const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
-      if (!pin) {
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah approve task:",
-          `Tugas: ${taskName || "Desain feed forkom achievement"}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex approve task ${taskName || "Desain feed forkom achievement"} pin: 9703`
-        ].join("\n");
+      const result = await handleApproveTaskCommand(taskName, senderUserProfile!, isCode);
 
-        await updateDebugIntent("task_help", "approve_task");
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
       }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
 
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Approval]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
-
-      const result = await handleApproveTaskCommand(taskName, pin, validatedUser, isCode);
-      
       await updateDebugIntent("task_command", "approve_task");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
 
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Update Status
+    // 13. Update Status
     if (intent === "update_status") {
       const taskName = String(parsedCommand.fields.task_name || "");
-      const pin = String(parsedCommand.fields.pin || "");
       const statusVal = String(parsedCommand.fields.status || "");
       const notes = String(parsedCommand.fields.notes || "");
       const isCode = parsedCommand.fields.is_code === "true";
@@ -981,10 +1181,7 @@ export async function POST(request: NextRequest) {
           "Format update status belum lengkap.",
           "",
           "Gunakan:",
-          "!jobdex update status Nama Task menjadi sedang dikerjakan pin: 9703",
-          "",
-          "Contoh:",
-          "!jobdex update status Desain feed forkom achievement menjadi sedang dikerjakan pin: 9703"
+          "!jobdex update status [nama task] menjadi [status]"
         ].join("\n");
 
         await updateDebugIntent("task_help", "update_status");
@@ -998,61 +1195,44 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      if (!pin) {
-        const readableStatus = formatStatusVal(statusVal) || statusVal || "Sedang Dikerjakan";
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah update status:",
-          "",
-          `Tugas: ${taskName}`,
-          `Status baru: ${readableStatus}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex update status ${taskName} menjadi ${statusVal} pin: 9703`
-        ].join("\n");
+      const result = await handleUpdateTaskStatusCommand(taskName, senderUserProfile!, isCode, statusVal, notes);
 
-        await updateDebugIntent("task_help", "update_status");
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
       }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
 
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Status]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
-
-      const result = await handleUpdateTaskStatusCommand(taskName, pin, validatedUser, isCode, statusVal, notes);
-      
       await updateDebugIntent("task_command", "update_status");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
 
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Edit Task
+    // 14. Edit Task
     if (intent === "edit_task") {
       const taskName = String(parsedCommand.fields.task_name || "");
-      const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
       if (!taskName) {
@@ -1062,9 +1242,8 @@ export async function POST(request: NextRequest) {
           "Format edit task belum lengkap.",
           "",
           "Gunakan:",
-          "!jobdex edit task Nama Task",
-          "deadline: 5 Juni 2026",
-          "pin: 9703"
+          "!jobdex edit task [nama task]",
+          "deadline: 5 Juni 2026"
         ].join("\n");
 
         await updateDebugIntent("task_help", "edit_task");
@@ -1075,40 +1254,6 @@ export async function POST(request: NextRequest) {
           status: "failed",
           response: sendResult.responseText,
         });
-        return NextResponse.json({ ok: true });
-      }
-
-      if (!pin) {
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah edit task:",
-          `Tugas: ${taskName}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex edit task ${taskName}`,
-          "deadline: 5 Juni 2026",
-          "pin: 9703"
-        ].join("\n");
-
-        await updateDebugIntent("task_help", "edit_task");
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
-      }
-
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Edit Task]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
         return NextResponse.json({ ok: true });
       }
 
@@ -1117,26 +1262,44 @@ export async function POST(request: NextRequest) {
       delete changesPayload.pin;
       delete changesPayload.is_code;
 
-      const result = await handleEditTaskCommand(taskName, pin, validatedUser, isCode, changesPayload);
-      
+      const result = await handleEditTaskCommand(taskName, senderUserProfile!, isCode, changesPayload);
+
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
+      }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
+
       await updateDebugIntent("task_command", "edit_task");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
 
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Archive Task
+    // 15. Archive Task
     if (intent === "archive_task") {
       const taskName = String(parsedCommand.fields.task_name || "");
-      const pin = String(parsedCommand.fields.pin || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
       if (!taskName) {
@@ -1146,7 +1309,7 @@ export async function POST(request: NextRequest) {
           "Format archive task belum lengkap.",
           "",
           "Gunakan:",
-          "!jobdex archive task Nama Task pin: 9703"
+          "!jobdex archive task [nama task]"
         ].join("\n");
 
         await updateDebugIntent("task_help", "archive_task");
@@ -1160,58 +1323,44 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      if (!pin) {
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah archive task:",
-          `Tugas: ${taskName}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex archive task ${taskName} pin: 9703`
-        ].join("\n");
+      const result = await handleArchiveTaskCommand(taskName, senderUserProfile!, isCode);
 
-        await updateDebugIntent("task_help", "archive_task");
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
       }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
 
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Archive]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
-
-      const result = await handleArchiveTaskCommand(taskName, pin, validatedUser, isCode);
-      
       await updateDebugIntent("task_command", "archive_task");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
 
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
-    // Fase 15C: Checklist Task
+    // 16. Checklist Task
     if (intent === "checklist_task") {
       const taskName = String(parsedCommand.fields.task_name || "");
-      const pin = String(parsedCommand.fields.pin || "");
       const item = String(parsedCommand.fields.item || "");
       const isCode = parsedCommand.fields.is_code === "true";
 
@@ -1222,7 +1371,7 @@ export async function POST(request: NextRequest) {
           "Format checklist task belum lengkap.",
           "",
           "Gunakan:",
-          "!jobdex checklist Nama Task redaksi selesai pin: 9703"
+          "!jobdex checklist [nama task] [item] selesai"
         ].join("\n");
 
         await updateDebugIntent("task_help", "checklist_task");
@@ -1236,50 +1385,37 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      if (!pin) {
-        const replyMessage = [
-          "[JobDex.in Task]",
-          "",
-          "Saya membaca perintah checklist task:",
-          `Tugas: ${taskName}`,
-          "",
-          "Namun PIN belum disertakan.",
-          "",
-          "Gunakan:",
-          `!jobdex checklist ${taskName} ${item} selesai pin: 9703`
-        ].join("\n");
+      const result = await handleChecklistCommand(taskName, senderUserProfile!, isCode, item);
 
-        await updateDebugIntent("task_help", "checklist_task");
-
-        const sendResult = await sendWhatsAppMessage(replyMessage);
-        await createWhatsAppLog({
-          message: replyMessage,
-          status: "failed",
-          response: sendResult.responseText,
-        });
-        return NextResponse.json({ ok: true });
+      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+        authorizationResult = "denied";
       }
+      targetTaskId = result.taskId || "";
+      targetTaskName = result.taskName || "";
 
-      const validatedUser = await validateCommandPin(pin);
-      if (!validatedUser) {
-        const errMessage = "[JobDex.in Checklist]\n\n❌ PIN yang Anda masukkan salah atau akun Anda tidak aktif.";
-        const sendResult = await sendWhatsAppMessage(errMessage);
-        await createWhatsAppLog({ message: errMessage, status: "failed", response: sendResult.responseText });
-        return NextResponse.json({ ok: true });
-      }
-
-      const result = await handleChecklistCommand(taskName, pin, validatedUser, isCode, item);
-      
       await updateDebugIntent("task_command", "checklist_task");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);
-
       await createWhatsAppLog({
-        message: sanitizePinFromMessage(replyMessage),
+        message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
+
+      // Update deep debug metadata
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: targetTaskId,
+          target_task_name: targetTaskName,
+        });
+      }
 
       return NextResponse.json({ ok: true });
     }
@@ -1338,8 +1474,8 @@ export async function POST(request: NextRequest) {
         const oldNote2 = "Preview ini belum dijalankan.";
         const isReference = parsedCommand.intent === "create_reference_preview";
         const confirmCmd = isReference 
-          ? `!jobdex konfirmasi referensi ${confirmationCode} pin: 1234` 
-          : `!jobdex konfirmasi ${confirmationCode} pin: 1234`;
+          ? `!jobdex konfirmasi referensi ${confirmationCode}` 
+          : `!jobdex konfirmasi ${confirmationCode}`;
 
         const instruction = [
           `Preview ID: ${confirmationCode}`,

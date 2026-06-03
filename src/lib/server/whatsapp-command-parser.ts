@@ -21,6 +21,13 @@ export type WhatsAppCommandIntent =
   | "checklist_task"
   | "create_reference_preview"
   | "cek_pengirim"
+  | "tugas_saya"
+  | "detail_task"
+  | "upload_hasil"
+  | "minta_revisi"
+  | "cek_checklist"
+  | "tambah_catatan"
+  | "ganti_pic"
   | "unknown";
 
 export interface ParsedWhatsAppCommand {
@@ -56,6 +63,15 @@ export function isTaskCommandLike(text: string): boolean {
     "job desk yang berjudul",
     "task yang berjudul",
     "tugas yang berjudul",
+    "tugas saya",
+    "detail task",
+    "detail jobdesk",
+    "upload hasil",
+    "kirim hasil",
+    "minta revisi",
+    "revisi task",
+    "cek checklist",
+    "tambah catatan",
   ];
 
   return taskPatterns.some((pattern) => clean.includes(pattern));
@@ -73,11 +89,190 @@ function cleanMessage(text: string): string {
 }
 
 export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
-  const cleaned = cleanMessage(rawText);
+  const rawCleaned = cleanMessage(rawText);
+  const pinMatch = rawCleaned.match(/(?:pin\s*:?\s*)(\d{4,6})/i);
+  const pin = pinMatch ? pinMatch[1] : "";
+  const cleaned = rawCleaned.replace(/(?:pin\s*:?\s*)(\d{4,6})/i, "").trim();
   const lowerCleaned = cleaned.toLowerCase();
 
+  const result = parseWhatsAppCommandInternal(rawText, cleaned, lowerCleaned, pin);
+  if (result.fields && pin && !result.fields.pin) {
+    result.fields.pin = pin;
+  }
+  return result;
+}
+
+function parseWhatsAppCommandInternal(
+  rawText: string,
+  cleaned: string,
+  lowerCleaned: string,
+  _pin: string
+): ParsedWhatsAppCommand {
+  // --- New 19B Task Workflow Commands ---
+
+  // 1. tugas saya
+  if (lowerCleaned === "tugas saya" || lowerCleaned.startsWith("tugas saya ")) {
+    let variation = "all";
+    if (lowerCleaned.includes("minggu ini")) {
+      variation = "minggu_ini";
+    } else if (lowerCleaned.includes("belum selesai")) {
+      variation = "belum_selesai";
+    } else if (lowerCleaned.includes("deadline dekat")) {
+      variation = "deadline_dekat";
+    }
+    return {
+      intent: "tugas_saya",
+      rawText,
+      fields: { variation },
+    };
+  }
+
+  // 2. detail task / jobdesk
+  if (lowerCleaned.startsWith("detail task ") || lowerCleaned.startsWith("detail jobdesk ")) {
+    const taskNameRaw = cleaned.replace(/^(detail task|detail jobdesk)\s+/i, "").trim();
+    const isCode = taskNameRaw.toLowerCase().startsWith("kode ");
+    const cleanTaskName = isCode ? taskNameRaw.replace(/^kode\s+/i, "").trim() : taskNameRaw;
+    return {
+      intent: "detail_task",
+      rawText,
+      fields: {
+        task_name: cleanTaskName,
+        is_code: isCode ? "true" : "false",
+      },
+    };
+  }
+
+  // 3. upload hasil / kirim hasil
+  if (lowerCleaned.startsWith("upload hasil ") || lowerCleaned.startsWith("kirim hasil ") ||
+      lowerCleaned.startsWith("upload hasil\n") || lowerCleaned.startsWith("kirim hasil\n")) {
+    const lines = cleaned.split("\n");
+    const firstLine = lines[0].trim();
+    const taskNameRaw = firstLine.replace(/^(upload hasil|kirim hasil)\s+/i, "").trim();
+    const isCode = taskNameRaw.toLowerCase().startsWith("kode ");
+    const cleanTaskName = isCode ? taskNameRaw.replace(/^kode\s+/i, "").trim() : taskNameRaw;
+
+    let link = "";
+    let catatan = "";
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toLowerCase().startsWith("link:")) {
+        link = line.slice(5).trim();
+      } else if (line.toLowerCase().startsWith("catatan:")) {
+        catatan = line.slice(8).trim();
+      }
+    }
+    return {
+      intent: "upload_hasil",
+      rawText,
+      fields: {
+        task_name: cleanTaskName,
+        is_code: isCode ? "true" : "false",
+        link,
+        catatan,
+      },
+    };
+  }
+
+  // 4. minta revisi / revisi task
+  if (lowerCleaned.startsWith("minta revisi ") || lowerCleaned.startsWith("revisi task ") ||
+      lowerCleaned.startsWith("minta revisi\n") || lowerCleaned.startsWith("revisi task\n")) {
+    const lines = cleaned.split("\n");
+    const firstLine = lines[0].trim();
+    const taskNameRaw = firstLine.replace(/^(minta revisi|revisi task)\s+/i, "").trim();
+    const isCode = taskNameRaw.toLowerCase().startsWith("kode ");
+    const cleanTaskName = isCode ? taskNameRaw.replace(/^kode\s+/i, "").trim() : taskNameRaw;
+
+    let catatan = "";
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toLowerCase().startsWith("catatan:")) {
+        catatan = line.slice(8).trim();
+      }
+    }
+    if (!catatan && firstLine.toLowerCase().includes("catatan:")) {
+      const idx = firstLine.toLowerCase().indexOf("catatan:");
+      catatan = firstLine.slice(idx + 8).trim();
+    }
+    return {
+      intent: "minta_revisi",
+      rawText,
+      fields: {
+        task_name: cleanTaskName,
+        is_code: isCode ? "true" : "false",
+        catatan,
+      },
+    };
+  }
+
+  // 5. cek checklist
+  if (lowerCleaned.startsWith("cek checklist ") || (lowerCleaned.startsWith("checklist ") && !lowerCleaned.includes("selesai"))) {
+    const taskNameRaw = cleaned.replace(/^(cek checklist|checklist)\s+/i, "").trim();
+    const isCode = taskNameRaw.toLowerCase().startsWith("kode ");
+    const cleanTaskName = isCode ? taskNameRaw.replace(/^kode\s+/i, "").trim() : taskNameRaw;
+    return {
+      intent: "cek_checklist",
+      rawText,
+      fields: {
+        task_name: cleanTaskName,
+        is_code: isCode ? "true" : "false",
+      },
+    };
+  }
+
+  // 6. tambah catatan
+  if (lowerCleaned.startsWith("tambah catatan ") || lowerCleaned.startsWith("tambah catatan\n")) {
+    const lines = cleaned.split("\n");
+    const firstLine = lines[0].trim();
+    const taskNameRaw = firstLine.replace(/^tambah catatan\s+/i, "").trim();
+    const isCode = taskNameRaw.toLowerCase().startsWith("kode ");
+    const cleanTaskName = isCode ? taskNameRaw.replace(/^kode\s+/i, "").trim() : taskNameRaw;
+
+    let catatan = "";
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.toLowerCase().startsWith("catatan:")) {
+        catatan = line.slice(8).trim();
+      }
+    }
+    if (!catatan && firstLine.toLowerCase().includes("catatan:")) {
+      const idx = firstLine.toLowerCase().indexOf("catatan:");
+      catatan = firstLine.slice(idx + 8).trim();
+    }
+    return {
+      intent: "tambah_catatan",
+      rawText,
+      fields: {
+        task_name: cleanTaskName,
+        is_code: isCode ? "true" : "false",
+        catatan,
+      },
+    };
+  }
+
+  // 7. ganti pic / assign task
+  if (lowerCleaned.startsWith("ganti pic ") || lowerCleaned.startsWith("assign task ")) {
+    const cleanText = cleaned.replace(/^(ganti pic|assign task)\s+/i, "").trim();
+    const isCode = cleanText.toLowerCase().startsWith("kode ");
+    const cleanTextNoKode = isCode ? cleanText.replace(/^kode\s+/i, "").trim() : cleanText;
+
+    const keMatch = cleanTextNoKode.match(/\s+ke\s+/i);
+    if (keMatch && keMatch.index !== undefined) {
+      const taskName = cleanTextNoKode.slice(0, keMatch.index).trim();
+      const picName = cleanTextNoKode.slice(keMatch.index + keMatch[0].length).trim();
+      return {
+        intent: "ganti_pic",
+        rawText,
+        fields: {
+          task_name: taskName,
+          is_code: isCode ? "true" : "false",
+          pic_name: picName,
+        },
+      };
+    }
+  }
+
   // 1. bantuan task
-  if (lowerCleaned === "bantuan task" || lowerCleaned === "bantuan") {
+  if (lowerCleaned === "bantuan task" || lowerCleaned === "bantuan" || lowerCleaned === "help") {
     return {
       intent: "bantuan_task",
       rawText,

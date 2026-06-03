@@ -461,3 +461,29 @@ Super Admin dapat mengatur PIN WhatsApp Command Anggota secara langsung dari das
   - `koordinator_acara`: Hanya diperbolehkan membuat tugas acara **khusus untuk acara yang ia koordinasikan sendiri**.
   - `anggota`: Hak akses eksekusi ditolak penuh.
 - **Integritas Bulk (All-or-Nothing)**: Pembuatan banyak tugas sekaligus (bulk) akan divalidasi seluruh barisnya terlebih dahulu. Jika ditemukan 1 kesalahan data (misalnya nama PIC tidak dikenal), sistem membatalkan seluruh rangkaian tugas tersebut agar database tugas tetap konsisten.
+
+## Fase 19B — WhatsApp Task Workflow Commands Tanpa PIN Berbasis Sender Identity + Role
+
+Pada Fase 19B, autentikasi berbasis PIN 4-digit dihapus karena faktor keamanan dan kepraktisan. Sebagai gantinya, otorisasi dialihkan sepenuhnya menggunakan **Identitas Pengirim WhatsApp (Sender JID) yang dicocokkan ke user database + Sistem Akses Kontrol Berbasis Peran (RBAC)**.
+
+### Alur Kerja Baru Tanpa PIN
+1. Nomor WhatsApp pengirim dideteksi melalui header/group.sender dari payload Wablas.
+2. Bot mencocokkan nomor tersebut ke dokumen di collection `users` Firestore.
+3. Jika tidak terhubung dengan akun JobDex.in mana pun, perintah write/read dibatalkan secara terpusat dan pengguna menerima petunjuk pendaftaran.
+4. Jika terhubung, bot mengambil profil pengguna dan memvalidasi izin akses sesuai matriks peran (RBAC) sebelum menjalankan perintah.
+
+### Matriks Akses Peran (RBAC)
+- **Super Admin**: Akses penuh ke seluruh tindakan dan tugas.
+- **Koordinator Divisi**: Akses penuh mengelola tugas divisi terkait (`type === "divisi" && division_id === user.division_id`).
+- **Koordinator Acara**: Akses penuh mengelola tugas acara terkait (`type === "acara" && coordinator_id === user.id`).
+- **Anggota (PIC)**: Hanya boleh melihat (`view`), mengubah status (`update_status`), checklist, upload hasil (`upload_hasil`), dan menambah catatan (`tambah_catatan`) untuk tugas di mana ia terdaftar sebagai PIC (`pic_id === user.id`). Tidak diizinkan menyetujui (`approve`), meminta revisi, mengubah detail administratf, mengganti PIC, atau mengarsipkan tugas.
+
+### Daftar Perintah Baru yang Ditambahkan
+- `!jobdex tugas saya` (menampilkan daftar tugas aktif pengguna).
+- `!jobdex detail task <Nama Task>` (menampilkan informasi lengkap tugas, checklist, dan catatan).
+- `!jobdex upload hasil <Nama Task> link: <URL> catatan: <Catatan>` (mengirimkan link hasil pekerjaan untuk di-review koordinator).
+- `!jobdex minta revisi <Nama Task> catatan: <Catatan>` (meminta perbaikan atas hasil pekerjaan).
+- `!jobdex cek checklist <Nama Task>` (menampilkan status checklist tugas).
+- `!jobdex tambah catatan <Nama Task> catatan: <Catatan>` (menambahkan catatan status log pengerjaan tugas).
+- `!jobdex ganti pic <Nama Task> ke <Nama Anggota>` (mengubah PIC pelaksana tugas).
+- `!jobdex bantuan` (panduan perintah baru tanpa format PIN).

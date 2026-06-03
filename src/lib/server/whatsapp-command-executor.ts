@@ -108,15 +108,15 @@ export function sanitizePinFromMessage(text: string): string {
  */
 export async function cancelPreviewCommand(
   code: string,
-  pin: string
+  user: UserProfile
 ): Promise<{ success: boolean; replyText: string }> {
   const db = getAdminDb();
   const cleanCode = String(code || "").trim().toUpperCase();
 
-  if (!cleanCode || !pin) {
+  if (!cleanCode) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nFormat pembatalan salah. Gunakan:\n!jobdex batal <PREVIEW_ID> pin: <PIN_AKUN>`,
+      replyText: `[JobDex.in AI]\n\nFormat pembatalan salah. Gunakan:\n!jobdex batal <PREVIEW_ID>`,
     };
   }
 
@@ -143,15 +143,6 @@ export async function cancelPreviewCommand(
     };
   }
 
-  // Validate user PIN
-  const user = await validateCommandPin(pin);
-  if (!user) {
-    return {
-      success: false,
-      replyText: `[JobDex.in AI]\n\nPIN salah atau akun Anda dinonaktifkan. Otorisasi pembatalan ditolak.`,
-    };
-  }
-
   // Perform cancellation
   await previewDoc.ref.update({
     status: "cancelled",
@@ -163,7 +154,7 @@ export async function cancelPreviewCommand(
 
   return {
     success: true,
-    replyText: `[JobDex.in AI]\n\n✅ Rencana tindakan "${previewData.parsed_intent || "tambah data"}" (ID: ${cleanCode}) berhasil dibatalkan oleh ${user.name}.`,
+    replyText: `[JobDex.in AI]\n\nRencana tindakan "${previewData.parsed_intent || "tambah data"}" (ID: ${cleanCode}) berhasil dibatalkan oleh ${user.name}.`,
   };
 }
 
@@ -172,15 +163,15 @@ export async function cancelPreviewCommand(
  */
 export async function confirmPreviewCommand(
   code: string,
-  pin: string
+  user: UserProfile
 ): Promise<{ success: boolean; replyText: string }> {
   const db = getAdminDb();
   const cleanCode = String(code || "").trim().toUpperCase();
 
-  if (!cleanCode || !pin) {
+  if (!cleanCode) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nFormat konfirmasi salah. Gunakan:\n!jobdex konfirmasi <PREVIEW_ID> pin: <PIN_AKUN>`,
+      replyText: `[JobDex.in AI]\n\nFormat konfirmasi salah. Gunakan:\n!jobdex konfirmasi <PREVIEW_ID>`,
     };
   }
 
@@ -217,15 +208,6 @@ export async function confirmPreviewCommand(
         replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" sudah kedaluwarsa (Batas waktu 30 menit). Silakan kirim command baru untuk mendapatkan Preview ID baru.`,
       };
     }
-  }
-
-  // Validate user PIN and check active status
-  const user = await validateCommandPin(pin);
-  if (!user) {
-    return {
-      success: false,
-      replyText: `[JobDex.in AI]\n\nPIN salah atau akun Anda dinonaktifkan. Otorisasi eksekusi ditolak.`,
-    };
   }
 
   // Fetch users and events for lookup in database
@@ -384,7 +366,7 @@ export async function confirmPreviewCommand(
         return {
           success: true,
           replyText: [
-            `✅ Job desk berhasil dibuat.`,
+            `Job desk berhasil dibuat.`,
             ``,
             `Judul: ${judul}`,
             `PIC: ${picUser.name}`,
@@ -494,7 +476,7 @@ export async function confirmPreviewCommand(
         if (errors.length > 0) {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\n❌ Gagal membuat bulk job desk. Terdapat kesalahan validasi:\n\n${errors.join("\n")}\n\nEksekusi dibatalkan secara keseluruhan (All-or-Nothing).`,
+            replyText: `[JobDex.in AI]\n\nGagal membuat bulk job desk. Terdapat kesalahan validasi:\n\n${errors.join("\n")}\n\nEksekusi dibatalkan secara keseluruhan (All-or-Nothing).`,
           };
         }
 
@@ -566,7 +548,7 @@ export async function confirmPreviewCommand(
 
         return {
           success: true,
-          replyText: `✅ ${items.length} Job desk berhasil dibuat sekaligus.\n\nTipe: ${globalTipe.charAt(0).toUpperCase() + globalTipe.slice(1)}\n${isAcara ? `Acara: ${resolvedEventName}\n` : ""}Dibuat oleh: ${user.name}`,
+          replyText: `${items.length} Job desk berhasil dibuat sekaligus.\n\nTipe: ${globalTipe.charAt(0).toUpperCase() + globalTipe.slice(1)}\n${isAcara ? `Acara: ${resolvedEventName}\n` : ""}Dibuat oleh: ${user.name}`,
         };
       }
 
@@ -634,7 +616,7 @@ export async function confirmPreviewCommand(
         return {
           success: true,
           replyText: [
-            `✅ Acara baru berhasil dibuat.`,
+            `Acara baru berhasil dibuat.`,
             ``,
             `Nama Acara: ${name}`,
             `Tanggal: ${tanggal}`,
@@ -785,7 +767,7 @@ export async function confirmPreviewCommand(
         return {
           success: true,
           replyText: [
-            `✅ Referensi desain berhasil dibuat.`,
+            `Referensi desain berhasil dibuat.`,
             ``,
             `Judul: ${judul}`,
             `Scope: ${scope.charAt(0).toUpperCase() + scope.slice(1).toLowerCase()}`,
@@ -811,7 +793,7 @@ export async function confirmPreviewCommand(
     console.error("Execution error:", err);
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\n❌ Terjadi kesalahan internal saat menulis ke database: ${err instanceof Error ? err.message : "Kesalahan tidak diketahui"}`,
+      replyText: `[JobDex.in AI]\n\nTerjadi kesalahan internal saat menulis ke database: ${err instanceof Error ? err.message : "Kesalahan tidak diketahui"}`,
     };
   }
 }

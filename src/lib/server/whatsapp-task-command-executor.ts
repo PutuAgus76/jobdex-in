@@ -3,7 +3,8 @@ import "server-only";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import type { Task, UserProfile, TaskCandidate, TaskEditPreview } from "@/types";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
-import { parseIndonesianDate, validateCommandPin, sanitizePinFromMessage } from "./whatsapp-command-executor";
+import { parseIndonesianDate, validateCommandPin, sanitizePinFromMessage, recalculateEventProgressAdmin } from "./whatsapp-command-executor";
+import { USER_ROLE_LABELS } from "@/lib/roles";
 
 export { validateCommandPin, sanitizePinFromMessage };
 
@@ -13,13 +14,12 @@ export { validateCommandPin, sanitizePinFromMessage };
 export function validateTaskPermission(
   user: UserProfile,
   task: Task,
-  action: "approve" | "update_status" | "edit" | "archive" | "checklist"
+  action: "approve" | "update_status" | "edit" | "archive" | "checklist" | "upload_hasil" | "tambah_catatan" | "view" | "ganti_pic" | "revisi"
 ): boolean {
   if (user.role === "super_admin") return true;
 
   if (user.role === "koordinator_divisi") {
-    // division_id must match division_id or task must be coordinate by them
-    return task.division_id === user.division_id || task.coordinator_id === user.id;
+    return task.type === "divisi" && task.division_id === user.division_id;
   }
 
   if (user.role === "koordinator_acara") {
@@ -27,15 +27,58 @@ export function validateTaskPermission(
   }
 
   if (user.role === "anggota") {
-    // PIC of the task can only update status or update checklist
     const isPic = task.pic_id === user.id;
     if (isPic) {
-      return action === "update_status" || action === "checklist";
+      return (
+        action === "update_status" ||
+        action === "checklist" ||
+        action === "upload_hasil" ||
+        action === "tambah_catatan" ||
+        action === "view"
+      );
     }
   }
 
   return false;
 }
+
+/**
+ * Standard access denied response helper
+ */
+function getAccessDeniedMessage(user: UserProfile): string {
+  const roleLabel = USER_ROLE_LABELS[user.role] || user.role;
+  return [
+    "[JobDex.in Akses Ditolak]",
+    "",
+    `Kamu terdeteksi sebagai: ${user.name} (${roleLabel})`,
+    "Aksi ini tidak diizinkan untuk role kamu atau task ini bukan dalam cakupan akses kamu."
+  ].join("\n");
+}
+
+/**
+ * Fuzzy search for a user by name, returning unique match or candidates
+ */
+async function findUserByNameFuzzy(
+  name: string
+): Promise<{ user: UserProfile | null; candidates: UserProfile[] }> {
+  const cleanName = name.toLowerCase().trim();
+  const db = getAdminDb();
+  const usersSnap = await db.collection("users").get();
+  const matched: UserProfile[] = [];
+
+  usersSnap.forEach((doc) => {
+    const u = doc.data() as UserProfile;
+    if (u.name.toLowerCase().includes(cleanName)) {
+      matched.push({ ...u, id: doc.id });
+    }
+  });
+
+  if (matched.length === 1) {
+    return { user: matched[0], candidates: [] };
+  }
+  return { user: null, candidates: matched };
+}
+
 
 /**
  * Programmatic Deadline and Task Risk queries
@@ -198,7 +241,7 @@ function generateCandidateCode(): string {
 export async function findTaskCandidates(
   taskNameOrCode: string,
   isCode: boolean,
-  commandType: "approve" | "update_status" | "edit" | "archive" | "checklist",
+  commandType: "approve" | "update_status" | "edit" | "archive" | "checklist" | "detail" | "upload_hasil" | "minta_revisi" | "cek_checklist" | "tambah_catatan" | "ganti_pic",
   userId: string,
   extraPayload?: Record<string, unknown> | null
 ): Promise<{ tasks: Task[]; candidateMessage?: string }> {
@@ -306,18 +349,31 @@ export async function findTaskCandidates(
   // Print helpful guidance instructions
   lines.push("Gunakan:");
   if (commandType === "approve") {
-    lines.push(`!jobdex approve kode [KODE] pin: [PIN]`);
+    lines.push(`!jobdex approve kode [KODE]`);
   } else if (commandType === "update_status") {
     const statusLabel = extraPayload?.statusText || "sedang dikerjakan";
     const notesStr = extraPayload?.notes ? ` catatan: ${extraPayload.notes}` : "";
-    lines.push(`!jobdex update status kode [KODE] menjadi ${statusLabel}${notesStr} pin: [PIN]`);
+    lines.push(`!jobdex update status kode [KODE] menjadi ${statusLabel}${notesStr}`);
   } else if (commandType === "edit") {
-    lines.push(`!jobdex edit kode [KODE]\n[parameter]\npin: [PIN]`);
+    lines.push(`!jobdex edit kode [KODE]\n[parameter]`);
   } else if (commandType === "archive") {
-    lines.push(`!jobdex archive kode [KODE] pin: [PIN]`);
+    lines.push(`!jobdex archive kode [KODE]`);
   } else if (commandType === "checklist") {
     const itemLabel = extraPayload?.item || "redaksi";
-    lines.push(`!jobdex checklist kode [KODE] ${itemLabel} selesai pin: [PIN]`);
+    lines.push(`!jobdex checklist kode [KODE] ${itemLabel} selesai`);
+  } else if (commandType === "detail") {
+    lines.push(`!jobdex detail task kode [KODE]`);
+  } else if (commandType === "upload_hasil") {
+    lines.push(`!jobdex upload hasil kode [KODE]\nlink: [URL]\ncatatan: [CATATAN]`);
+  } else if (commandType === "minta_revisi") {
+    lines.push(`!jobdex minta revisi kode [KODE]\ncatatan: [CATATAN]`);
+  } else if (commandType === "cek_checklist") {
+    lines.push(`!jobdex cek checklist kode [KODE]`);
+  } else if (commandType === "tambah_catatan") {
+    lines.push(`!jobdex tambah catatan kode [KODE]\ncatatan: [CATATAN]`);
+  } else if (commandType === "ganti_pic") {
+    const picName = extraPayload?.pic_name || "[NAMA]";
+    lines.push(`!jobdex ganti pic kode [KODE] ke ${picName}`);
   }
 
   return {
@@ -331,10 +387,9 @@ export async function findTaskCandidates(
  */
 export async function handleApproveTaskCommand(
   taskNameOrCode: string,
-  pin: string,
   user: UserProfile,
   isCode: boolean
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const { tasks, candidateMessage } = await findTaskCandidates(
       taskNameOrCode,
@@ -344,11 +399,12 @@ export async function handleApproveTaskCommand(
     );
 
     if (candidateMessage) {
-      return { success: true, replyText: candidateMessage };
+      const cleanMessage = candidateMessage.replace(/\s+pin\s*:?\s*\[PIN\]/gi, "");
+      return { success: true, replyText: cleanMessage };
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Approval]\n\n❌ Tugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "[JobDex.in Approval]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -356,7 +412,7 @@ export async function handleApproveTaskCommand(
     // Validate permission
     const allowed = validateTaskPermission(user, task, "approve");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Approval]\n\n❌ Hak akses ditolak. Peran Anda (${user.role}) tidak berwenang menyetujui tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     const db = getAdminDb();
@@ -395,17 +451,19 @@ export async function handleApproveTaskCommand(
       replyText: [
         "[JobDex.in Approval]",
         "",
-        "✅ Task berhasil di-approve.",
+        "Task berhasil di-approve.",
         "",
         `Tugas: ${task.name}`,
         `PIC: ${task.pic_id ? (await getUsernameById(task.pic_id)) : "-"}`,
         `Approved oleh: ${user.name}`,
         `Waktu: ${timeStr} WITA`
-      ].join("\n")
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Approve Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Approval]\n\nGagal memproses persetujuan tugas." };
+    return { success: false, replyText: "[JobDex.in Approval]\nGagal memproses persetujuan tugas." };
   }
 }
 
@@ -414,23 +472,22 @@ export async function handleApproveTaskCommand(
  */
 export async function handleUpdateTaskStatusCommand(
   taskNameOrCode: string,
-  pin: string,
   user: UserProfile,
   isCode: boolean,
   statusText: string,
   notes: string
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const statusEnum = normalizeStatusFromText(statusText);
     if (!statusEnum) {
-      return { success: false, replyText: `[JobDex.in Status]\n\n❌ Format status tidak dikenali. Pilih salah satu status standar.` };
+      return { success: false, replyText: `[JobDex.in Status]\n\nFormat status tidak dikenali. Pilih salah satu status standar.` };
     }
 
     // Stuck, butuh bantuan, waiting material requires notes!
     if ((statusEnum === "stuck" || statusEnum === "butuh_bantuan" || statusEnum === "menunggu_materi") && !notes.trim()) {
       return {
         success: false,
-        replyText: `[JobDex.in Status]\n\n❌ Catatan wajib diisi untuk status "stuck", "butuh bantuan", atau "menunggu materi".`
+        replyText: `[JobDex.in Status]\n\nCatatan wajib diisi untuk status "stuck", "butuh bantuan", atau "menunggu materi".`
       };
     }
 
@@ -443,11 +500,12 @@ export async function handleUpdateTaskStatusCommand(
     );
 
     if (candidateMessage) {
-      return { success: true, replyText: candidateMessage };
+      const cleanMessage = candidateMessage.replace(/\s+pin\s*:?\s*\[PIN\]/gi, "");
+      return { success: true, replyText: cleanMessage };
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Status]\n\n❌ Tugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "[JobDex.in Status]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -455,7 +513,7 @@ export async function handleUpdateTaskStatusCommand(
     // Validate permission
     const allowed = validateTaskPermission(user, task, "update_status");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Status]\n\n❌ Hak akses ditolak. Peran Anda (${user.role}) tidak berwenang memperbarui status tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     const db = getAdminDb();
@@ -493,13 +551,15 @@ export async function handleUpdateTaskStatusCommand(
       replyText: [
         "[JobDex.in Status]",
         "",
-        "✅ Status task berhasil diperbarui.",
+        "Status task berhasil diperbarui.",
         "",
         `Tugas: ${task.name}`,
         `Status baru: ${getFormattedStatus(statusEnum)}`,
         ...(notes ? [`Catatan: ${notes}`] : []),
         `Diperbarui oleh: ${user.name}`
-      ].join("\n")
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Update Status] Error:", error);
@@ -512,11 +572,10 @@ export async function handleUpdateTaskStatusCommand(
  */
 export async function handleEditTaskCommand(
   taskNameOrCode: string,
-  pin: string,
   user: UserProfile,
   isCode: boolean,
   parsedFields: Record<string, string>
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const { tasks, candidateMessage } = await findTaskCandidates(
       taskNameOrCode,
@@ -527,11 +586,12 @@ export async function handleEditTaskCommand(
     );
 
     if (candidateMessage) {
-      return { success: true, replyText: candidateMessage };
+      const cleanMessage = candidateMessage.replace(/\s+pin\s*:?\s*\[PIN\]/gi, "");
+      return { success: true, replyText: cleanMessage };
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Edit Task]\n\n❌ Tugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "[JobDex.in Edit Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -539,7 +599,7 @@ export async function handleEditTaskCommand(
     // Validate permission (PIC/Anggota is restricted from editing main fields!)
     const allowed = validateTaskPermission(user, task, "edit");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Edit Task]\n\n❌ Hak akses ditolak. Peran Anda (${user.role}) tidak berwenang mengedit detail utama tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     const db = getAdminDb();
@@ -553,7 +613,7 @@ export async function handleEditTaskCommand(
     if (parsedFields.pic) {
       const picUser = await findUserByName(parsedFields.pic);
       if (!picUser) {
-        return { success: false, replyText: `[JobDex.in Edit Task]\n\n❌ Anggota PIC "${parsedFields.pic}" tidak ditemukan.` };
+        return { success: false, replyText: `[JobDex.in Edit Task]\nAnggota PIC "${parsedFields.pic}" tidak ditemukan.` };
       }
       if (task.pic_id !== picUser.id) {
         changes.pic_id = picUser.id;
@@ -590,7 +650,7 @@ export async function handleEditTaskCommand(
     if (prioInput) {
       const cleanPrio = normalizePriority(prioInput);
       if (!cleanPrio) {
-        return { success: false, replyText: `[JobDex.in Edit Task]\n\n❌ Prioritas tidak valid (Rendah, Sedang, Tinggi, Kritis).` };
+        return { success: false, replyText: `[JobDex.in Edit Task]\nPrioritas tidak valid (Rendah, Sedang, Tinggi, Kritis).` };
       }
       if (task.priority !== cleanPrio) {
         changes.priority = cleanPrio;
@@ -709,11 +769,13 @@ export async function handleEditTaskCommand(
         `Kode Edit: ${edtCode}`,
         "",
         "Untuk menyimpan perubahan, balas:",
-        `!jobdex konfirmasi edit ${edtCode} pin: [PIN]`,
+        `!jobdex konfirmasi edit ${edtCode}`,
         "",
         "Untuk membatalkan:",
-        `!jobdex batal edit ${edtCode} pin: [PIN]`
-      ].join("\n")
+        `!jobdex batal edit ${edtCode}`
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Edit Task Command] Error:", error);
@@ -726,9 +788,8 @@ export async function handleEditTaskCommand(
  */
 export async function handleConfirmEditTaskCommand(
   code: string,
-  pin: string,
   user: UserProfile
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const db = getAdminDb();
     const previewSnap = await db
@@ -739,7 +800,7 @@ export async function handleConfirmEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\n\n❌ Kode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "[JobDex.in Confirm Edit]\nKode edit tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -752,12 +813,12 @@ export async function handleConfirmEditTaskCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\n\n❌ Kode edit telah kadaluwarsa (batas 30 menit)." };
+      return { success: false, replyText: "[JobDex.in Confirm Edit]\nKode edit telah kadaluwarsa (batas 30 menit)." };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\n\n❌ Tugas asli tidak ditemukan di database." };
+      return { success: false, replyText: "[JobDex.in Confirm Edit]\nTugas asli tidak ditemukan di database." };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
@@ -765,7 +826,7 @@ export async function handleConfirmEditTaskCommand(
     // Permissions check
     const allowed = validateTaskPermission(user, task, "edit");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Confirm Edit]\n\n❌ Otorisasi gagal. Anda tidak memiliki akses mengedit tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     // Apply changes
@@ -793,15 +854,17 @@ export async function handleConfirmEditTaskCommand(
       replyText: [
         "[JobDex.in Confirm Edit]",
         "",
-        "✅ Perubahan tugas berhasil disimpan.",
+        "Perubahan tugas berhasil disimpan.",
         "",
         `Tugas: ${task.name}`,
         `Disimpan oleh: ${user.name}`
-      ].join("\n")
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Confirm Edit] Error:", error);
-    return { success: false, replyText: "[JobDex.in Confirm Edit]\n\nGagal menyelesaikan konfirmasi perubahan tugas." };
+    return { success: false, replyText: "[JobDex.in Confirm Edit]\nGagal menyelesaikan konfirmasi perubahan tugas." };
   }
 }
 
@@ -810,12 +873,11 @@ export async function handleConfirmEditTaskCommand(
  */
 export async function handleCancelEditTaskCommand(
   code: string,
-  pin: string,
   user: UserProfile
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const db = getAdminDb();
-    console.log(`[Cancel Edit] Code ${code} cancelled by user ${user.id} (pin verified: ${!!pin})`);
+    console.log(`[Cancel Edit] Code ${code} cancelled by user ${user.id}`);
     const previewSnap = await db
       .collection("whatsapp_task_edit_previews")
       .where("code", "==", code)
@@ -824,19 +886,22 @@ export async function handleCancelEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Cancel Edit]\n\n❌ Kode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "[JobDex.in Cancel Edit]\nKode edit tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
+    const previewData = previewDoc.data() as TaskEditPreview;
     await previewDoc.ref.update({ status: "cancelled" });
 
     return {
       success: true,
-      replyText: `[JobDex.in Cancel Edit]\n\n✅ Draf perubahan detail tugas (${code}) berhasil dibatalkan.`
+      replyText: `[JobDex.in Cancel Edit]\nDraf perubahan detail tugas (${code}) berhasil dibatalkan.`,
+      taskId: previewData.task_id,
+      taskName: previewData.task_title
     };
   } catch (error) {
     console.error("[Cancel Edit] Error:", error);
-    return { success: false, replyText: "[JobDex.in Cancel Edit]\n\nGagal membatalkan draf perubahan tugas." };
+    return { success: false, replyText: "[JobDex.in Cancel Edit]\nGagal membatalkan draf perubahan tugas." };
   }
 }
 
@@ -845,10 +910,9 @@ export async function handleCancelEditTaskCommand(
  */
 export async function handleArchiveTaskCommand(
   taskNameOrCode: string,
-  pin: string,
   user: UserProfile,
   isCode: boolean
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const { tasks, candidateMessage } = await findTaskCandidates(
       taskNameOrCode,
@@ -858,11 +922,12 @@ export async function handleArchiveTaskCommand(
     );
 
     if (candidateMessage) {
-      return { success: true, replyText: candidateMessage };
+      const cleanMessage = candidateMessage.replace(/\s+pin\s*:?\s*\[PIN\]/gi, "");
+      return { success: true, replyText: cleanMessage };
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Archive]\n\n❌ Tugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "[JobDex.in Archive]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -870,7 +935,7 @@ export async function handleArchiveTaskCommand(
     // Validate permission
     const allowed = validateTaskPermission(user, task, "archive");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Archive]\n\n❌ Hak akses ditolak. Peran Anda (${user.role}) tidak berwenang mengarsipkan tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     const db = getAdminDb();
@@ -907,12 +972,14 @@ export async function handleArchiveTaskCommand(
         `Kode: ${arcCode}`,
         "",
         "Konfirmasi:",
-        `!jobdex konfirmasi archive ${arcCode} pin: [PIN]`
-      ].join("\n")
+        `!jobdex konfirmasi archive ${arcCode}`
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Archive Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Archive]\n\nGagal memproses draf pengarsipan tugas." };
+    return { success: false, replyText: "[JobDex.in Archive]\nGagal memproses draf pengarsipan tugas." };
   }
 }
 
@@ -921,9 +988,8 @@ export async function handleArchiveTaskCommand(
  */
 export async function handleConfirmArchiveCommand(
   code: string,
-  pin: string,
   user: UserProfile
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const db = getAdminDb();
     const previewSnap = await db
@@ -934,7 +1000,7 @@ export async function handleConfirmArchiveCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\n\n❌ Kode archive tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "[JobDex.in Confirm Archive]\nKode archive tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -947,12 +1013,12 @@ export async function handleConfirmArchiveCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\n\n❌ Kode archive telah kadaluwarsa (30 menit)." };
+      return { success: false, replyText: "[JobDex.in Confirm Archive]\nKode archive telah kadaluwarsa (30 menit)." };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\n\n❌ Tugas asli tidak ditemukan di database." };
+      return { success: false, replyText: "[JobDex.in Confirm Archive]\nTugas asli tidak ditemukan di database." };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
@@ -960,7 +1026,7 @@ export async function handleConfirmArchiveCommand(
     // Permissions check
     const allowed = validateTaskPermission(user, task, "archive");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Confirm Archive]\n\n❌ Otorisasi gagal. Anda tidak memiliki akses mengarsipkan tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     // Apply archive
@@ -988,15 +1054,17 @@ export async function handleConfirmArchiveCommand(
       replyText: [
         "[JobDex.in Confirm Archive]",
         "",
-        "✅ Tugas berhasil diarsipkan.",
+        "Tugas berhasil diarsipkan.",
         "",
         `Tugas: ${task.name}`,
         `Diarsipkan oleh: ${user.name}`
-      ].join("\n")
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Confirm Archive] Error:", error);
-    return { success: false, replyText: "[JobDex.in Confirm Archive]\n\nGagal menyelesaikan konfirmasi pengarsipan." };
+    return { success: false, replyText: "[JobDex.in Confirm Archive]\nGagal menyelesaikan konfirmasi pengarsipan." };
   }
 }
 
@@ -1005,11 +1073,10 @@ export async function handleConfirmArchiveCommand(
  */
 export async function handleChecklistCommand(
   taskNameOrCode: string,
-  pin: string,
   user: UserProfile,
   isCode: boolean,
   itemKeyword: string
-): Promise<{ success: boolean; replyText: string }> {
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
   try {
     const checklistMap: Record<string, string> = {
       redaksi: "Redaksi/materi tersedia",
@@ -1022,7 +1089,7 @@ export async function handleChecklistCommand(
 
     const targetLabel = checklistMap[itemKeyword];
     if (!targetLabel) {
-      return { success: false, replyText: `[JobDex.in Checklist]\n\n❌ Item checklist "${itemKeyword}" tidak valid. Pilih salah satu (redaksi, referensi, draft, revisi, final, upload).` };
+      return { success: false, replyText: `[JobDex.in Checklist]\nItem checklist "${itemKeyword}" tidak valid. Pilih salah satu (redaksi, referensi, draft, revisi, final, upload).` };
     }
 
     const { tasks, candidateMessage } = await findTaskCandidates(
@@ -1034,11 +1101,12 @@ export async function handleChecklistCommand(
     );
 
     if (candidateMessage) {
-      return { success: true, replyText: candidateMessage };
+      const cleanMessage = candidateMessage.replace(/\s+pin\s*:?\s*\[PIN\]/gi, "");
+      return { success: true, replyText: cleanMessage };
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Checklist]\n\n❌ Tugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "[JobDex.in Checklist]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1046,7 +1114,7 @@ export async function handleChecklistCommand(
     // Validate permission
     const allowed = validateTaskPermission(user, task, "checklist");
     if (!allowed) {
-      return { success: false, replyText: `[JobDex.in Checklist]\n\n❌ Hak akses ditolak. Peran Anda (${user.role}) tidak berwenang mengedit checklist tugas ini.` };
+      return { success: false, replyText: getAccessDeniedMessage(user) };
     }
 
     const checklistItems = task.checklist_items || [];
@@ -1116,16 +1184,18 @@ export async function handleChecklistCommand(
       replyText: [
         "[JobDex.in Checklist]",
         "",
-        "✅ Item checklist berhasil ditandai selesai.",
+        "Item checklist berhasil ditandai selesai.",
         "",
         `Tugas: ${task.name}`,
         `Item: ${targetLabel}`,
         `PIC/Penuntas: ${user.name}`
-      ].join("\n")
+      ].join("\n"),
+      taskId: task.id,
+      taskName: task.name
     };
   } catch (error) {
     console.error("[Checklist Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Checklist]\n\nGagal menandai checklist tugas." };
+    return { success: false, replyText: "[JobDex.in Checklist]\nGagal menandai checklist tugas." };
   }
 }
 
@@ -1231,3 +1301,760 @@ function generateRandomCode(length: number): string {
   }
   return code;
 }
+
+// ==========================================
+// FASE 19B NEW WORKFLOW COMMAND HANDLERS
+// ==========================================
+
+export async function handleTugasSayaCommand(
+  user: UserProfile,
+  variation: string
+): Promise<{ success: boolean; replyText: string }> {
+  try {
+    const db = getAdminDb();
+
+    // Fetch all active tasks for user
+    const tasksSnap = await db
+      .collection("tasks")
+      .where("pic_id", "==", user.id)
+      .where("is_archived", "==", false)
+      .get();
+
+    const eventsSnap = await db.collection("events").get();
+    const divisionsSnap = await db.collection("divisions").get();
+
+    const eventsMap = new Map<string, string>();
+    eventsSnap.forEach((d) => eventsMap.set(d.id, d.data().name || "-"));
+
+    const divisionsMap = new Map<string, string>();
+    divisionsSnap.forEach((d) => divisionsMap.set(d.id, d.data().name || "-"));
+
+    const tasks: Task[] = [];
+    tasksSnap.forEach((doc) => {
+      tasks.push({ ...doc.data(), id: doc.id } as Task);
+    });
+
+    // Filter based on variation
+    const filtered = tasks.filter((task) => {
+      if (task.status === "approved") return false;
+      const diffDays = getTaskDeadlineDiffDays(task);
+      if (variation === "minggu_ini") {
+        return diffDays >= 0 && diffDays <= 7;
+      }
+      if (variation === "deadline_dekat") {
+        return diffDays <= 7;
+      }
+      // "belum_selesai" or "all"
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      return {
+        success: true,
+        replyText: [
+          "[JobDex.in Tugas Saya]",
+          "",
+          `Halo ${user.name}, tidak ada tugas aktif yang ditemukan untuk kamu.`
+        ].join("\n"),
+      };
+    }
+
+    // Sort by deadline
+    filtered.sort((a, b) => {
+      const diffA = getTaskDeadlineDiffDays(a);
+      const diffB = getTaskDeadlineDiffDays(b);
+      return diffA - diffB;
+    });
+
+    const totalCount = filtered.length;
+    const displayedTasks = filtered.slice(0, 10);
+    const lines = [
+      "[JobDex.in Tugas Saya]",
+      "",
+      `Halo ${user.name}, berikut tugas aktif kamu:`,
+      ""
+    ];
+
+    displayedTasks.forEach((task, index) => {
+      const divisionOrEventName =
+        task.type === "acara" && task.event_id
+          ? (eventsMap.get(task.event_id) || "Acara")
+          : task.division_id
+          ? (divisionsMap.get(task.division_id) || (task.division_id === "humas_media_kreatif" ? "Humas & Media Kreatif" : task.division_id))
+          : "-";
+
+      let deadlineStr = "-";
+      let diffLabel = "";
+      if (task.deadline) {
+        const d =
+          task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline
+            ? (task.deadline as { toDate: () => Date }).toDate()
+            : task.deadline instanceof Date
+            ? task.deadline
+            : new Date(task.deadline as string);
+        deadlineStr = d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+        const diffDays = getTaskDeadlineDiffDays(task);
+        if (diffDays < 0) {
+          diffLabel = "Overdue";
+        } else if (diffDays === 0) {
+          diffLabel = "Hari ini";
+        } else {
+          diffLabel = `H-${diffDays}`;
+        }
+      }
+
+      lines.push(`${index + 1}. ${task.name}`);
+      lines.push(`   Status: ${getFormattedStatus(task.status)}`);
+      lines.push(`   Prioritas: ${getFormattedPriority(task.priority)}`);
+      lines.push(`   Deadline: ${deadlineStr}${diffLabel ? ` (${diffLabel})` : ""}`);
+      lines.push(`   Acara/Divisi: ${divisionOrEventName}`);
+      lines.push("");
+    });
+
+    if (totalCount > 10) {
+      lines.push(`...dan ${totalCount - 10} tugas lainnya. Buka dashboard JobDex.in untuk detail lengkap.`);
+    }
+
+    return {
+      success: true,
+      replyText: lines.join("\n").trim(),
+    };
+  } catch (error) {
+    console.error("[Tugas Saya] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Tugas Saya]\nGagal mengambil daftar tugas kamu.",
+    };
+  }
+}
+
+export async function handleDetailTaskCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "detail",
+      user.id
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Detail Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "view");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    const db = getAdminDb();
+
+    // Resolve PIC name
+    const picName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
+
+    // Resolve Acara/Divisi
+    const eventsSnap = await db.collection("events").get();
+    const divisionsSnap = await db.collection("divisions").get();
+
+    const eventsMap = new Map<string, string>();
+    eventsSnap.forEach((d) => eventsMap.set(d.id, d.data().name || "-"));
+
+    const divisionsMap = new Map<string, string>();
+    divisionsSnap.forEach((d) => divisionsMap.set(d.id, d.data().name || "-"));
+
+    const divisionOrEventName =
+      task.type === "acara" && task.event_id
+        ? (eventsMap.get(task.event_id) || "Acara")
+        : task.division_id
+        ? (divisionsMap.get(task.division_id) || (task.division_id === "humas_media_kreatif" ? "Humas & Media Kreatif" : task.division_id))
+        : "-";
+
+    let deadlineStr = "-";
+    let diffLabel = "";
+    if (task.deadline) {
+      const d =
+        task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline
+          ? (task.deadline as { toDate: () => Date }).toDate()
+          : task.deadline instanceof Date
+          ? task.deadline
+          : new Date(task.deadline as string);
+      deadlineStr = d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+      const diffDays = getTaskDeadlineDiffDays(task);
+      if (diffDays < 0) {
+        diffLabel = "Overdue";
+      } else if (diffDays === 0) {
+        diffLabel = "Hari ini";
+      } else {
+        diffLabel = `H-${diffDays}`;
+      }
+    }
+
+    const deadlineValue = deadlineStr + (diffLabel ? ` (${diffLabel})` : "");
+
+    // Resolve last status log note
+    const logsSnap = await db.collection("tasks").doc(task.id).collection("status_logs")
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .get();
+    let lastNote = "-";
+    if (!logsSnap.empty) {
+      const logData = logsSnap.docs[0].data();
+      lastNote = logData.note || "-";
+    }
+
+    const getChecklistStatus = (labelKeyword: string): string => {
+      if (!task.checklist_items) return "Belum";
+      const item = task.checklist_items.find(i => {
+        const lbl = i.label.toLowerCase();
+        if (labelKeyword === "redaksi") return lbl.includes("redaksi");
+        if (labelKeyword === "referensi") return lbl.includes("referensi");
+        if (labelKeyword === "draft") return lbl.includes("draft") || lbl.includes("mulai desain");
+        if (labelKeyword === "revisi") return lbl.includes("revisi");
+        if (labelKeyword === "final") return lbl.includes("final");
+        if (labelKeyword === "upload") return lbl.includes("upload") || lbl.includes("hasil ke");
+        return false;
+      });
+      return item?.is_done ? "Selesai" : "Belum";
+    };
+
+    const replyText = [
+      "[JobDex.in Detail Task]",
+      "",
+      `Task: ${task.name}`,
+      `Status: ${getFormattedStatus(task.status)}`,
+      `Prioritas: ${getFormattedPriority(task.priority)}`,
+      `PIC: ${picName}`,
+      `Deadline: ${deadlineValue}`,
+      `Acara/Divisi: ${divisionOrEventName}`,
+      "",
+      "Redaksi:",
+      task.copywriting || "-",
+      "",
+      "Referensi:",
+      task.design_reference_url || "-",
+      task.drive_reference_url || "-",
+      task.copywriting_docs_url || "-",
+      "",
+      "Arahan Visual:",
+      task.visual_direction || "-",
+      "",
+      "Checklist:",
+      `- Redaksi/materi tersedia: ${getChecklistStatus("redaksi")}`,
+      `- Referensi desain tersedia: ${getChecklistStatus("referensi")}`,
+      `- Draft awal: ${getChecklistStatus("draft")}`,
+      `- Revisi internal: ${getChecklistStatus("revisi")}`,
+      `- Finalisasi desain: ${getChecklistStatus("final")}`,
+      `- Upload hasil: ${getChecklistStatus("upload")}`,
+      "",
+      "Catatan terakhir:",
+      lastNote
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Detail Task] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Detail Task]\nGagal mengambil detail tugas.",
+    };
+  }
+}
+
+export async function handleUploadHasilCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  link: string,
+  catatan: string,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "upload_hasil",
+      user.id,
+      { link, catatan }
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Upload Hasil]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "upload_hasil");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    if (!link) {
+      return { success: false, replyText: "[JobDex.in Upload Hasil]\nGagal mengirim hasil: Link URL wajib disertakan." };
+    }
+
+    const db = getAdminDb();
+    const taskRef = db.collection("tasks").doc(task.id);
+    const batch = db.batch();
+
+    let updatedChecklist = task.checklist_items || [];
+    const checkedLabel = "Upload hasil ke JobDex.in / Drive";
+    let checklistUpdated = false;
+
+    if (updatedChecklist.length > 0) {
+      updatedChecklist = updatedChecklist.map((item) => {
+        if (item.label === checkedLabel) {
+          checklistUpdated = true;
+          return {
+            ...item,
+            is_done: true,
+            done_by: user.id,
+            done_by_name: user.name,
+            done_at: new Date()
+          };
+        }
+        return item;
+      });
+    }
+
+    const updateParams: Record<string, unknown> = {
+      status: "menunggu_approval",
+      approval_status: "pending",
+      result_design_url: link,
+      result_url: link,
+      result_notes: catatan || "",
+      result_submitted_at: FieldValue.serverTimestamp(),
+      result_submitted_by: user.id,
+      updated_at: FieldValue.serverTimestamp()
+    };
+
+    if (checklistUpdated) {
+      updateParams.checklist_items = updatedChecklist;
+    }
+
+    batch.update(taskRef, updateParams);
+
+    // Add status log
+    const logRef = taskRef.collection("status_logs").doc();
+    batch.set(logRef, {
+      id: logRef.id,
+      task_id: task.id,
+      from_status: task.status,
+      to_status: "menunggu_approval",
+      changed_by: user.id,
+      note: catatan ? `Upload hasil: ${catatan}` : "Upload hasil desain via WhatsApp",
+      created_at: FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    if (task.type === "acara" && task.event_id) {
+      await recalculateEventProgressAdmin(task.event_id);
+    }
+
+    const picName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
+
+    const replyText = [
+      "[JobDex.in Upload Hasil]",
+      "",
+      "Hasil task berhasil dikirim.",
+      "",
+      `Task: ${task.name}`,
+      `PIC: ${picName}`,
+      "Status baru: Menunggu Approval",
+      `Link: ${link}`,
+      "",
+      "Koordinator dapat mengecek dan approve/revisi task ini."
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Upload Hasil] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Upload Hasil]\nGagal mengirim hasil task.",
+    };
+  }
+}
+
+export async function handleMintaRevisiCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  catatan: string,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "minta_revisi",
+      user.id,
+      { catatan }
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Revisi Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "revisi");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    if (!catatan) {
+      return { success: false, replyText: "[JobDex.in Revisi Task]\nGagal meminta revisi: Catatan revisi wajib disertakan." };
+    }
+
+    const db = getAdminDb();
+    const taskRef = db.collection("tasks").doc(task.id);
+    const batch = db.batch();
+
+    batch.update(taskRef, {
+      status: "perlu_revisi",
+      revision_notes: catatan,
+      revision_requested_by: user.id,
+      revision_requested_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp()
+    });
+
+    // Add status log
+    const logRef = taskRef.collection("status_logs").doc();
+    batch.set(logRef, {
+      id: logRef.id,
+      task_id: task.id,
+      from_status: task.status,
+      to_status: "perlu_revisi",
+      changed_by: user.id,
+      note: `Minta revisi: ${catatan}`,
+      created_at: FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    if (task.type === "acara" && task.event_id) {
+      await recalculateEventProgressAdmin(task.event_id);
+    }
+
+    const picName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
+
+    const replyText = [
+      "[JobDex.in Revisi Task]",
+      "",
+      "Revisi berhasil diminta.",
+      "",
+      `Task: ${task.name}`,
+      `PIC: ${picName}`,
+      "Status baru: Perlu Revisi",
+      "",
+      "Catatan revisi:",
+      catatan
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Minta Revisi] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Revisi Task]\nGagal meminta revisi tugas.",
+    };
+  }
+}
+
+export async function handleCekChecklistCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "cek_checklist",
+      user.id
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Checklist Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "view");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    const getChecklistStatus = (labelKeyword: string): string => {
+      if (!task.checklist_items) return "Belum";
+      const item = task.checklist_items.find(i => {
+        const lbl = i.label.toLowerCase();
+        if (labelKeyword === "redaksi") return lbl.includes("redaksi");
+        if (labelKeyword === "referensi") return lbl.includes("referensi");
+        if (labelKeyword === "draft") return lbl.includes("draft") || lbl.includes("mulai desain");
+        if (labelKeyword === "revisi") return lbl.includes("revisi");
+        if (labelKeyword === "final") return lbl.includes("final");
+        if (labelKeyword === "upload") return lbl.includes("upload") || lbl.includes("hasil ke");
+        return false;
+      });
+      return item?.is_done ? "Selesai" : "Belum";
+    };
+
+    const replyText = [
+      "[JobDex.in Checklist Task]",
+      "",
+      `Task: ${task.name}`,
+      "",
+      `1. Redaksi/materi tersedia: ${getChecklistStatus("redaksi")}`,
+      `2. Referensi desain tersedia: ${getChecklistStatus("referensi")}`,
+      `3. Mulai desain/draft awal: ${getChecklistStatus("draft")}`,
+      `4. Revisi internal: ${getChecklistStatus("revisi")}`,
+      `5. Finalisasi desain: ${getChecklistStatus("final")}`,
+      `6. Upload hasil ke JobDex.in / Drive: ${getChecklistStatus("upload")}`
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Cek Checklist] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Checklist Task]\nGagal mengambil checklist tugas.",
+    };
+  }
+}
+
+export async function handleTambahCatatanCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  catatan: string,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "tambah_catatan",
+      user.id,
+      { catatan }
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Catatan Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "tambah_catatan");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    if (!catatan) {
+      return { success: false, replyText: "[JobDex.in Catatan Task]\nGagal menambahkan catatan: Catatan wajib disertakan." };
+    }
+
+    const db = getAdminDb();
+    const taskRef = db.collection("tasks").doc(task.id);
+    const batch = db.batch();
+
+    batch.update(taskRef, {
+      updated_at: FieldValue.serverTimestamp()
+    });
+
+    const logRef = taskRef.collection("status_logs").doc();
+    batch.set(logRef, {
+      id: logRef.id,
+      task_id: task.id,
+      from_status: task.status,
+      to_status: task.status,
+      changed_by: user.id,
+      note: catatan,
+      created_at: FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    const replyText = [
+      "[JobDex.in Catatan Task]",
+      "",
+      "Catatan berhasil ditambahkan.",
+      "",
+      `Task: ${task.name}`,
+      `Oleh: ${user.name}`,
+      "",
+      "Catatan:",
+      catatan
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Tambah Catatan] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Catatan Task]\nGagal menambahkan catatan ke tugas.",
+    };
+  }
+}
+
+export async function handleGantiPicCommand(
+  taskNameOrCode: string,
+  isCode: boolean,
+  picName: string,
+  user: UserProfile
+): Promise<{ success: boolean; replyText: string; taskId?: string; taskName?: string }> {
+  try {
+    const { tasks, candidateMessage } = await findTaskCandidates(
+      taskNameOrCode,
+      isCode,
+      "ganti_pic",
+      user.id,
+      { pic_name: picName }
+    );
+
+    if (candidateMessage) {
+      return { success: true, replyText: candidateMessage };
+    }
+
+    if (tasks.length === 0) {
+      return { success: false, replyText: "[JobDex.in Ganti PIC]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+    }
+
+    const task = tasks[0];
+
+    // Validate permission
+    const allowed = validateTaskPermission(user, task, "ganti_pic");
+    if (!allowed) {
+      return { success: false, replyText: getAccessDeniedMessage(user) };
+    }
+
+    if (!picName) {
+      return { success: false, replyText: "[JobDex.in Ganti PIC]\nGagal mengganti PIC: Nama PIC target wajib disertakan." };
+    }
+
+    // Resolve target user fuzzy
+    const { user: targetUser, candidates } = await findUserByNameFuzzy(picName);
+
+    if (candidates.length > 1) {
+      const lines = [
+        "[JobDex.in Ganti PIC]",
+        "",
+        `Ditemukan beberapa anggota dengan nama mirip "${picName}":`,
+      ];
+      candidates.forEach((cand, idx) => {
+        lines.push(`${idx + 1}. ${cand.name}`);
+      });
+      lines.push("");
+      lines.push("Silakan gunakan nama yang lebih spesifik.");
+      return { success: true, replyText: lines.join("\n") };
+    }
+
+    if (!targetUser) {
+      return {
+        success: false,
+        replyText: `[JobDex.in Ganti PIC]\n\nGagal mengganti PIC: Anggota dengan nama "${picName}" tidak ditemukan.`
+      };
+    }
+
+    const oldPicName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
+
+    const db = getAdminDb();
+    const taskRef = db.collection("tasks").doc(task.id);
+    const batch = db.batch();
+
+    batch.update(taskRef, {
+      pic_id: targetUser.id,
+      updated_at: FieldValue.serverTimestamp()
+    });
+
+    const logRef = taskRef.collection("status_logs").doc();
+    batch.set(logRef, {
+      id: logRef.id,
+      task_id: task.id,
+      from_status: task.status,
+      to_status: task.status,
+      changed_by: user.id,
+      note: `Ganti PIC dari ${oldPicName} ke ${targetUser.name}`,
+      created_at: FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    const replyText = [
+      "[JobDex.in Ganti PIC]",
+      "",
+      "PIC task berhasil diganti.",
+      "",
+      `Task: ${task.name}`,
+      `PIC lama: ${oldPicName}`,
+      `PIC baru: ${targetUser.name}`
+    ].join("\n");
+
+    return {
+      success: true,
+      replyText,
+      taskId: task.id,
+      taskName: task.name
+    };
+  } catch (error) {
+    console.error("[Ganti PIC] Error:", error);
+    return {
+      success: false,
+      replyText: "[JobDex.in Ganti PIC]\nGagal mengganti PIC tugas.",
+    };
+  }
+}
+
