@@ -69,36 +69,36 @@ export function TaskRiskCard({ task, picUser, divisionOrEventName }: TaskRiskCar
           {task.name}
         </h3>
 
-        <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-[11px] text-slate-650 dark:text-slate-400 pt-1 border-t border-dashed border-neutral-200 dark:border-neutral-800">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2 text-[11px] text-slate-600 dark:text-slate-350 pt-1 border-t border-dashed border-neutral-200 dark:border-neutral-800">
           <div>
-            <span className="block text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+            <span className="block text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
               PIC
             </span>
-            <span className="font-semibold text-slate-800 dark:text-slate-350 truncate block">
+            <span className="font-semibold text-slate-800 dark:text-slate-100 truncate block">
               {picUser ? picUser.name : "-"}
             </span>
           </div>
           <div>
-            <span className="block text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+            <span className="block text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
               Deadline
             </span>
-            <span className="font-semibold text-slate-800 dark:text-slate-350 block truncate">
+            <span className="font-semibold text-slate-800 dark:text-slate-100 block truncate">
               {formattedDeadline}
             </span>
           </div>
           <div className="mt-1">
-            <span className="block text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+            <span className="block text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
               Divisi / Acara
             </span>
-            <span className="font-semibold text-slate-800 dark:text-slate-350 truncate block">
+            <span className="font-semibold text-slate-800 dark:text-slate-100 truncate block">
               {divisionOrEventName}
             </span>
           </div>
           <div className="mt-1">
-            <span className="block text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+            <span className="block text-[9px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">
               Status
             </span>
-            <span className="font-semibold text-slate-850 dark:text-slate-300 block truncate">
+            <span className="font-semibold text-slate-800 dark:text-slate-100 block truncate">
               {statusLabels[task.status] || task.status}
             </span>
           </div>

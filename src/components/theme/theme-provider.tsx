@@ -8,10 +8,13 @@ type ThemeContextValue = {
   theme: Theme;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  colorTheme: string;
+  setColorTheme: (colorTheme: string) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const STORAGE_KEY = "jobdex-theme";
+const COLOR_STORAGE_KEY = "jobdex-neo-color-theme";
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") {
@@ -27,13 +30,26 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function getInitialColorTheme(): string {
+  if (typeof window === "undefined") {
+    return "default";
+  }
+  return window.localStorage.getItem(COLOR_STORAGE_KEY) || "default";
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => getInitialTheme());
+  const [colorTheme, setColorThemeState] = useState<string>(() => getInitialColorTheme());
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
     window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-neo-color", colorTheme);
+    window.localStorage.setItem(COLOR_STORAGE_KEY, colorTheme);
+  }, [colorTheme]);
 
   const value = useMemo(
     () => ({
@@ -50,8 +66,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           window.localStorage.setItem(STORAGE_KEY, nextTheme);
           return nextTheme;
         }),
+      colorTheme,
+      setColorTheme: (nextColor: string) => {
+        document.documentElement.setAttribute("data-neo-color", nextColor);
+        window.localStorage.setItem(COLOR_STORAGE_KEY, nextColor);
+        setColorThemeState(nextColor);
+      },
     }),
-    [theme],
+    [theme, colorTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -66,3 +88,4 @@ export function useTheme() {
 
   return context;
 }
+

@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase/client";
 import type { Task, UserProfile } from "@/types";
 import { Button } from "@/components/ui/button";
 import { appendTaskStatusLog } from "@/lib/firebase/task-status-logs";
+import { ClipboardList, Check } from "lucide-react";
 
 type TaskChecklistProps = {
   task: Task;
@@ -106,12 +107,13 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
+    <div className="border-2 border-black rounded-[4px] bg-white dark:bg-slate-900 p-5 shadow-[4px_4px_0px_#000] dark:shadow-[4px_4px_0px_#000] space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-          <span>📋 Checklist Alur Tugas</span>
+        <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <ClipboardList className="size-4 text-slate-500 shrink-0" />
+          <span>Checklist Alur Tugas</span>
           {checklistItems.length > 0 && (
-            <span className="text-[10px] bg-slate-100 dark:bg-slate-850 px-2 py-0.5 rounded-full text-slate-500 dark:text-slate-400 font-semibold">
+            <span className="text-[10px] border-2 border-black rounded-[4px] bg-[var(--main)] px-2 py-0.5 text-neutral-955 font-extrabold shadow-[1.5px_1.5px_0px_#000] dark:border-black shrink-0">
               {checklistItems.filter((i) => i.is_done).length}/{checklistItems.length}
             </span>
           )}
@@ -120,7 +122,7 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
 
       {checklistItems.length === 0 ? (
         <div className="py-6 text-center space-y-3">
-          <p className="text-xs text-slate-400 dark:text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-450">
             Tugas ini belum memiliki checklist pengerjaan.
           </p>
           <Button
@@ -128,13 +130,13 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
             disabled={updatingId !== null}
             variant="outline"
             size="sm"
-            className="text-xs font-semibold py-1.5 h-auto"
+            className="text-xs font-bold py-1.5 h-auto"
           >
             {updatingId === "init" ? "Membuat..." : "Buat Checklist Default"}
           </Button>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {checklistItems.map((item) => {
             const isDone = item.is_done;
             const isDisabled = !canUpdate || updatingId !== null;
@@ -142,12 +144,14 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
             return (
               <label
                 key={item.id}
-                className={`flex items-start gap-3 p-2.5 rounded-xl border transition duration-150 ${
+                className={`flex items-start gap-3 p-3 border-2 border-black rounded-[4px] transition-all duration-100 shadow-[2px_2px_0px_#000] dark:shadow-[2px_2px_0px_#000] ${
                   isDone
-                    ? "border-emerald-100 dark:border-emerald-950/30 bg-emerald-50/20 dark:bg-emerald-950/5 text-emerald-900 dark:text-emerald-300"
-                    : "border-slate-100 dark:border-slate-800/40 bg-slate-50/30 dark:bg-slate-900/10 text-slate-700 dark:text-slate-300"
+                    ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200"
+                    : "bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-100"
                 } ${
-                  canUpdate ? "cursor-pointer hover:border-slate-200 dark:hover:border-slate-750" : "cursor-not-allowed"
+                  canUpdate
+                    ? "cursor-pointer hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000]"
+                    : "cursor-not-allowed"
                 }`}
               >
                 <input
@@ -155,19 +159,20 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
                   checked={isDone}
                   disabled={isDisabled}
                   onChange={() => handleToggleChecklist(item.id, isDone)}
-                  className="mt-0.5 size-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 dark:border-slate-800 dark:bg-slate-950 dark:focus:ring-offset-slate-950 cursor-pointer disabled:cursor-not-allowed"
+                  className="mt-0.5 size-4 accent-[var(--main)] border-2 border-black rounded-[2px] cursor-pointer disabled:cursor-not-allowed bg-white dark:bg-slate-950 focus:ring-0 focus:ring-offset-0"
                 />
-                <div className="space-y-0.5">
+                <div className="space-y-0.5 min-w-0 flex-1">
                   <span
-                    className={`text-xs font-medium leading-none ${
+                    className={`text-xs font-bold leading-tight block ${
                       isDone ? "line-through text-slate-400 dark:text-slate-500" : ""
                     }`}
                   >
                     {item.label}
                   </span>
                   {isDone && item.done_by_name && (
-                    <span className="block text-[9px] text-emerald-600 dark:text-emerald-500 font-semibold uppercase tracking-wider mt-0.5">
-                      ✓ Selesai oleh {item.done_by_name}
+                    <span className="block text-[9px] text-emerald-700 dark:text-emerald-400 font-extrabold uppercase tracking-wider mt-1 flex items-center gap-0.5">
+                      <Check className="size-3 shrink-0" />
+                      <span>Selesai oleh {item.done_by_name}</span>
                     </span>
                   )}
                 </div>
@@ -178,7 +183,7 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
       )}
 
       {!canUpdate && checklistItems.length > 0 && (
-        <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center">
+        <p className="text-[10px] text-slate-500 dark:text-slate-450 italic text-center">
           * Anda tidak memiliki akses untuk mengubah checklist tugas ini.
         </p>
       )}

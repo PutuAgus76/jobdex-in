@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import type { ChangeEvent } from "react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -604,8 +605,9 @@ export function ReferenceBulkImportDialog({
                     className="block w-full text-xs text-slate-500 dark:text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-[6px] file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white dark:file:bg-slate-100 dark:file:text-slate-900 hover:file:opacity-90"
                   />
                   {excelFile && (
-                    <p className="text-xs text-emerald-600 font-medium">
-                      ✓ Terbaca: {excelRowsData.length} baris data mentah.
+                    <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                      <Check className="size-3.5 shrink-0" />
+                      <span>Terbaca: {excelRowsData.length} baris data mentah.</span>
                     </p>
                   )}
                 </div>

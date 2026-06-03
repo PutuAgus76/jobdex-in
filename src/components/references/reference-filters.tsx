@@ -43,12 +43,14 @@ export function ReferenceFilters({
   onShowArchivedChange,
 }: ReferenceFiltersProps) {
   return (
-    <div className="grid gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_auto]">
-      <Input
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-        placeholder="Cari judul, acara, atau catatan"
-      />
+    <div className="grid grid-cols-2 gap-3 jd-neo-card p-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_auto]">
+      <div className="col-span-2 lg:col-span-1">
+        <Input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Cari judul, acara, atau catatan"
+        />
+      </div>
       <select
         className={selectClassName}
         value={scopeFilter}
@@ -95,11 +97,12 @@ export function ReferenceFilters({
         ))}
       </select>
       {canShowArchived ? (
-        <label className="flex items-center gap-2 rounded-[8px] border border-slate-200 dark:border-slate-800 px-3 text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 border-2 border-black rounded-[4px] bg-white dark:bg-slate-900 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-350 shadow-[2px_2px_0px_#000] cursor-pointer">
           <input
             type="checkbox"
             checked={showArchived}
             onChange={(event) => onShowArchivedChange(event.target.checked)}
+            className="accent-[var(--main)] border-2 border-black rounded-[2px]"
           />
           Archived
         </label>

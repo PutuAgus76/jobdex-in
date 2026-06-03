@@ -81,13 +81,6 @@ const workflowSteps = [
   "Notifikasi Otomatis WhatsApp Bot & AI",
 ];
 
-const stats = [
-  { value: "24+", label: "Job Desk Aktif" },
-  { value: "7", label: "Menunggu Approval" },
-  { value: "3", label: "PIC Butuh Bantuan" },
-  { value: "40+", label: "Arsip Referensi" },
-];
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-[var(--jd-neo-bg)] text-[var(--jd-neo-text)] transition-colors duration-200">
@@ -198,7 +191,7 @@ export default function Home() {
               {/* Bot Chat Bubble */}
               <div className="bg-[#e7f6ec] dark:bg-[#1b3d2b]/40 p-4 rounded-base border-2 border-border text-neutral-950 dark:text-slate-100 text-xs font-medium leading-relaxed mb-4">
                 <p className="mb-2">
-                  <strong>Halo Putu Agus!</strong> 🔔 Anda memiliki <strong>1 tugas kritis</strong> divisi Humas & Media hari ini:
+                  <strong>Halo Putu Agus!</strong> Anda memiliki <strong>1 tugas kritis</strong> divisi Humas & Media hari ini:
                 </p>
                 <div className="border-l-4 border-[var(--jd-neo-red)] pl-2.5 my-2 font-bold text-neutral-950 dark:text-neutral-50 bg-white/50 dark:bg-black/20 py-1.5 rounded-r">
                   &quot;Desain Banner PKKMB 2026&quot;

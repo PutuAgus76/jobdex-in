@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type { Task, DesignReference } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, ExternalLink, Bot, FolderOpen, FileText } from "lucide-react";
+import { X, ExternalLink, Bot, FolderOpen, FileText, Lightbulb } from "lucide-react";
 import Link from "next/link";
 
 type SuggestedReferencesDialogProps = {
@@ -67,7 +67,8 @@ export function SuggestedReferencesDialog({
         <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div className="space-y-1">
             <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span>💡 Referensi yang Disarankan</span>
+              <Lightbulb className="size-5 text-amber-500 shrink-0" />
+              <span>Referensi yang Disarankan</span>
             </h2>
             <p className="text-xs text-slate-400 dark:text-slate-500">
               Menampilkan arsip referensi terdekat untuk mempermudah pengerjaan tugas Anda.

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
 import { getDateInputValue } from "@/lib/firebase/events";
+import { NeoDatePicker } from "@/components/ui/neo-date-picker";
 import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
 
 type EventFormDialogProps = {
@@ -143,11 +144,10 @@ function EventForm({
               >
                 Tanggal acara
               </label>
-              <Input
+              <NeoDatePicker
                 id="event-date"
-                type="date"
                 value={eventDate}
-                onChange={(item) => setEventDate(item.target.value)}
+                onChange={setEventDate}
               />
             </div>
 

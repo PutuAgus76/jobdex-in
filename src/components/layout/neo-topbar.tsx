@@ -99,7 +99,7 @@ export function NeoTopbar(props: {
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="jd-neo-button py-1 px-1 sm:py-1.5 sm:px-3 flex items-center gap-2 text-sm"
+                className="jd-neo-button h-10 px-1.5 sm:px-3 flex items-center gap-2 text-sm"
               >
                 {/* Avatar */}
                 {userProfile?.avatar_url ? (
@@ -107,10 +107,10 @@ export function NeoTopbar(props: {
                   <img
                     src={userProfile.avatar_url}
                     alt={userProfile?.name || "Avatar"}
-                    className="size-8 rounded-full border-2 border-border object-cover shrink-0"
+                    className="size-8 rounded-full border-2 border-[var(--border)] object-cover shrink-0"
                   />
                 ) : (
-                  <div className="size-8 rounded-full border-2 border-border bg-[var(--jd-neo-orange)] flex items-center justify-center text-xs font-black text-neutral-900 shrink-0">
+                  <div className="size-8 rounded-full border-2 border-[var(--border)] bg-[var(--jd-neo-orange)] flex items-center justify-center text-xs font-black text-neutral-950 shrink-0">
                     {getInitials(userProfile?.name || user?.displayName)}
                   </div>
                 )}

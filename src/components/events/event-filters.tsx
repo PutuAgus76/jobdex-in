@@ -25,12 +25,14 @@ export function EventFilters({
   onDateFilterChange,
 }: EventFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-[1.5fr_1fr_1fr]">
-      <Input
-        placeholder="Cari nama acara..."
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-      />
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-[1.5fr_1fr_1fr]">
+      <div className="col-span-2 md:col-span-1">
+        <Input
+          placeholder="Cari nama acara..."
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </div>
       <select
         className={selectClassName}
         value={status}

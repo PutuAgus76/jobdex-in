@@ -41,6 +41,9 @@ export default function RootLayout({
                 var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 var theme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : (prefersDark ? 'dark' : 'light');
                 document.documentElement.classList.toggle('dark', theme === 'dark');
+                
+                var storedColor = localStorage.getItem('jobdex-neo-color-theme');
+                document.documentElement.setAttribute('data-neo-color', storedColor || 'default');
               } catch (error) {}
             })();
           `}

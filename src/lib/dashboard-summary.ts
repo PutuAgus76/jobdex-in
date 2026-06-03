@@ -112,57 +112,52 @@ export async function getDashboardSummary(profile: UserProfile) {
         {
           label: "Total anggota",
           value: users,
-          description: "Jumlah dokumen di collection users.",
+          description: "Anggota terdaftar",
         },
         {
           label: "Total acara",
           value: events,
-          description: "Jumlah dokumen di collection events.",
+          description: "Acara aktif",
         },
         {
           label: "Total tugas",
           value: taskDocs.length,
-          description: "Jumlah dokumen di collection tasks.",
+          description: "Total job desk",
         },
         {
           label: "Sedang dikerjakan",
           value: countWhere(taskDocs, "status", "sedang_dikerjakan"),
-          description: "Task dengan status sedang_dikerjakan.",
+          description: "Sedang proses",
         },
         {
           label: "Stuck",
           value: countWhere(taskDocs, "status", "stuck"),
-          description: "Task dengan status stuck.",
+          description: "Tugas stuck",
         },
         {
           label: "Butuh bantuan",
           value: countWhere(taskDocs, "status", "butuh_bantuan"),
-          description: "Task dengan status butuh_bantuan.",
+          description: "Butuh bantuan",
         },
         {
           label: "Perlu revisi",
           value: countWhere(taskDocs, "approval_status", "need_revision"),
-          description: "Task dengan approval_status need_revision.",
+          description: "Perlu revisi",
         },
         {
           label: "Menunggu approval",
           value: countWhere(taskDocs, "status", "menunggu_approval"),
-          description: "Task dengan status menunggu_approval.",
+          description: "Menunggu approval",
         },
         {
           label: "Approved",
           value: countWhere(taskDocs, "status", "approved"),
-          description: "Task dengan status approved.",
+          description: "Sudah approved",
         },
         {
           label: "Referensi desain",
           value: references,
-          description: "Jumlah dokumen di collection design_references.",
-        },
-        {
-          label: "Setup data awal",
-          value: setupReady ? "Siap" : "Belum siap",
-          description: "Status organizations/main_org dan divisions/humas_media_kreatif.",
+          description: "Arsip desain",
         },
       ],
     } satisfies DashboardSummary;
@@ -183,32 +178,32 @@ export async function getDashboardSummary(profile: UserProfile) {
         {
           label: "Total anggota divisi",
           value: members,
-          description: "Anggota dengan division_id yang sama.",
+          description: "Anggota terdaftar",
         },
         {
           label: "Tugas divisi aktif",
           value: divisionTaskDocs.length,
-          description: "Tugas dengan division_id divisi Anda.",
+          description: "Total job desk",
         },
         {
           label: "Tugas stuck",
           value: countWhere(divisionTaskDocs, "status", "stuck"),
-          description: "Tugas dengan status stuck.",
+          description: "Tugas stuck",
         },
         {
           label: "Butuh bantuan",
           value: countWhere(divisionTaskDocs, "status", "butuh_bantuan"),
-          description: "Tugas dengan status butuh_bantuan.",
+          description: "Butuh bantuan",
         },
         {
           label: "Perlu revisi",
           value: countWhere(divisionTaskDocs, "approval_status", "need_revision"),
-          description: "Tugas dengan approval_status need_revision.",
+          description: "Perlu revisi",
         },
         {
           label: "Menunggu approval",
           value: countWhere(divisionTaskDocs, "status", "menunggu_approval"),
-          description: "Tugas dengan status menunggu_approval.",
+          description: "Menunggu approval",
         },
       ],
     } satisfies DashboardSummary;
@@ -227,32 +222,32 @@ export async function getDashboardSummary(profile: UserProfile) {
         {
           label: "Acara dikoordinasi",
           value: events,
-          description: "Acara dengan coordinator_id akun Anda.",
+          description: "Acara aktif",
         },
         {
           label: "Tugas acara aktif",
           value: eventTaskDocs.length,
-          description: "Tugas dengan coordinator_id akun Anda.",
+          description: "Total job desk",
         },
         {
           label: "Tugas stuck",
           value: countWhere(eventTaskDocs, "status", "stuck"),
-          description: "Tugas dengan status stuck.",
+          description: "Tugas stuck",
         },
         {
           label: "Butuh bantuan",
           value: countWhere(eventTaskDocs, "status", "butuh_bantuan"),
-          description: "Tugas dengan status butuh_bantuan.",
+          description: "Butuh bantuan",
         },
         {
           label: "Perlu revisi",
           value: countWhere(eventTaskDocs, "approval_status", "need_revision"),
-          description: "Tugas dengan approval_status need_revision.",
+          description: "Perlu revisi",
         },
         {
           label: "Menunggu approval",
           value: countWhere(eventTaskDocs, "status", "menunggu_approval"),
-          description: "Tugas dengan status menunggu_approval.",
+          description: "Menunggu approval",
         },
       ],
     } satisfies DashboardSummary;
@@ -267,37 +262,37 @@ export async function getDashboardSummary(profile: UserProfile) {
       {
         label: "Tugas saya",
         value: myTaskDocs.length,
-        description: "Tugas dengan pic_id akun Anda.",
+        description: "Total job desk",
       },
       {
         label: "Belum dimulai",
         value: countWhere(myTaskDocs, "status", "belum_dimulai"),
-        description: "Tugas dengan status belum_dimulai.",
+        description: "Belum dimulai",
       },
       {
         label: "Sedang dikerjakan",
         value: countWhere(myTaskDocs, "status", "sedang_dikerjakan"),
-        description: "Tugas dengan status sedang_dikerjakan.",
+        description: "Sedang proses",
       },
       {
         label: "Perlu revisi",
         value: countWhere(myTaskDocs, "approval_status", "need_revision"),
-        description: "Tugas dengan approval_status need_revision.",
+        description: "Perlu revisi",
       },
       {
         label: "Butuh bantuan",
         value: countWhere(myTaskDocs, "status", "butuh_bantuan"),
-        description: "Tugas dengan status butuh_bantuan.",
+        description: "Butuh bantuan",
       },
       {
         label: "Menunggu approval",
         value: countWhere(myTaskDocs, "status", "menunggu_approval"),
-        description: "Tugas dengan status menunggu_approval.",
+        description: "Menunggu approval",
       },
       {
         label: "Approved",
         value: countWhere(myTaskDocs, "status", "approved"),
-        description: "Tugas dengan status approved.",
+        description: "Sudah approved",
       },
     ],
   } satisfies DashboardSummary;

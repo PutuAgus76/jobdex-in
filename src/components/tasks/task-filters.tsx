@@ -46,12 +46,14 @@ export function TaskFilters({
   onDeadlineChange,
 }: TaskFiltersProps) {
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <Input
-        placeholder="Cari nama job desk..."
-        value={search}
-        onChange={(event) => onSearchChange(event.target.value)}
-      />
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="col-span-2 md:col-span-1 xl:col-span-1">
+        <Input
+          placeholder="Cari nama job desk..."
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </div>
       <select className={selectClassName} value={type} onChange={(event) => onTypeChange(event.target.value as "all" | TaskType)}>
         <option value="all">Semua tipe</option>
         <option value="divisi">Divisi</option>

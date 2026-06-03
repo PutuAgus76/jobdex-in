@@ -74,7 +74,7 @@ export function DashboardSummary({ profile }: DashboardSummaryProps) {
         </p>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summary.items.map((item) => (
           <StatCard
             key={item.label}

@@ -6,10 +6,12 @@ import { db } from "@/lib/firebase/client";
 import type { Task, UserProfile } from "@/types";
 import { getRiskLevelFromTask } from "@/lib/task-risk";
 import { TaskRiskCard } from "@/components/dashboard/task-risk-card";
+import { AlertTriangle } from "lucide-react";
 
 type TaskRiskSectionProps = {
   profile: UserProfile;
 };
+
 
 export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -130,10 +132,11 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <span>🚨 Tugas Berisiko</span>
+        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <AlertTriangle className="size-5 text-red-500 fill-red-500/10 shrink-0" />
+          <span>Tugas Berisiko</span>
           {tasks.length > 0 && (
-            <span className="inline-flex items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950 px-2 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
+            <span className="inline-flex items-center justify-center border-2 border-black rounded-[4px] bg-[var(--main)] px-1.5 py-0.5 text-xs font-black text-neutral-950 shadow-[1.5px_1.5px_0px_#000] dark:border-black shrink-0">
               {tasks.length}
             </span>
           )}

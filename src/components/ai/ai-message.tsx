@@ -37,7 +37,7 @@ export function AIMessage({
           <p
             className={cn(
               "text-[10px] font-black uppercase tracking-wider",
-              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-main-foreground/70",
+              isAssistant ? "text-slate-700 dark:text-slate-300" : "text-main-foreground/80",
             )}
           >
             {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
@@ -46,7 +46,7 @@ export function AIMessage({
             <span
               className={cn(
                 "text-[10px] font-bold",
-                isAssistant ? "text-slate-400 dark:text-slate-500" : "text-main-foreground/60"
+                isAssistant ? "text-slate-600 dark:text-slate-400" : "text-main-foreground/70"
               )}
             >
               {time}

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { TASK_PRIORITY_OPTIONS } from "@/lib/task-priority";
 import { TASK_STATUS_OPTIONS } from "@/lib/task-status";
 import { getTaskDateInputValue } from "@/lib/firebase/tasks";
+import { NeoDatePicker } from "@/components/ui/neo-date-picker";
 import {
   formatColorPalette,
   isValidHexColor,
@@ -190,7 +191,7 @@ function TaskForm({
 
           <div className="grid gap-4 md:grid-cols-3">
             <Field label="Deadline">
-              <Input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
+              <NeoDatePicker value={deadline} onChange={setDeadline} />
             </Field>
             <Field label="Status">
               <select className={selectClassName} value={status} onChange={(event) => setStatus(event.target.value as TaskStatus)}>
