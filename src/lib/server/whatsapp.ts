@@ -21,11 +21,20 @@ type SendWhatsAppResult = {
   responseText: string;
 };
 
+type SendWhatsAppOptions = {
+  mentions?: string[];
+};
+
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/$/, "");
 }
 
-export async function sendWhatsAppMessage(message: string, customPhone?: string, customGroupId?: string) {
+export async function sendWhatsAppMessage(
+  message: string,
+  customPhone?: string,
+  customGroupId?: string,
+  options: SendWhatsAppOptions = {},
+) {
   const apiUrl = process.env.WABLAS_API_URL;
   const token = process.env.WABLAS_API_TOKEN;
   const secret = process.env.WABLAS_SECRET_KEY;
@@ -100,6 +109,9 @@ export async function sendWhatsAppMessage(message: string, customPhone?: string,
   const endpoint = apiUrl.includes("/send-message")
     ? apiUrl
     : `${normalizeBaseUrl(apiUrl)}/send-message`;
+  const mentions = Array.from(new Set(options.mentions ?? [])).filter(Boolean);
+  const mentionMetadataEnabled =
+    process.env.WABLAS_SEND_MENTION_METADATA?.toLowerCase() === "true";
 
   let responseStatus = 200;
   let responseText = "";
@@ -116,6 +128,9 @@ export async function sendWhatsAppMessage(message: string, customPhone?: string,
         phone: recipient,
         message,
         isGroup: sendToGroup ? "true" : "false",
+        ...(sendToGroup && mentionMetadataEnabled && mentions.length
+          ? { mentions }
+          : {}),
         ...(deviceId ? { device_id: deviceId } : {}),
       }),
     });

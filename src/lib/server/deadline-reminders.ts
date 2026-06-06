@@ -435,6 +435,414 @@ Acara/Divisi: ${divisionOrEventName}
 ${catatanAtauSaran}`;
 }
 
+export type DigestType =
+  | "DAILY_DIGEST"
+  | "OVERDUE_DIGEST"
+  | "APPROVAL_DIGEST"
+  | "URGENT_DIGEST";
+
+export type DigestCategoryKey =
+  | "overdue"
+  | "today"
+  | "h_1"
+  | "h_2_h_3"
+  | "h_5_h_7"
+  | "waitingApproval"
+  | "stuck"
+  | "notStartedNearDeadline";
+
+export type ReminderDigestTask = {
+  task: Task;
+  pic: UserProfile | null;
+  divisionOrEventName: string;
+  diffDays: number | null;
+  categories: DigestCategoryKey[];
+};
+
+export type ReminderDigest = {
+  digestType: DigestType;
+  tasks: ReminderDigestTask[];
+  taskIds: string[];
+  categories: Record<DigestCategoryKey, number>;
+  mentionedPhones: string[];
+};
+
+const DIGEST_CATEGORY_LABELS: Record<DigestCategoryKey, string> = {
+  overdue: "OVERDUE",
+  today: "HARI-H",
+  h_1: "H-1",
+  h_2_h_3: "H-2 / H-3",
+  h_5_h_7: "H-5 / H-7",
+  waitingApproval: "MENUNGGU APPROVAL",
+  stuck: "STUCK / BUTUH BANTUAN",
+  notStartedNearDeadline: "BELUM DIMULAI DEKAT DEADLINE",
+};
+
+const DIGEST_CATEGORY_ORDER: DigestCategoryKey[] = [
+  "overdue",
+  "today",
+  "h_1",
+  "h_2_h_3",
+  "h_5_h_7",
+  "waitingApproval",
+  "stuck",
+  "notStartedNearDeadline",
+];
+
+function normalizeMentionPhone(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  return value.replace(/[^\d]/g, "").replace(/^0/, "62");
+}
+
+function getTaskPrimaryDigestCategory(item: ReminderDigestTask) {
+  return item.categories[0] ?? null;
+}
+
+function getDigestAction(item: ReminderDigestTask) {
+  const category = getTaskPrimaryDigestCategory(item);
+
+  if (item.task.status === "menunggu_approval") {
+    return category === "overdue"
+      ? "Koordinator perlu approve / revisi."
+      : "Koordinator perlu cek hasil.";
+  }
+
+  if (item.task.status === "stuck" || item.task.status === "butuh_bantuan") {
+    return "Koordinator perlu bantu / alihkan.";
+  }
+
+  if (item.task.status === "belum_dimulai") {
+    return "PIC perlu mulai dan update progress.";
+  }
+
+  if (category === "today" || category === "h_1") {
+    return "PIC perlu update progress hari ini.";
+  }
+
+  return "PIC perlu update progress.";
+}
+
+function getTaskDigestCategories(task: Task, diffDays: number | null) {
+  const categories: DigestCategoryKey[] = [];
+
+  if (typeof diffDays === "number") {
+    if (diffDays < 0) {
+      categories.push("overdue");
+    } else if (diffDays === 0) {
+      categories.push("today");
+    } else if (diffDays === 1) {
+      categories.push("h_1");
+    } else if (diffDays === 2 || diffDays === 3) {
+      categories.push("h_2_h_3");
+    } else if (diffDays === 5 || diffDays === 7) {
+      categories.push("h_5_h_7");
+    }
+  }
+
+  if (task.status === "menunggu_approval") {
+    categories.push("waitingApproval");
+  }
+
+  if (task.status === "stuck" || task.status === "butuh_bantuan") {
+    categories.push("stuck");
+  }
+
+  if (
+    task.status === "belum_dimulai" &&
+    typeof diffDays === "number" &&
+    diffDays >= 0 &&
+    diffDays <= 7
+  ) {
+    categories.push("notStartedNearDeadline");
+  }
+
+  return Array.from(new Set(categories));
+}
+
+export function buildReminderDigest(
+  tasks: Task[],
+  usersMap: Map<string, UserProfile>,
+  eventsMap: Map<string, { name?: string }>,
+  divisionsMap: Map<string, { name?: string }>,
+): ReminderDigest {
+  const categories = {
+    overdue: 0,
+    today: 0,
+    h_1: 0,
+    h_2_h_3: 0,
+    h_5_h_7: 0,
+    waitingApproval: 0,
+    stuck: 0,
+    notStartedNearDeadline: 0,
+  } satisfies Record<DigestCategoryKey, number>;
+  const mentionedPhones = new Set<string>();
+
+  const digestTasks = tasks
+    .map((task) => {
+      const diffDays = task.deadline ? getTaskDeadlineDiffDays(task) : null;
+      const taskCategories = getTaskDigestCategories(task, diffDays);
+
+      if (!taskCategories.length) {
+        return null;
+      }
+
+      for (const category of taskCategories) {
+        categories[category]++;
+      }
+
+      const pic = task.pic_id ? usersMap.get(task.pic_id) ?? null : null;
+      const phone = normalizeMentionPhone(pic?.whatsapp_number);
+
+      if (phone) {
+        mentionedPhones.add(phone);
+      }
+
+      let divisionOrEventName = "-";
+
+      if (task.type === "acara" && task.event_id) {
+        divisionOrEventName = eventsMap.get(task.event_id)?.name ?? "Acara tidak ditemukan";
+      } else if (task.type === "divisi" && task.division_id) {
+        divisionOrEventName =
+          divisionsMap.get(task.division_id)?.name ?? "Humas dan Media Kreatif";
+      }
+
+      return {
+        task,
+        pic,
+        divisionOrEventName,
+        diffDays,
+        categories: taskCategories,
+      } satisfies ReminderDigestTask;
+    })
+    .filter((item): item is ReminderDigestTask => Boolean(item));
+
+  const digestType: DigestType =
+    categories.overdue > 0
+      ? "OVERDUE_DIGEST"
+      : categories.today > 0 || categories.h_1 > 0 || categories.stuck > 0
+      ? "URGENT_DIGEST"
+      : categories.waitingApproval > 0
+      ? "APPROVAL_DIGEST"
+      : "DAILY_DIGEST";
+
+  return {
+    digestType,
+    tasks: digestTasks,
+    taskIds: Array.from(new Set(digestTasks.map((item) => item.task.id))),
+    categories,
+    mentionedPhones: Array.from(mentionedPhones),
+  };
+}
+
+export function buildDigestReminderMessage(
+  digest: ReminderDigest,
+  now = new Date(),
+  maxTasks = 20,
+) {
+  const dateText = formatIndonesianDate(now);
+  const includedTaskIds = new Set<string>();
+  let renderedCount = 0;
+  const sections: string[] = [];
+
+  for (const category of DIGEST_CATEGORY_ORDER) {
+    const categoryTasks = digest.tasks.filter((item) =>
+      item.categories.includes(category),
+    );
+
+    if (!categoryTasks.length || renderedCount >= maxTasks) {
+      continue;
+    }
+
+    const lines: string[] = [DIGEST_CATEGORY_LABELS[category]];
+    let sectionIndex = 1;
+
+    for (const item of categoryTasks) {
+      if (renderedCount >= maxTasks) {
+        break;
+      }
+
+      if (includedTaskIds.has(item.task.id)) {
+        continue;
+      }
+
+      const picName = item.pic?.name || "PIC tidak ditemukan";
+      const phone = normalizeMentionPhone(item.pic?.whatsapp_number);
+      const mentionText = phone ? ` (@${phone})` : "";
+      const deadline = item.task.deadline
+        ? formatIndonesianDate(item.task.deadline)
+        : "-";
+      const status = getFormattedStatus(item.task.status);
+      const notes =
+        category === "stuck" && item.task.stuck_notes
+          ? `   Kendala: ${item.task.stuck_notes}\n`
+          : "";
+
+      lines.push(
+        `${sectionIndex}. ${item.task.name}
+   PIC: ${picName}${mentionText}
+   Deadline: ${deadline}
+   Status: ${status}
+   Divisi/Acara: ${item.divisionOrEventName}
+${notes}   Aksi: ${getDigestAction(item)}`
+      );
+
+      includedTaskIds.add(item.task.id);
+      renderedCount++;
+      sectionIndex++;
+    }
+
+    if (lines.length > 1) {
+      sections.push(lines.join("\n\n"));
+    }
+  }
+
+  const remainingCount = Math.max(digest.taskIds.length - renderedCount, 0);
+  const remainingText =
+    remainingCount > 0
+      ? `\n\nDan ${remainingCount} tugas lainnya. Buka dashboard JobDex.in untuk melihat lengkapnya.`
+      : "";
+
+  return `[JobDex.in Digest Reminder]
+
+Rekap tugas perlu ditindaklanjuti
+Tanggal cek: ${dateText}
+
+${sections.join("\n\n")}
+
+Ringkasan:
+- Overdue: ${digest.categories.overdue}
+- Menunggu Approval: ${digest.categories.waitingApproval}
+- Stuck/Butuh Bantuan: ${digest.categories.stuck}
+- Hari-H: ${digest.categories.today}
+- H-1: ${digest.categories.h_1}
+- H-2/H-3: ${digest.categories.h_2_h_3}
+- H-5/H-7: ${digest.categories.h_5_h_7}
+
+Buka dashboard untuk detail lengkap.${remainingText}`;
+}
+
+export function getDigestDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Makassar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export async function getTaskIdsAlreadyInDigestToday(data: {
+  digestType: DigestType;
+  groupId: string;
+  digestDateKey: string;
+}) {
+  const db = getAdminDb();
+  const snapshot = await db
+    .collection("task_reminder_digest_logs")
+    .where("digest_type", "==", data.digestType)
+    .where("group_id", "==", data.groupId)
+    .where("digest_date_key", "==", data.digestDateKey)
+    .where("status", "in", ["sent", "pending"])
+    .get();
+
+  const taskIds = new Set<string>();
+
+  snapshot.forEach((doc) => {
+    const log = doc.data();
+    const ids = Array.isArray(log.task_ids) ? log.task_ids : [];
+
+    for (const id of ids) {
+      if (typeof id === "string") {
+        taskIds.add(id);
+      }
+    }
+  });
+
+  return taskIds;
+}
+
+export async function createTaskReminderDigestLog(data: {
+  digestType: DigestType;
+  groupId: string;
+  digestDateKey: string;
+  taskIds: string[];
+  categories: Record<DigestCategoryKey, number>;
+  mentionedPhones: string[];
+  status: "sent" | "failed" | "pending";
+  messageContent: string;
+  whatsappLogId?: string;
+}) {
+  const db = getAdminDb();
+  const logRef = db.collection("task_reminder_digest_logs").doc();
+
+  await logRef.set({
+    id: logRef.id,
+    digest_type: data.digestType,
+    group_id: data.groupId,
+    digest_date_key: data.digestDateKey,
+    task_ids: data.taskIds,
+    task_count: data.taskIds.length,
+    categories: data.categories,
+    mentioned_phones: data.mentionedPhones,
+    sent_at: FieldValue.serverTimestamp(),
+    status: data.status,
+    message_preview: sanitizePinFromMessage(data.messageContent).slice(0, 500),
+    ...(data.whatsappLogId ? { whatsapp_log_id: data.whatsappLogId } : {}),
+  });
+
+  return logRef.id;
+}
+
+export async function logWhatsAppDigestDispatch(data: {
+  organizationId: string;
+  recipient: string;
+  messageContent: string;
+  status: string;
+  taskIds: string[];
+  categories: Record<DigestCategoryKey, number>;
+  mentionedPhones: string[];
+  wablasResponse?: string;
+  errorMessage?: string;
+  cooldownUntil?: Date | null;
+  rateLimitReason?: string;
+}) {
+  const db = getAdminDb();
+  const logRef = db.collection("whatsapp_logs").doc();
+
+  await logRef.set({
+    id: logRef.id,
+    organization_id: data.organizationId || "main_org",
+    task_ids: data.taskIds,
+    task_count: data.taskIds.length,
+    categories: data.categories,
+    event_type: "deadline_digest",
+    message_content: sanitizePinFromMessage(data.messageContent),
+    recipient: data.recipient,
+    recipient_group_id: data.recipient,
+    recipient_type: "group",
+    is_group: true,
+    status: data.status,
+    send_status: data.status,
+    error_message: data.errorMessage || null,
+    cooldown_until: data.cooldownUntil || null,
+    mentioned_phones: data.mentionedPhones,
+    message_length: data.messageContent.length,
+    rate_limit_status: data.rateLimitReason ? "limited" : "ok",
+    rate_limit_reason: data.rateLimitReason || null,
+    ...(data.wablasResponse ? { wablas_response: data.wablasResponse } : {}),
+    retry_count: 0,
+    created_at: FieldValue.serverTimestamp(),
+  });
+
+  return logRef.id;
+}
+
 /**
  * Builds formatted Personal WhatsApp Reminder message to PIC
  */
