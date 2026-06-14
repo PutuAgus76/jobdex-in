@@ -42,6 +42,13 @@ export type Event = {
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
+  // Fase 19C: Event-specific WhatsApp group routing
+  whatsapp_group_id?: string;
+  whatsapp_group_name?: string;
+  whatsapp_group_verified?: boolean;
+  whatsapp_group_verified_at?: unknown;
+  whatsapp_group_verified_by?: string;
+  whatsapp_group_source?: "manual" | "webhook_detected" | "admin_input";
 };
 
 export type EventMember = {
@@ -59,6 +66,9 @@ export type EventInput = {
   event_date: string;
   coordinator_id: string;
   status: EventStatus;
+  // Fase 19C: Event-specific WhatsApp group
+  whatsapp_group_id?: string;
+  whatsapp_group_name?: string;
 };
 
 export type TaskType = "divisi" | "acara";
@@ -104,6 +114,8 @@ export type Task = {
   result_design_url: string;
   approval_status: ApprovalStatus;
   approved_by?: string;
+  approved_by_name?: string;
+  approved_by_role?: string;
   approved_at?: unknown;
   is_archived: boolean;
   checklist_items?: Array<{
@@ -125,6 +137,9 @@ export type TaskStatusLog = {
   from_status: TaskStatus;
   to_status: TaskStatus;
   changed_by: string;
+  changed_by_name?: string;
+  changed_by_role?: string;
+  source?: "whatsapp_command" | "web" | "system";
   note: string;
   created_at?: unknown;
 };

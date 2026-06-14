@@ -422,6 +422,8 @@ export async function handleApproveTaskCommand(
       status: "approved",
       approval_status: "approved",
       approved_by: user.id,
+      approved_by_name: user.name,
+      approved_by_role: user.role,
       approved_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp()
     });
@@ -434,7 +436,10 @@ export async function handleApproveTaskCommand(
       from_status: task.status,
       to_status: "approved",
       changed_by: user.id,
-      note: "Approved via WhatsApp command",
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
+      note: `Approved via WhatsApp command oleh ${user.name} (${user.role})`,
       created_at: FieldValue.serverTimestamp()
     });
 
@@ -551,6 +556,8 @@ export async function handleUpdateTaskStatusCommand(
     } else if (statusEnum === "approved") {
       updateParams.approval_status = "approved";
       updateParams.approved_by = user.id;
+      updateParams.approved_by_name = user.name;
+      updateParams.approved_by_role = user.role;
       updateParams.approved_at = FieldValue.serverTimestamp();
     }
 
@@ -566,6 +573,9 @@ export async function handleUpdateTaskStatusCommand(
       from_status: task.status,
       to_status: statusEnum,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: logNote,
       created_at: FieldValue.serverTimestamp()
     });
@@ -869,6 +879,9 @@ export async function handleConfirmEditTaskCommand(
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: `Detail task diubah via WhatsApp (${changedFields})`,
       created_at: FieldValue.serverTimestamp()
     });
@@ -1069,6 +1082,9 @@ export async function handleConfirmArchiveCommand(
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: "Archived via WhatsApp command",
       created_at: FieldValue.serverTimestamp()
     });
@@ -1199,6 +1215,9 @@ export async function handleChecklistCommand(
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: `Checklist "${targetLabel}" ditandai selesai via WhatsApp.`,
       created_at: FieldValue.serverTimestamp()
     });
@@ -1705,6 +1724,9 @@ export async function handleUploadHasilCommand(
       from_status: task.status,
       to_status: "menunggu_approval",
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: catatan ? `Upload hasil: ${catatan}` : "Upload hasil desain via WhatsApp",
       created_at: FieldValue.serverTimestamp()
     });
@@ -1800,6 +1822,9 @@ export async function handleMintaRevisiCommand(
       from_status: task.status,
       to_status: "perlu_revisi",
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: `Minta revisi: ${catatan}`,
       created_at: FieldValue.serverTimestamp()
     });
@@ -1962,6 +1987,9 @@ export async function handleTambahCatatanCommand(
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: catatan,
       created_at: FieldValue.serverTimestamp()
     });
@@ -2072,6 +2100,9 @@ export async function handleGantiPicCommand(
       from_status: task.status,
       to_status: task.status,
       changed_by: user.id,
+      changed_by_name: user.name,
+      changed_by_role: user.role,
+      source: "whatsapp_command",
       note: `Ganti PIC dari ${oldPicName} ke ${targetUser.name}`,
       created_at: FieldValue.serverTimestamp()
     });

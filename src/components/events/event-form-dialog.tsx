@@ -44,6 +44,8 @@ function EventForm({
     event?.coordinator_id ?? fallbackCoordinatorId,
   );
   const [status, setStatus] = useState<EventStatus>(event?.status ?? "persiapan");
+  const [whatsappGroupId, setWhatsappGroupId] = useState(event?.whatsapp_group_id ?? "");
+  const [whatsappGroupName, setWhatsappGroupName] = useState(event?.whatsapp_group_name ?? "");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,6 +78,8 @@ function EventForm({
           event_date: eventDate,
           coordinator_id: coordinatorId,
           status,
+          whatsapp_group_id: whatsappGroupId.trim() || undefined,
+          whatsapp_group_name: whatsappGroupName.trim() || undefined,
         },
         event?.id,
       );
@@ -192,6 +196,48 @@ function EventForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              WhatsApp Group (Opsional)
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="event-wa-group-id"
+                  className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  ID Grup WhatsApp Acara
+                </label>
+                <Input
+                  id="event-wa-group-id"
+                  value={whatsappGroupId}
+                  onChange={(item) => {
+                    const val = item.target.value.replace(/\D/g, "");
+                    setWhatsappGroupId(val);
+                  }}
+                  placeholder="Contoh: 120363406824082148"
+                />
+                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                  Isi jika acara ini punya grup WhatsApp khusus. Reminder event akan dikirim ke grup ini.
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="event-wa-group-name"
+                  className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Nama Grup (opsional)
+                </label>
+                <Input
+                  id="event-wa-group-name"
+                  value={whatsappGroupName}
+                  onChange={(item) => setWhatsappGroupName(item.target.value)}
+                  placeholder="Contoh: Grup Rapat Kerja 2026"
+                />
+              </div>
+            </div>
           </div>
 
           {error ? (

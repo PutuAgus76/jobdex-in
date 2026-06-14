@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AI_SYSTEM_PROMPT } from "@/lib/ai-prompts";
 import { canAccessAI } from "@/lib/permissions";
 import { buildAIContext } from "@/lib/server/ai-context";
-import { askGemini, GEMINI_MODEL } from "@/lib/server/gemini";
+import { generateText } from "@/lib/server/ai-provider";
 import { getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // --- Fase 14A: Reference Search Intent Detection ---
+    // --- Reference Search Intent Detection ---
     if (isReferenceSearchQuestion(question)) {
       const searchResult = await searchDesignReferencesFromQuestion(question);
 
@@ -132,10 +132,13 @@ export async function POST(request: NextRequest) {
       "",
       "Instruksi jawaban: jawab ringkas, gunakan bullet bila membantu, dan jangan memakai data di luar context.",
     ].join("\n");
-    const answer = await askGemini({
+    const aiResult = await generateText({
       systemPrompt: AI_SYSTEM_PROMPT,
       prompt,
+      feature: "web_assistant",
+      modelTier: "pro",
     });
+    const answer = aiResult.text;
     const logRef = getAdminDb().collection("ai_logs").doc();
 
     await logRef.set({
@@ -145,7 +148,7 @@ export async function POST(request: NextRequest) {
       question,
       context_summary: contextSummary.slice(0, 12000),
       answer,
-      model_used: GEMINI_MODEL,
+      model_used: aiResult.model,
       source: "web",
       created_at: FieldValue.serverTimestamp(),
     });

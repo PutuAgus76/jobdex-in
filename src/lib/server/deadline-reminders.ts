@@ -448,8 +448,7 @@ export type DigestCategoryKey =
   | "h_2_h_3"
   | "h_5_h_7"
   | "waitingApproval"
-  | "stuck"
-  | "notStartedNearDeadline";
+  | "stuck";
 
 export type ReminderDigestTask = {
   task: Task;
@@ -475,7 +474,6 @@ const DIGEST_CATEGORY_LABELS: Record<DigestCategoryKey, string> = {
   h_5_h_7: "H-5 / H-7",
   waitingApproval: "MENUNGGU APPROVAL",
   stuck: "STUCK / BUTUH BANTUAN",
-  notStartedNearDeadline: "BELUM DIMULAI DEKAT DEADLINE",
 };
 
 const DIGEST_CATEGORY_ORDER: DigestCategoryKey[] = [
@@ -486,7 +484,6 @@ const DIGEST_CATEGORY_ORDER: DigestCategoryKey[] = [
   "h_5_h_7",
   "waitingApproval",
   "stuck",
-  "notStartedNearDeadline",
 ];
 
 function normalizeMentionPhone(value?: string) {
@@ -550,15 +547,6 @@ function getTaskDigestCategories(task: Task, diffDays: number | null) {
     categories.push("stuck");
   }
 
-  if (
-    task.status === "belum_dimulai" &&
-    typeof diffDays === "number" &&
-    diffDays >= 0 &&
-    diffDays <= 7
-  ) {
-    categories.push("notStartedNearDeadline");
-  }
-
   return Array.from(new Set(categories));
 }
 
@@ -576,7 +564,6 @@ export function buildReminderDigest(
     h_5_h_7: 0,
     waitingApproval: 0,
     stuck: 0,
-    notStartedNearDeadline: 0,
   } satisfies Record<DigestCategoryKey, number>;
   const mentionedPhones = new Set<string>();
 
@@ -721,6 +708,9 @@ Ringkasan:
 - H-2/H-3: ${digest.categories.h_2_h_3}
 - H-5/H-7: ${digest.categories.h_5_h_7}
 
+Catatan:
+Task stuck/butuh bantuan yang sudah overdue ditampilkan di bagian OVERDUE.
+
 Buka dashboard untuk detail lengkap.${remainingText}`;
 }
 
@@ -738,18 +728,22 @@ export function getDigestDateKey(date = new Date()) {
 }
 
 export async function getTaskIdsAlreadyInDigestToday(data: {
-  digestType: DigestType;
+  digestType?: DigestType;
   groupId: string;
   digestDateKey: string;
 }) {
   const db = getAdminDb();
-  const snapshot = await db
+  let query = db
     .collection("task_reminder_digest_logs")
-    .where("digest_type", "==", data.digestType)
     .where("group_id", "==", data.groupId)
     .where("digest_date_key", "==", data.digestDateKey)
-    .where("status", "in", ["sent", "pending"])
-    .get();
+    .where("status", "in", ["sent", "pending"]);
+
+  if (data.digestType) {
+    query = query.where("digest_type", "==", data.digestType);
+  }
+
+  const snapshot = await query.get();
 
   const taskIds = new Set<string>();
 
@@ -772,11 +766,19 @@ export async function createTaskReminderDigestLog(data: {
   groupId: string;
   digestDateKey: string;
   taskIds: string[];
+  allCurrentTaskIds: string[];
+  newTaskIds: string[];
   categories: Record<DigestCategoryKey, number>;
   mentionedPhones: string[];
   status: "sent" | "failed" | "pending";
   messageContent: string;
   whatsappLogId?: string;
+  // Fase 19C group routing logging
+  target_group_id?: string;
+  target_group_type?: string;
+  linked_event_id?: string;
+  linked_division_id?: string;
+  fallback_reason?: string;
 }) {
   const db = getAdminDb();
   const logRef = db.collection("task_reminder_digest_logs").doc();
@@ -787,13 +789,22 @@ export async function createTaskReminderDigestLog(data: {
     group_id: data.groupId,
     digest_date_key: data.digestDateKey,
     task_ids: data.taskIds,
-    task_count: data.taskIds.length,
+    all_current_task_ids: data.allCurrentTaskIds,
+    new_task_ids: data.newTaskIds,
+    task_count: data.allCurrentTaskIds.length,
+    new_task_count: data.newTaskIds.length,
     categories: data.categories,
     mentioned_phones: data.mentionedPhones,
     sent_at: FieldValue.serverTimestamp(),
     status: data.status,
     message_preview: sanitizePinFromMessage(data.messageContent).slice(0, 500),
     ...(data.whatsappLogId ? { whatsapp_log_id: data.whatsappLogId } : {}),
+    // Group routing extra fields
+    target_group_id: data.target_group_id || data.groupId,
+    target_group_type: data.target_group_type || "default_group",
+    linked_event_id: data.linked_event_id || null,
+    linked_division_id: data.linked_division_id || null,
+    fallback_reason: data.fallback_reason || null,
   });
 
   return logRef.id;

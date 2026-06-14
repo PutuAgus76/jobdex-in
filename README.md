@@ -487,3 +487,30 @@ Pada Fase 19B, autentikasi berbasis PIN 4-digit dihapus karena faktor keamanan d
 - `!jobdex tambah catatan <Nama Task> catatan: <Catatan>` (menambahkan catatan status log pengerjaan tugas).
 - `!jobdex ganti pic <Nama Task> ke <Nama Anggota>` (mengubah PIC pelaksana tugas).
 - `!jobdex bantuan` (panduan perintah baru tanpa format PIN).
+
+## Fase 19C — WhatsApp Group Routing, Approval Attribution, dan DeepSeek AI Provider
+
+Pada Fase 19C, sistem JobDex.in ditingkatkan untuk mengatasi masalah atribusi persetujuan (approval attribution), perutean pengingat ke grup WhatsApp acara (event group routing), serta integrasi AI provider hemat token (DeepSeek).
+
+### 1. Perbaikan Bug Atribusi Persetujuan (Approval Attribution)
+Sebelumnya, setiap persetujuan (approval) yang dilakukan via WhatsApp tercatat atas nama Super Admin secara default. Diperbaiki agar:
+- Sistem mendeteksi profil asli pelaku (`actorProfile`) dari nomor pengirim WhatsApp.
+- Menyimpan detail pelaku pada field tugas: `approved_by = actorProfile.id`, `approved_by_name = actorProfile.name`, dan `approved_by_role = actorProfile.role`.
+- Menulis status log dengan field `changed_by_id`, `changed_by_name`, `changed_by_role`, dan `source: "whatsapp_command"`.
+
+### 2. WhatsApp Group Routing & Pengingat Acara
+Sistem pengingat (cron digest) kini mendukung perutean tugas ke grup WhatsApp khusus masing-masing acara dengan fallback berantai:
+- **Prioritas 1**: Dikirim ke grup khusus acara (`whatsapp_group_id` pada dokumen event).
+- **Prioritas 2**: Dikirim ke grup divisi terkait (jika ada).
+- **Prioritas 3**: Dikirim ke grup default organisasi (`WABLAS_DEFAULT_GROUP_ID`).
+- **Skip**: Jika tidak ada target grup yang valid, tugas dilewati dengan alasan `missing_group_target`.
+
+**Command WhatsApp Baru untuk Manajemen Grup:**
+- `!jobdex cek grup`: Menampilkan ID grup WhatsApp saat ini, nama grup, status keterhubungan, dan acara/divisi yang terhubung.
+- `!jobdex event grup`: Menampilkan daftar acara yang telah terhubung ke grup WhatsApp khusus.
+- `!jobdex hubungkan grup acara <Nama Acara>`: Menghubungkan grup WhatsApp saat ini ke acara tertentu (hanya dapat dieksekusi oleh Super Admin, Koordinator Acara terkait, atau Koordinator Divisi terkait).
+
+### 3. Integrasi DeepSeek AI Provider Hemat Token
+Aplikasi mendukung penggunaan DeepSeek API sebagai penyedia AI alternatif selain Gemini dengan fitur penghematan token:
+- **Strategi Hemat**: Pembatasan panjang konteks maksimal (`AI_MAX_CONTEXT_CHARS`), pencarian referensi via database Firestore (tidak dikirim ke AI), caching respons AI di Firestore (`ai_cache`), dan penggunaan model hemat token default.
+- **Usage Logging**: Menyimpan log penggunaan token ke Firestore collection `ai_usage_logs` untuk melacak provider, status cache hit, dan tokens.

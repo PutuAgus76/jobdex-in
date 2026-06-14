@@ -13,25 +13,12 @@ import {
   getTaskIdsAlreadyInDigestToday,
   logWhatsAppDigestDispatch,
 } from "@/lib/server/deadline-reminders";
-import type { Task, UserProfile } from "@/types";
+import { groupTasksByTarget } from "@/lib/server/group-routing";
+import type { GroupRouteTarget } from "@/lib/server/group-routing";
+import type { ReminderDigest } from "@/lib/server/deadline-reminders";
+import type { Task, UserProfile, Event } from "@/types";
 
 export const dynamic = "force-dynamic";
-
-type CronSkippedSummary = {
-  alreadyInDigestToday: number;
-  completed: number;
-  archived: number;
-  noDeadlineOrDigestCategory: number;
-  rateLimited: number;
-};
-
-export async function GET(request: Request) {
-  return handleCron(request);
-}
-
-export async function POST(request: Request) {
-  return handleCron(request);
-}
 
 function isCompletedTask(data: Partial<Task>) {
   return (
@@ -39,6 +26,14 @@ function isCompletedTask(data: Partial<Task>) {
     data.status === ("selesai" as Task["status"]) ||
     data.approval_status === "approved"
   );
+}
+
+export async function GET(request: Request) {
+  return handleCron(request);
+}
+
+export async function POST(request: Request) {
+  return handleCron(request);
 }
 
 async function handleCron(request: Request) {
@@ -58,20 +53,19 @@ async function handleCron(request: Request) {
   }
 
   const db = getAdminDb();
-  const groupId = getWhatsAppRecipient();
+  const globalDefaultGroupId = getWhatsAppRecipient();
 
-  if (!groupId) {
+  if (!globalDefaultGroupId) {
     return NextResponse.json(
       { error: "WhatsApp group ID not configured." },
       { status: 500 },
     );
   }
 
-  const skipped: CronSkippedSummary = {
+  const skipped = {
     alreadyInDigestToday: 0,
     completed: 0,
     archived: 0,
-    noDeadlineOrDigestCategory: 0,
     rateLimited: 0,
   };
   const errors: string[] = [];
@@ -119,171 +113,206 @@ async function handleCron(request: Request) {
       divisionsMap.set(doc.id, doc.data() as { name?: string });
     });
 
-    const digest = buildReminderDigest(
-      activeTasks,
-      usersMap,
-      eventsMap,
-      divisionsMap,
-    );
+    // Populate eventsCache for group routing
+    const eventsCache = new Map<string, Event>();
+    eventsSnapshot.forEach((doc) => {
+      eventsCache.set(doc.id, { id: doc.id, ...doc.data() } as Event);
+    });
 
-    skipped.noDeadlineOrDigestCategory = Math.max(
-      activeTasks.length - digest.taskIds.length,
-      0,
-    );
+    // Group tasks using the new routing helper
+    const taskGroups = await groupTasksByTarget(activeTasks, eventsCache);
 
     const digestDateKey = getDigestDateKey();
-    const alreadyInDigest = await getTaskIdsAlreadyInDigestToday({
-      digestType: digest.digestType,
-      groupId,
-      digestDateKey,
-    });
-    const newTaskIds = digest.taskIds.filter((taskId) => !alreadyInDigest.has(taskId));
-    skipped.alreadyInDigestToday = digest.taskIds.length - newTaskIds.length;
+    let digestSent = false;
+    let digestTaskCount = 0;
+    let newTaskIdsInDigest = 0;
+    let alreadyInDigestToday = 0;
+    const sentMentionedPhones = new Set<string>();
 
-    if (digest.taskIds.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        checkedTasks,
-        eligibleTasks: 0,
-        digestSent: false,
-        digestTaskCount: 0,
-        digestType: digest.digestType,
-        categories: digest.categories,
-        skipped,
-        mentionedPhones: [],
-        errors,
-      });
-    }
-
-    if (newTaskIds.length === 0) {
-      return NextResponse.json({
-        ok: true,
-        checkedTasks,
-        eligibleTasks: digest.taskIds.length,
-        digestSent: false,
-        digestTaskCount: 0,
-        digestType: digest.digestType,
-        skippedReason: "Semua task eligible sudah masuk digest hari ini.",
-        categories: digest.categories,
-        skipped,
-        mentionedPhones: digest.mentionedPhones,
-        errors,
-      });
-    }
-
-    const newTaskIdSet = new Set(newTaskIds);
-    const digestToSend = {
-      ...digest,
-      tasks: digest.tasks.filter((item) => newTaskIdSet.has(item.task.id)),
-      taskIds: newTaskIds,
-      mentionedPhones: Array.from(
-        new Set(
-          digest.tasks
-            .filter((item) => newTaskIdSet.has(item.task.id))
-            .map((item) => item.pic?.whatsapp_number ?? "")
-            .map((phone) => phone.replace(/[^\d]/g, "").replace(/^0/, "62"))
-            .filter(Boolean),
-        ),
-      ),
+    const categoriesSum = {
+      overdue: 0,
+      today: 0,
+      h_1: 0,
+      h_2_h_3: 0,
+      h_5_h_7: 0,
+      waitingApproval: 0,
+      stuck: 0,
     };
-    const messageContent = buildDigestReminderMessage(digestToSend);
 
-    try {
-      const dispatchResult = await sendWhatsAppMessage(
-        messageContent,
-        undefined,
-        groupId,
-        { mentions: digestToSend.mentionedPhones },
+    let eligibleTasksCount = 0;
+    const eligibleTaskIds = new Set<string>();
+
+    // Pre-calculate digests for counting and aggregation
+    const groupDigests: Array<{
+      targetGroupId: string;
+      target: GroupRouteTarget;
+      digest: ReminderDigest;
+    }> = [];
+
+    for (const [targetGroupId, groupData] of taskGroups.entries()) {
+      const { target, tasks: groupTasks } = groupData;
+      const digest = buildReminderDigest(
+        groupTasks,
+        usersMap,
+        eventsMap,
+        divisionsMap,
       );
-      const whatsappLogId = await logWhatsAppDigestDispatch({
-        organizationId: digestToSend.tasks[0]?.task.organization_id ?? "main_org",
-        recipient: groupId,
-        messageContent,
-        status: "sent",
-        taskIds: digestToSend.taskIds,
-        categories: digestToSend.categories,
-        mentionedPhones: digestToSend.mentionedPhones,
-        wablasResponse: dispatchResult.responseText,
-      });
 
-      await createTaskReminderDigestLog({
-        digestType: digestToSend.digestType,
-        groupId,
+      if (digest.taskIds.length > 0) {
+        groupDigests.push({ targetGroupId, target, digest });
+
+        for (const taskId of digest.taskIds) {
+          eligibleTaskIds.add(taskId);
+        }
+
+        categoriesSum.overdue += digest.categories.overdue;
+        categoriesSum.today += digest.categories.today;
+        categoriesSum.h_1 += digest.categories.h_1;
+        categoriesSum.h_2_h_3 += digest.categories.h_2_h_3;
+        categoriesSum.h_5_h_7 += digest.categories.h_5_h_7;
+        categoriesSum.waitingApproval += digest.categories.waitingApproval;
+        categoriesSum.stuck += digest.categories.stuck;
+      }
+    }
+
+    eligibleTasksCount = eligibleTaskIds.size;
+
+    // Send group digests
+    for (const { targetGroupId, target, digest } of groupDigests) {
+      // Check globally across all digest types today (anti-spam)
+      const alreadySentTaskIds = await getTaskIdsAlreadyInDigestToday({
+        groupId: targetGroupId,
         digestDateKey,
-        taskIds: digestToSend.taskIds,
-        categories: digestToSend.categories,
-        mentionedPhones: digestToSend.mentionedPhones,
-        status: "sent",
-        messageContent,
-        whatsappLogId,
       });
 
-      return NextResponse.json({
-        ok: true,
-        checkedTasks,
-        eligibleTasks: digest.taskIds.length,
-        digestSent: true,
-        digestTaskCount: digestToSend.taskIds.length,
-        digestType: digestToSend.digestType,
-        categories: digest.categories,
-        skipped,
-        mentionedPhones: digestToSend.mentionedPhones,
-        errors,
-      });
-    } catch (error: unknown) {
-      let status = "failed";
-      let cooldownUntil: Date | null = null;
-      let rateLimitReason: string | undefined;
-      const errorMessage =
-        error instanceof Error ? error.message : "Gagal mengirim digest.";
+      const newTaskIds = digest.taskIds.filter((taskId: string) => !alreadySentTaskIds.has(taskId));
 
-      if (error instanceof WhatsAppRateLimitError) {
-        status = error.status;
-        cooldownUntil = error.cooldownUntil;
-        rateLimitReason = error.message;
-        skipped.rateLimited++;
-      } else {
-        errors.push(errorMessage);
+      if (newTaskIds.length === 0) {
+        alreadyInDigestToday += digest.taskIds.length;
+        continue;
       }
 
-      const whatsappLogId = await logWhatsAppDigestDispatch({
-        organizationId: digestToSend.tasks[0]?.task.organization_id ?? "main_org",
-        recipient: groupId,
-        messageContent,
-        status,
-        taskIds: digestToSend.taskIds,
-        categories: digestToSend.categories,
-        mentionedPhones: digestToSend.mentionedPhones,
-        errorMessage,
-        cooldownUntil,
-        rateLimitReason,
-      });
+      // If new tasks are present, send the full digest message for the group
+      const messageContent = buildDigestReminderMessage(digest);
 
-      await createTaskReminderDigestLog({
-        digestType: digestToSend.digestType,
-        groupId,
-        digestDateKey,
-        taskIds: digestToSend.taskIds,
-        categories: digestToSend.categories,
-        mentionedPhones: digestToSend.mentionedPhones,
-        status: "failed",
-        messageContent,
-        whatsappLogId,
-      });
+      try {
+        const dispatchResult = await sendWhatsAppMessage(
+          messageContent,
+          undefined,
+          targetGroupId,
+          { mentions: digest.mentionedPhones },
+        );
 
+        const whatsappLogId = await logWhatsAppDigestDispatch({
+          organizationId: digest.tasks[0]?.task.organization_id ?? "main_org",
+          recipient: targetGroupId,
+          messageContent,
+          status: "sent",
+          taskIds: digest.taskIds,
+          categories: digest.categories,
+          mentionedPhones: digest.mentionedPhones,
+          wablasResponse: dispatchResult.responseText,
+        });
+
+        await createTaskReminderDigestLog({
+          digestType: digest.digestType,
+          groupId: targetGroupId,
+          digestDateKey,
+          taskIds: digest.taskIds,
+          allCurrentTaskIds: digest.taskIds,
+          newTaskIds: newTaskIds,
+          categories: digest.categories,
+          mentionedPhones: digest.mentionedPhones,
+          status: "sent",
+          messageContent,
+          whatsappLogId,
+          target_group_id: target.groupId,
+          target_group_type: target.groupType,
+          linked_event_id: target.linkedEventId || undefined,
+          linked_division_id: target.linkedDivisionId || undefined,
+          fallback_reason: target.fallbackReason || undefined,
+        });
+
+        digestSent = true;
+        digestTaskCount += digest.taskIds.length;
+        newTaskIdsInDigest += newTaskIds.length;
+        for (const phone of digest.mentionedPhones) {
+          sentMentionedPhones.add(phone);
+        }
+      } catch (error: unknown) {
+        let status = "failed";
+        let cooldownUntil: Date | null = null;
+        let rateLimitReason: string | undefined;
+        const errorMessage =
+          error instanceof Error ? error.message : "Gagal mengirim digest.";
+
+        if (error instanceof WhatsAppRateLimitError) {
+          status = error.status;
+          cooldownUntil = error.cooldownUntil;
+          rateLimitReason = error.message;
+          skipped.rateLimited++;
+        } else {
+          errors.push(`Group ${targetGroupId}: ${errorMessage}`);
+        }
+
+        const whatsappLogId = await logWhatsAppDigestDispatch({
+          organizationId: digest.tasks[0]?.task.organization_id ?? "main_org",
+          recipient: targetGroupId,
+          messageContent,
+          status,
+          taskIds: digest.taskIds,
+          categories: digest.categories,
+          mentionedPhones: digest.mentionedPhones,
+          errorMessage,
+          cooldownUntil,
+          rateLimitReason,
+        });
+
+        await createTaskReminderDigestLog({
+          digestType: digest.digestType,
+          groupId: targetGroupId,
+          digestDateKey,
+          taskIds: digest.taskIds,
+          allCurrentTaskIds: digest.taskIds,
+          newTaskIds: newTaskIds,
+          categories: digest.categories,
+          mentionedPhones: digest.mentionedPhones,
+          status: "failed",
+          messageContent,
+          whatsappLogId,
+          target_group_id: target.groupId,
+          target_group_type: target.groupType,
+          linked_event_id: target.linkedEventId || undefined,
+          linked_division_id: target.linkedDivisionId || undefined,
+          fallback_reason: target.fallbackReason || undefined,
+        });
+      }
+    }
+
+    // Skip output if all checked groups were skipped
+    if (!digestSent && alreadyInDigestToday > 0) {
       return NextResponse.json({
-        ok: false,
-        checkedTasks,
-        eligibleTasks: digest.taskIds.length,
         digestSent: false,
-        digestTaskCount: digestToSend.taskIds.length,
-        digestType: digestToSend.digestType,
-        categories: digest.categories,
-        skipped,
-        mentionedPhones: digestToSend.mentionedPhones,
-        errors,
+        digestSkippedReason: "already_sent_today_no_new_tasks",
+        alreadyInDigestToday,
       });
     }
+
+    skipped.alreadyInDigestToday = alreadyInDigestToday;
+
+    return NextResponse.json({
+      ok: true,
+      checkedTasks,
+      eligibleTasks: eligibleTasksCount,
+      groupsChecked: Object.keys(taskGroups).length || taskGroups.size,
+      digestSent,
+      digestTaskCount,
+      newTaskIdsInDigest,
+      categories: categoriesSum,
+      skipped,
+      mentionedPhones: Array.from(sentMentionedPhones),
+      errors,
+    });
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Internal Server Error.";
@@ -295,8 +324,10 @@ async function handleCron(request: Request) {
         error: "Internal Server Error in Cron processing.",
         checkedTasks: 0,
         eligibleTasks: 0,
+        groupsChecked: 0,
         digestSent: false,
         digestTaskCount: 0,
+        newTaskIdsInDigest: 0,
         categories: null,
         skipped,
         mentionedPhones: [],

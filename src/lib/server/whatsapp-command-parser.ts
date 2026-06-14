@@ -21,6 +21,9 @@ export type WhatsAppCommandIntent =
   | "checklist_task"
   | "create_reference_preview"
   | "cek_pengirim"
+  | "cek_grup"
+  | "event_grup"
+  | "hubungkan_grup_acara"
   | "tugas_saya"
   | "detail_task"
   | "upload_hasil"
@@ -95,7 +98,7 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
   const cleaned = rawCleaned.replace(/(?:pin\s*:?\s*)(\d{4,6})/i, "").trim();
   const lowerCleaned = cleaned.toLowerCase();
 
-  const result = parseWhatsAppCommandInternal(rawText, cleaned, lowerCleaned, pin);
+  const result = parseWhatsAppCommandInternal(rawText, cleaned, lowerCleaned);
   if (result.fields && pin && !result.fields.pin) {
     result.fields.pin = pin;
   }
@@ -105,8 +108,7 @@ export function parseWhatsAppCommand(rawText: string): ParsedWhatsAppCommand {
 function parseWhatsAppCommandInternal(
   rawText: string,
   cleaned: string,
-  lowerCleaned: string,
-  _pin: string
+  lowerCleaned: string
 ): ParsedWhatsAppCommand {
   // --- New 19B Task Workflow Commands ---
 
@@ -286,6 +288,34 @@ function parseWhatsAppCommandInternal(
       intent: "cek_pengirim",
       rawText,
       fields: {},
+    };
+  }
+
+  // 1.c cek grup
+  if (lowerCleaned === "cek grup") {
+    return {
+      intent: "cek_grup",
+      rawText,
+      fields: {},
+    };
+  }
+
+  // 1.d event grup
+  if (lowerCleaned === "event grup" || lowerCleaned === "acara grup") {
+    return {
+      intent: "event_grup",
+      rawText,
+      fields: {},
+    };
+  }
+
+  // 1.e hubungkan grup acara
+  if (lowerCleaned.startsWith("hubungkan grup acara ")) {
+    const eventName = cleaned.replace(/^hubungkan\s+grup\s+acara\s+/i, "").trim();
+    return {
+      intent: "hubungkan_grup_acara",
+      rawText,
+      fields: { event_name: eventName },
     };
   }
 

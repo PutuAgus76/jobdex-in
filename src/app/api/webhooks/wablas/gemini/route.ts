@@ -3,10 +3,14 @@ import { AI_SYSTEM_PROMPT } from "@/lib/ai-prompts";
 import { buildAIContext } from "@/lib/server/ai-context";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import {
-  askGemini,
   GEMINI_EMPTY_ANSWER_FALLBACK,
-  GEMINI_MODEL,
 } from "@/lib/server/gemini";
+import { generateText } from "@/lib/server/ai-provider";
+import {
+  findEventByGroupId,
+  getEventsWithGroupId,
+  linkGroupToEvent,
+} from "@/lib/server/group-routing";
 import {
   getWhatsAppRecipient,
   getWhatsAppRecipientType,
@@ -43,7 +47,7 @@ import {
   handleTambahCatatanCommand,
   handleGantiPicCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
-import type { UserProfile } from "@/types";
+import type { UserProfile, Event } from "@/types";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import {
   isReferenceSearchQuestion,
@@ -195,41 +199,7 @@ function sanitizePayload(obj: unknown): unknown {
   return sanitized;
 }
 
-function _formatStatusVal(status: string): string {
-  const clean = status.toLowerCase().replace(/[\s\-_]+/g, " ").trim();
-  if (clean.includes("belum mulai") || clean.includes("belum dimulai") || clean === "belum_dimulai") return "Belum Dimulai";
-  if (clean.includes("sedang dikerjakan") || clean.includes("dikerjakan") || clean.includes("kerja") || clean === "sedang_dikerjakan") return "Sedang Dikerjakan";
-  if (clean.includes("butuh bantuan") || clean.includes("bantuan") || clean === "butuh_bantuan") return "Butuh Bantuan";
-  if (clean.includes("stuck") || clean.includes("macet") || clean === "stuck") return "Stuck";
-  if (clean.includes("menunggu materi") || clean.includes("materi") || clean === "menunggu_materi") return "Menunggu Materi";
-  if (clean.includes("draft selesai") || clean.includes("draft") || clean === "draft_selesai") return "Draft Selesai";
-  if (clean.includes("perlu revisi") || clean.includes("revisi") || clean === "perlu_revisi") return "Perlu Revisi";
-  if (clean.includes("revisi dikerjakan") || clean === "revisi_dikerjakan") return "Revisi Dikerjakan";
-  if (clean.includes("menunggu approval") || clean.includes("approval") || clean === "menunggu_approval") return "Menunggu Approval";
-  
-  const approvedKeywords = [
-    "approve",
-    "approved",
-    "acc",
-    "approve task",
-    "setujui",
-    "disetujui",
-    "sudah approve",
-    "sudah approved",
-    "selesai approve",
-    "final approve",
-  ];
-  if (
-    approvedKeywords.some(kw => clean === kw || clean.includes(kw)) ||
-    clean.includes("selesai") ||
-    clean === "approved"
-  ) {
-    return "Approved";
-  }
 
-  if (clean.includes("ditunda") || clean.includes("tunda") || clean === "ditunda") return "Ditunda";
-  return status;
-}
 
 function getRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -791,7 +761,10 @@ export async function POST(request: NextRequest) {
         "  jenis: ...",
         "  acara: ...",
         "  tahun: ...",
-        "  link: ..."
+        "  link: ...",
+        "- !jobdex cek grup",
+        "- !jobdex event grup",
+        "- !jobdex hubungkan grup acara [nama acara]"
       ].join("\n");
 
       await updateDebugIntent("task_command", "bantuan_task");
@@ -802,6 +775,265 @@ export async function POST(request: NextRequest) {
         status: "sent",
         response: sendResult.responseText,
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handlers for WhatsApp Group Routing (Fase 19C)
+    if (intent === "cek_grup") {
+      const groupSubject = group ? (getString(group.subject) || getString(group.name)) : "";
+      const linkedEvent = await findEventByGroupId(incoming.groupId);
+      const linkedEventName = linkedEvent ? linkedEvent.name : "-";
+
+      let linkedDivisionName = "-";
+      const divisionsSnap = await getAdminDb().collection("divisions").get();
+      for (const doc of divisionsSnap.docs) {
+        const d = doc.data();
+        if (d.whatsapp_group_id === incoming.groupId) {
+          linkedDivisionName = d.name || "-";
+          break;
+        }
+      }
+
+      const isConnected = !!linkedEvent || linkedDivisionName !== "-";
+      const statusText = isConnected ? "Terhubung" : "Belum terhubung";
+
+      const replyMessage = [
+        "[JobDex.in Debug Grup]",
+        "",
+        `Group ID: ${incoming.groupId || "Personal Chat"}`,
+        `Group Name: ${groupSubject || "-"}`,
+        `Terhubung ke event: ${linkedEventName}`,
+        `Terhubung ke divisi: ${linkedDivisionName}`,
+        `Status: ${statusText}`
+      ].join("\n");
+
+      await updateDebugIntent("task_command", "cek_grup");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: "",
+          target_task_name: "",
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    if (intent === "event_grup") {
+      const events = await getEventsWithGroupId();
+      let replyMessage = "";
+      if (events.length === 0) {
+        replyMessage = [
+          "[JobDex.in Grup Acara]",
+          "",
+          "Belum ada acara yang memiliki grup WhatsApp khusus."
+        ].join("\n");
+      } else {
+        const listLines = events.map((e, index) => {
+          return `${index + 1}. ${e.name}\n   Group ID: ${e.whatsapp_group_id}\n   Status: Terhubung`;
+        });
+        replyMessage = [
+          "[JobDex.in Grup Acara]",
+          "",
+          "Daftar acara yang memiliki grup WhatsApp khusus:",
+          "",
+          ...listLines
+        ].join("\n");
+      }
+
+      await updateDebugIntent("task_command", "event_grup");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: authorizationResult,
+          command_intent: intent,
+          target_task_id: "",
+          target_task_name: "",
+        });
+      }
+
+      return NextResponse.json({ ok: true });
+    }
+
+    if (intent === "hubungkan_grup_acara") {
+      const eventName = String(parsedCommand.fields.event_name || "").trim();
+      
+      if (!incoming.isGroup || !incoming.groupId) {
+        const replyMessage = [
+          "[JobDex.in Grup Acara]",
+          "",
+          "Command ini hanya dapat dijalankan di dalam grup WhatsApp."
+        ].join("\n");
+
+        await updateDebugIntent("task_command", "hubungkan_grup_acara");
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Find event by name
+      const eventsSnap = await getAdminDb().collection("events").get();
+      let matchedEvent: Event | null = null;
+      for (const doc of eventsSnap.docs) {
+        const e = doc.data() as Event;
+        if (e.name.toLowerCase() === eventName.toLowerCase()) {
+          matchedEvent = { ...e, id: doc.id };
+          break;
+        }
+      }
+
+      if (!matchedEvent) {
+        const replyMessage = [
+          "[JobDex.in Grup Acara]",
+          "",
+          `Acara dengan nama "${eventName}" tidak ditemukan.`
+        ].join("\n");
+
+        await updateDebugIntent("task_command", "hubungkan_grup_acara");
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
+      // Check authorization
+      let isAllowed = false;
+      if (senderUserProfile) {
+        if (senderUserProfile.role === "super_admin") {
+          isAllowed = true;
+        } else if (senderUserProfile.role === "koordinator_acara") {
+          if (matchedEvent.coordinator_id === senderUserProfile.id) {
+            isAllowed = true;
+          }
+        } else if (senderUserProfile.role === "koordinator_divisi") {
+          // Check if user is coordinator of any division with tasks in this event
+          const userDivisionsSnap = await getAdminDb()
+            .collection("divisions")
+            .where("coordinator_id", "==", senderUserProfile.id)
+            .get();
+          
+          const divisionIds = userDivisionsSnap.docs.map(doc => doc.id);
+          if (divisionIds.length > 0) {
+            const eventTasksSnap = await getAdminDb()
+              .collection("tasks")
+              .where("event_id", "==", matchedEvent.id)
+              .get();
+            
+            const hasTaskInDivision = eventTasksSnap.docs.some(doc => {
+              const taskData = doc.data();
+              return divisionIds.includes(taskData.division_id);
+            });
+            if (hasTaskInDivision) {
+              isAllowed = true;
+            }
+          }
+        }
+      }
+
+      if (!isAllowed) {
+        authorizationResult = "denied";
+        const replyMessage = [
+          "[JobDex.in Akses Ditolak]",
+          "",
+          "Maaf, Anda tidak memiliki izin untuk menghubungkan grup WhatsApp ke acara ini. Pindai/hubungkan hanya diperbolehkan untuk Super Admin, Koordinator Acara terkait, atau Koordinator Divisi terkait."
+        ].join("\n");
+
+        await updateDebugIntent("task_command", "hubungkan_grup_acara");
+        const sendResult = await sendWhatsAppMessage(replyMessage);
+        await createWhatsAppLog({
+          message: replyMessage,
+          status: "failed",
+          response: sendResult.responseText,
+        });
+
+        if (debugRefId) {
+          await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+            auth_mode: authMode,
+            pin_required: pinRequired,
+            sender_user_id: senderUserId,
+            sender_user_role: senderUserRole,
+            authorization_result: authorizationResult,
+            command_intent: intent,
+            target_task_id: "",
+            target_task_name: "",
+          });
+        }
+
+        return NextResponse.json({ ok: true });
+      }
+
+      // Link group to event
+      const groupSubject = group ? (getString(group.subject) || getString(group.name)) : "";
+      await linkGroupToEvent(
+        matchedEvent.id,
+        incoming.groupId,
+        groupSubject || matchedEvent.name,
+        senderUserProfile!.id,
+        "webhook_detected"
+      );
+
+      const replyMessage = [
+        "[JobDex.in Grup Acara]",
+        "",
+        "Grup ini berhasil dihubungkan ke acara:",
+        matchedEvent.name,
+        "",
+        `Group ID: ${incoming.groupId}`,
+        "Mulai sekarang reminder untuk task acara ini akan diarahkan ke grup ini."
+      ].join("\n");
+
+      await updateDebugIntent("task_command", "hubungkan_grup_acara");
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+
+      if (debugRefId) {
+        await getAdminDb().collection("wablas_incoming_debug").doc(debugRefId).update({
+          auth_mode: authMode,
+          pin_required: pinRequired,
+          sender_user_id: senderUserId,
+          sender_user_role: senderUserRole,
+          authorization_result: "allowed",
+          command_intent: intent,
+          target_task_id: "",
+          target_task_name: "",
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 
@@ -1600,10 +1832,13 @@ export async function POST(request: NextRequest) {
       "",
       "Instruksi jawaban: jawab ringkas, siap dibaca di WhatsApp group, dan jangan memakai data di luar context.",
     ].join("\n");
-    const answer = await askGemini({
+    const aiResult = await generateText({
       systemPrompt: AI_SYSTEM_PROMPT,
       prompt,
+      feature: "whatsapp_assistant",
+      modelTier: "fast",
     });
+    const answer = aiResult.text;
     const aiLogRef = getAdminDb().collection("ai_logs").doc();
 
     await aiLogRef.set({
@@ -1613,7 +1848,7 @@ export async function POST(request: NextRequest) {
       question: sanitizePinFromMessage(question),
       context_summary: contextSummary.slice(0, 12000),
       answer,
-      model_used: GEMINI_MODEL,
+      model_used: aiResult.model,
       source: "whatsapp",
       whatsapp_sender: senderLabel,
       whatsapp_group_id: process.env.WABLAS_GROUP_ID ?? "",

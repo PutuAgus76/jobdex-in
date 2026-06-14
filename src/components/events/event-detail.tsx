@@ -100,6 +100,63 @@ export function EventDetail({
         </Card>
       </section>
 
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>WhatsApp Group Acara</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {event.whatsapp_group_id ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                    Terhubung
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <code className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    {event.whatsapp_group_id}
+                  </code>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors"
+                    onClick={() => {
+                      navigator.clipboard.writeText(event.whatsapp_group_id || "");
+                    }}
+                  >
+                    Copy
+                  </button>
+                </div>
+                {event.whatsapp_group_name && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Nama grup: {event.whatsapp_group_name}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Reminder task acara ini akan dikirim ke grup ini.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    Belum diatur
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  Edit acara untuk menambahkan ID grup WhatsApp, atau kirim command dari dalam grup:
+                  <code className="ml-1 rounded bg-slate-100 px-1 text-[10px] dark:bg-slate-800">
+                    !jobdex hubungkan grup acara {event.name}
+                  </code>
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
       <EventMembersManager
         eventId={event.id}
         eventName={event.name}
