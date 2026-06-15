@@ -19,6 +19,8 @@ import {
 import type { Task, TaskStatus, UserProfile } from "@/types";
 import { showSuccess, showError } from "@/lib/swal";
 
+import { RefreshCw, HelpCircle, AlertTriangle, RotateCcw, CheckCircle2 } from "lucide-react";
+
 type TaskActionButtonsProps = {
   task: Task;
   currentUser: UserProfile;
@@ -135,49 +137,63 @@ export function TaskActionButtons({
         <Button
           type="button"
           variant="secondary"
+          size="sm"
           onClick={() => {
             setPresetStatus(undefined);
             setStatusOpen(true);
           }}
         >
-          Update Status
+          <RefreshCw className="size-3.5" />
+          <span>Update Status</span>
         </Button>
       ) : null}
       {canUpdate && allowedStatuses.includes("butuh_bantuan") ? (
         <Button
           type="button"
           variant="secondary"
+          size="sm"
           onClick={() => {
             setPresetStatus("butuh_bantuan");
             setStatusOpen(true);
           }}
         >
-          Butuh Bantuan
+          <HelpCircle className="size-3.5" />
+          <span>Butuh Bantuan</span>
         </Button>
       ) : null}
       {canUpdate && allowedStatuses.includes("stuck") ? (
         <Button
           type="button"
-          variant="warning"
+          variant="destructive"
+          size="sm"
           onClick={() => {
             setPresetStatus("stuck");
             setStatusOpen(true);
           }}
         >
-          Tandai Stuck
+          <AlertTriangle className="size-3.5" />
+          <span>Tandai Stuck</span>
         </Button>
       ) : null}
       {canApprove ? (
         <>
           <Button
             type="button"
-            variant="secondary"
+            variant="warning"
+            size="sm"
             onClick={() => setRevisionOpen(true)}
           >
-            Minta Revisi
+            <RotateCcw className="size-3.5" />
+            <span>Minta Revisi</span>
           </Button>
-          <Button type="button" onClick={() => setApproveOpen(true)}>
-            Approve
+          <Button
+            type="button"
+            variant="success"
+            size="sm"
+            onClick={() => setApproveOpen(true)}
+          >
+            <CheckCircle2 className="size-3.5" />
+            <span>Approve</span>
           </Button>
         </>
       ) : null}

@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { X, Plus } from "lucide-react";
 import type { EventMember, UserProfile } from "@/types";
 
 type AddEventMemberDialogProps = {
@@ -77,6 +78,7 @@ export function AddEventMemberDialog({
               </p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>
@@ -126,10 +128,12 @@ export function AddEventMemberDialog({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting || !availableUsers.length}>
+            <Button type="submit" size="sm" disabled={isSubmitting || !availableUsers.length}>
+              <Plus className="h-4 w-4" />
               {isSubmitting ? "Menambahkan..." : "Tambah anggota"}
             </Button>
           </div>

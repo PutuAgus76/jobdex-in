@@ -193,9 +193,9 @@ export function AIChat() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 min-h-0 relative">
       {/* Scrollable Chat Area */}
-      <section className="max-h-[68vh] lg:max-h-[72vh] min-h-[460px] space-y-4 overflow-y-auto jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30">
+      <section className="flex-1 min-h-0 overflow-y-auto space-y-4 jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30 mb-4">
         {historyLoading ? (
           <div className="jd-neo-card p-4 text-sm font-normal text-slate-500 bg-white">
             Memuat riwayat chat...
@@ -238,32 +238,33 @@ export function AIChat() {
         <div ref={chatEndRef} />
       </section>
 
-      {/* Copy / Action Alerts */}
-      {copyMessage ? (
-        <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
-          {copyMessage}
-        </div>
-      ) : null}
-      {whatsAppMessage ? (
-        <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
-          {whatsAppMessage}
-        </div>
-      ) : null}
-      {error ? (
-        <div className="jd-neo-badge jd-neo-badge-red text-xs font-bold w-full py-2 flex items-center justify-center">
-          {error}
-        </div>
-      ) : null}
+      {/* Sticky Bottom Composer and Alerts Container */}
+      <div className="bg-[var(--background)] border-t border-border pt-3 space-y-3 shrink-0 sticky bottom-0 z-10 pb-2">
+        {/* Copy / Action Alerts */}
+        {copyMessage ? (
+          <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
+            {copyMessage}
+          </div>
+        ) : null}
+        {whatsAppMessage ? (
+          <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
+            {whatsAppMessage}
+          </div>
+        ) : null}
+        {error ? (
+          <div className="jd-neo-badge jd-neo-badge-red text-xs font-bold w-full py-2 flex items-center justify-center">
+            {error}
+          </div>
+        ) : null}
 
-      {/* Quick Prompts & Prompt Input Group (ChatGPT style, anchored at the bottom) */}
-      <div className="space-y-3 pt-2">
+        {/* Quick Prompts Header */}
         <div className="flex items-center justify-between px-1">
           <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pertanyaan Cepat</span>
           <button
             type="button"
             onClick={loadHistory}
             disabled={historyLoading}
-            className="text-[11px] font-bold text-neutral-800 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white transition-colors underline"
+            className="text-[11px] font-bold text-neutral-800 hover:text-neutral-950 dark:text-neutral-300 dark:hover:text-white transition-colors underline cursor-pointer"
           >
             {historyLoading ? "Memuat..." : "Refresh Riwayat"}
           </button>

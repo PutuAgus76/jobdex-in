@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatTaskDate } from "@/lib/firebase/tasks";
 import type { Event, Task, TaskInput, UserProfile } from "@/types";
 
+import { Plus, Eye } from "lucide-react";
+
 type EventTasksSectionProps = {
   event: Event;
   tasks: Task[];
@@ -38,8 +40,9 @@ export function EventTasksSection({
           </p>
         </div>
         {canManage ? (
-          <Button type="button" onClick={() => setFormOpen(true)}>
-            Tambah Job Desk
+          <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="size-3.5" />
+            <span>Tambah Job Desk</span>
           </Button>
         ) : null}
       </div>
@@ -54,28 +57,31 @@ export function EventTasksSection({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm border-collapse">
               <thead>
-                <tr>
-                  <th className="px-4 py-3">Nama task</th>
-                  <th className="px-4 py-3">PIC</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Prioritas</th>
-                  <th className="px-4 py-3">Deadline</th>
-                  <th className="px-4 py-3">Aksi</th>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Task</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">PIC</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Prioritas</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Deadline</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-850">
+              <tbody className="divide-y divide-border">
                 {tasks.map((task) => (
                   <tr key={task.id}>
-                    <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
-                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-3 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
                     </td>
-                    <td className="px-4 py-4"><TaskStatusBadge status={task.status} /></td>
-                    <td className="px-4 py-4"><TaskPriorityBadge priority={task.priority} /></td>
-                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
-                    <td className="px-4 py-4">
-                      <Button asChild size="sm" variant="secondary">
-                        <Link href={`/dashboard/tasks/${task.id}`}>Detail</Link>
+                    <td className="px-4 py-3"><TaskStatusBadge status={task.status} /></td>
+                    <td className="px-4 py-3"><TaskPriorityBadge priority={task.priority} /></td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
+                    <td className="px-4 py-3">
+                      <Button asChild size="sm" variant="info">
+                        <Link href={`/dashboard/tasks/${task.id}`} className="flex items-center gap-1.5">
+                          <Eye className="size-3.5" />
+                          <span>Detail</span>
+                        </Link>
                       </Button>
                     </td>
                   </tr>

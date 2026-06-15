@@ -32,7 +32,7 @@ export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
 
   return (
     <form className="sticky bottom-0 bg-[var(--jd-neo-bg)]/90 backdrop-blur py-2 jd-sticky-bottom-safe" onSubmit={handleSubmit}>
-      <div className="flex items-center gap-3 rounded-base border-2 border-[var(--border)] bg-[var(--secondary-background)] px-4 py-2.5 shadow-[2px_2px_0px_var(--border)] focus-within:ring-2 focus-within:ring-[var(--border)] focus-within:ring-offset-2 transition-all">
+      <div className="flex items-center gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-[var(--secondary-background)] px-4 py-2.5 shadow-sm focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500 transition-all">
         <textarea
           id="ai-question"
           rows={1}
@@ -46,7 +46,7 @@ export function AIInput({ disabled = false, onSubmit }: AIInputProps) {
         <button
           type="submit"
           disabled={disabled || !question.trim()}
-          className="flex h-9 w-9 items-center justify-center rounded-base border-2 border-[var(--border)] bg-[var(--main)] text-neutral-950 shadow-[2px_2px_0px_var(--border)] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--border)] active:translate-x-0 active:translate-y-0 active:shadow-[2px_2px_0px_var(--border)] transition-all shrink-0 cursor-pointer disabled:opacity-50 disabled:pointer-events-none disabled:translate-x-0 disabled:translate-y-0 disabled:shadow-[2px_2px_0px_var(--border)]"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-sm transition-colors shrink-0 cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
           title="Kirim pesan"
         >
           <Send className="h-4 w-4" />

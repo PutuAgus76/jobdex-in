@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
 import { getDateInputValue } from "@/lib/firebase/events";
 import { NeoDatePicker } from "@/components/ui/neo-date-picker";
+import { X, Save } from "lucide-react";
 import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
 
 type EventFormDialogProps = {
@@ -105,6 +106,7 @@ function EventForm({
               </p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>
@@ -247,10 +249,12 @@ function EventForm({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              <Save className="h-4 w-4" />
               {isSubmitting ? "Menyimpan..." : "Simpan acara"}
             </Button>
           </div>

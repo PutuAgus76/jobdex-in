@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { TASK_STATUS_LABELS } from "@/lib/task-status";
+import { X, Save } from "lucide-react";
 import type { Task, TaskStatus } from "@/types";
 
 type TaskUpdateStatusDialogProps = {
@@ -79,6 +80,7 @@ export function TaskUpdateStatusDialog({
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{task.name}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>
@@ -110,8 +112,14 @@ export function TaskUpdateStatusDialog({
             <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan status"}</Button>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+              Batal
+            </Button>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              <Save className="h-4 w-4" />
+              {isSubmitting ? "Menyimpan..." : "Simpan status"}
+            </Button>
           </div>
         </form>
       </div>

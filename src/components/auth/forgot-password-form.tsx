@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Mail } from "lucide-react";
 import {
   getFirebaseAuthErrorMessage,
   isValidEmail,
@@ -64,18 +65,19 @@ export function ForgotPasswordForm() {
       </div>
 
       {error ? (
-        <p className="jd-neo-badge jd-neo-badge-red text-xs w-full py-2 flex items-center justify-center font-bold">
+        <p className="w-full text-center py-2 px-3 text-xs font-semibold text-red-700 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-md">
           {error}
         </p>
       ) : null}
 
       {successMessage ? (
-        <p className="jd-neo-badge jd-neo-badge-green text-xs w-full py-2 flex items-center justify-center font-bold">
+        <p className="w-full text-center py-2 px-3 text-xs font-semibold text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-md">
           {successMessage}
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full font-black shadow-[3px_3px_0px_rgba(0,0,0,1)]" disabled={isSubmitting}>
+      <Button type="submit" size="md" className="w-full" disabled={isSubmitting}>
+        <Mail className="h-4 w-4" />
         {isSubmitting ? "Mengirim..." : "Kirim email reset"}
       </Button>
     </form>

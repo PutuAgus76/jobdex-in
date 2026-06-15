@@ -5,6 +5,7 @@ import type { Task, UserProfile, TaskCandidate, TaskEditPreview, Event } from "@
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { parseIndonesianDate, validateCommandPin, sanitizePinFromMessage, recalculateEventProgressAdmin } from "./whatsapp-command-executor";
 import { USER_ROLE_LABELS } from "@/lib/roles";
+import { WA_LABEL, WA_BOT_LABEL } from "@/lib/server/whatsapp-labels";
 
 export { validateCommandPin, sanitizePinFromMessage };
 
@@ -48,7 +49,7 @@ export function validateTaskPermission(
 function getAccessDeniedMessage(user: UserProfile): string {
   const roleLabel = USER_ROLE_LABELS[user.role] || user.role;
   return [
-    "[JobDex.in Akses Ditolak]",
+    WA_LABEL.accessDenied,
     "",
     `Kamu terdeteksi sebagai: ${user.name} (${roleLabel})`,
     "Aksi ini tidak diizinkan untuk role kamu atau task ini bukan dalam cakupan akses kamu."
@@ -156,7 +157,7 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
 
     if (filtered.length === 0) {
       return [
-        "[JobDex.in Deadline]",
+        WA_LABEL.deadline,
         "",
         "Tidak ada tugas berisiko untuk kategori ini."
       ].join("\n");
@@ -171,7 +172,7 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
     });
 
     const lines = [
-      "[JobDex.in Deadline]",
+      WA_LABEL.deadline,
       "",
       `Ditemukan ${filtered.length} tugas berisiko:`,
       ""
@@ -219,7 +220,7 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
     return lines.join("\n").trim();
   } catch (error) {
     console.error("[Deadline Query] Failed:", error);
-    return "[JobDex.in Deadline]\n\nGagal memproses pencarian deadline.";
+    return "${WA_LABEL.deadline}\n\nGagal memproses pencarian deadline.";
   }
 }
 
@@ -312,7 +313,7 @@ export async function findTaskCandidates(
   // Ambiguous: matched.length > 1
   // Create candidate codes for each match
   const lines = [
-    "[JobDex.in Task]",
+    WA_LABEL.task,
     "",
     "Ditemukan beberapa task mirip:",
     ""
@@ -404,7 +405,7 @@ export async function handleApproveTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Approval]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.approval}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -454,7 +455,7 @@ export async function handleApproveTaskCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Approval]",
+        WA_LABEL.approval,
         "",
         "Task berhasil di-approve.",
         "",
@@ -468,7 +469,7 @@ export async function handleApproveTaskCommand(
     };
   } catch (error) {
     console.error("[Approve Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Approval]\nGagal memproses persetujuan tugas." };
+    return { success: false, replyText: "${WA_LABEL.approval}\nGagal memproses persetujuan tugas." };
   }
 }
 
@@ -488,7 +489,7 @@ export async function handleUpdateTaskStatusCommand(
       return {
         success: false,
         replyText: [
-          "[JobDex.in Status]",
+          WA_LABEL.status,
           "",
           "Format status tidak dikenali.",
           "",
@@ -512,7 +513,7 @@ export async function handleUpdateTaskStatusCommand(
     if ((statusEnum === "stuck" || statusEnum === "butuh_bantuan" || statusEnum === "menunggu_materi") && !notes.trim()) {
       return {
         success: false,
-        replyText: `[JobDex.in Status]\n\nCatatan wajib diisi untuk status "stuck", "butuh bantuan", atau "menunggu materi".`
+        replyText: `${WA_LABEL.status}\n\nCatatan wajib diisi untuk status "stuck", "butuh bantuan", atau "menunggu materi".`
       };
     }
 
@@ -530,7 +531,7 @@ export async function handleUpdateTaskStatusCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Status]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.status}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -583,7 +584,7 @@ export async function handleUpdateTaskStatusCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Status]",
+        WA_LABEL.status,
         "",
         "Status task berhasil diperbarui.",
         "",
@@ -597,7 +598,7 @@ export async function handleUpdateTaskStatusCommand(
     };
   } catch (error) {
     console.error("[Update Status] Error:", error);
-    return { success: false, replyText: "[JobDex.in Status]\n\nGagal memperbarui status tugas." };
+    return { success: false, replyText: "${WA_LABEL.status}\n\nGagal memperbarui status tugas." };
   }
 }
 
@@ -625,7 +626,7 @@ export async function handleEditTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Edit Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.editTask}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -647,7 +648,7 @@ export async function handleEditTaskCommand(
     if (parsedFields.pic) {
       const picUser = await findUserByName(parsedFields.pic);
       if (!picUser) {
-        return { success: false, replyText: `[JobDex.in Edit Task]\nAnggota PIC "${parsedFields.pic}" tidak ditemukan.` };
+        return { success: false, replyText: `${WA_LABEL.editTask}\nAnggota PIC "${parsedFields.pic}" tidak ditemukan.` };
       }
       if (task.pic_id !== picUser.id) {
         changes.pic_id = picUser.id;
@@ -684,7 +685,7 @@ export async function handleEditTaskCommand(
     if (prioInput) {
       const cleanPrio = normalizePriority(prioInput);
       if (!cleanPrio) {
-        return { success: false, replyText: `[JobDex.in Edit Task]\nPrioritas tidak valid (Rendah, Sedang, Tinggi, Kritis).` };
+        return { success: false, replyText: `${WA_LABEL.editTask}\nPrioritas tidak valid (Rendah, Sedang, Tinggi, Kritis).` };
       }
       if (task.priority !== cleanPrio) {
         changes.priority = cleanPrio;
@@ -765,7 +766,7 @@ export async function handleEditTaskCommand(
     }
 
     if (Object.keys(changes).length === 0) {
-      return { success: true, replyText: `[JobDex.in Edit Task]\n\nTidak ada perubahan detail yang terdeteksi.` };
+      return { success: true, replyText: `${WA_LABEL.editTask}\n\nTidak ada perubahan detail yang terdeteksi.` };
     }
 
     // Generate EDT preview
@@ -792,7 +793,7 @@ export async function handleEditTaskCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Preview Edit Task]",
+        WA_LABEL.previewEditTask,
         "",
         "Saya menemukan task:",
         task.name,
@@ -813,7 +814,7 @@ export async function handleEditTaskCommand(
     };
   } catch (error) {
     console.error("[Edit Task Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Edit Task]\n\nGagal memproses draf perubahan detail tugas." };
+    return { success: false, replyText: "${WA_LABEL.editTask}\n\nGagal memproses draf perubahan detail tugas." };
   }
 }
 
@@ -834,7 +835,7 @@ export async function handleConfirmEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\nKode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nKode edit tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -847,12 +848,12 @@ export async function handleConfirmEditTaskCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\nKode edit telah kadaluwarsa (batas 30 menit)." };
+      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nKode edit telah kadaluwarsa (batas 30 menit)." };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "[JobDex.in Confirm Edit]\nTugas asli tidak ditemukan di database." };
+      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nTugas asli tidak ditemukan di database." };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
@@ -889,7 +890,7 @@ export async function handleConfirmEditTaskCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Confirm Edit]",
+        WA_LABEL.confirmEdit,
         "",
         "Perubahan tugas berhasil disimpan.",
         "",
@@ -901,7 +902,7 @@ export async function handleConfirmEditTaskCommand(
     };
   } catch (error) {
     console.error("[Confirm Edit] Error:", error);
-    return { success: false, replyText: "[JobDex.in Confirm Edit]\nGagal menyelesaikan konfirmasi perubahan tugas." };
+    return { success: false, replyText: "${WA_LABEL.confirmEdit}\nGagal menyelesaikan konfirmasi perubahan tugas." };
   }
 }
 
@@ -923,7 +924,7 @@ export async function handleCancelEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Cancel Edit]\nKode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "${WA_LABEL.cancelEdit}\nKode edit tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -932,13 +933,13 @@ export async function handleCancelEditTaskCommand(
 
     return {
       success: true,
-      replyText: `[JobDex.in Cancel Edit]\nDraf perubahan detail tugas (${code}) berhasil dibatalkan.`,
+      replyText: `${WA_LABEL.cancelEdit}\nDraf perubahan detail tugas (${code}) berhasil dibatalkan.`,
       taskId: previewData.task_id,
       taskName: previewData.task_title
     };
   } catch (error) {
     console.error("[Cancel Edit] Error:", error);
-    return { success: false, replyText: "[JobDex.in Cancel Edit]\nGagal membatalkan draf perubahan tugas." };
+    return { success: false, replyText: "${WA_LABEL.cancelEdit}\nGagal membatalkan draf perubahan tugas." };
   }
 }
 
@@ -964,7 +965,7 @@ export async function handleArchiveTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Archive]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.archive}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1001,7 +1002,7 @@ export async function handleArchiveTaskCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Preview Archive]",
+        WA_LABEL.previewArchive,
         "",
         "Task ini akan diarsipkan:",
         task.name,
@@ -1016,7 +1017,7 @@ export async function handleArchiveTaskCommand(
     };
   } catch (error) {
     console.error("[Archive Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Archive]\nGagal memproses draf pengarsipan tugas." };
+    return { success: false, replyText: "${WA_LABEL.archive}\nGagal memproses draf pengarsipan tugas." };
   }
 }
 
@@ -1037,7 +1038,7 @@ export async function handleConfirmArchiveCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\nKode archive tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nKode archive tidak ditemukan atau sudah diproses." };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -1050,12 +1051,12 @@ export async function handleConfirmArchiveCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\nKode archive telah kadaluwarsa (30 menit)." };
+      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nKode archive telah kadaluwarsa (30 menit)." };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "[JobDex.in Confirm Archive]\nTugas asli tidak ditemukan di database." };
+      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nTugas asli tidak ditemukan di database." };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
@@ -1092,7 +1093,7 @@ export async function handleConfirmArchiveCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Confirm Archive]",
+        WA_LABEL.confirmArchive,
         "",
         "Tugas berhasil diarsipkan.",
         "",
@@ -1104,7 +1105,7 @@ export async function handleConfirmArchiveCommand(
     };
   } catch (error) {
     console.error("[Confirm Archive] Error:", error);
-    return { success: false, replyText: "[JobDex.in Confirm Archive]\nGagal menyelesaikan konfirmasi pengarsipan." };
+    return { success: false, replyText: "${WA_LABEL.confirmArchive}\nGagal menyelesaikan konfirmasi pengarsipan." };
   }
 }
 
@@ -1124,12 +1125,12 @@ export async function handleChecklistCommand(
       draft: "Mulai desain/draft awal",
       revisi: "Revisi internal",
       final: "Finalisasi desain",
-      upload: "Upload hasil ke JobDex.in / Drive"
+      upload: "Upload hasil ke Drive"
     };
 
     const targetLabel = checklistMap[itemKeyword];
     if (!targetLabel) {
-      return { success: false, replyText: `[JobDex.in Checklist]\nItem checklist "${itemKeyword}" tidak valid. Pilih salah satu (redaksi, referensi, draft, revisi, final, upload).` };
+      return { success: false, replyText: `${WA_LABEL.checklist}\nItem checklist "${itemKeyword}" tidak valid. Pilih salah satu (redaksi, referensi, draft, revisi, final, upload).` };
     }
 
     const { tasks, candidateMessage } = await findTaskCandidates(
@@ -1146,7 +1147,7 @@ export async function handleChecklistCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Checklist]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.checklist}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1169,7 +1170,7 @@ export async function handleChecklistCommand(
         { id: "checklist_3", label: "Mulai desain/draft awal", is_done: false },
         { id: "checklist_4", label: "Revisi internal", is_done: false },
         { id: "checklist_5", label: "Finalisasi desain", is_done: false },
-        { id: "checklist_6", label: "Upload hasil ke JobDex.in / Drive", is_done: false },
+        { id: "checklist_6", label: "Upload hasil ke Drive", is_done: false },
       ];
 
       updatedChecklist = defaultChecklist.map((item) => {
@@ -1225,7 +1226,7 @@ export async function handleChecklistCommand(
     return {
       success: true,
       replyText: [
-        "[JobDex.in Checklist]",
+        WA_LABEL.checklist,
         "",
         "Item checklist berhasil ditandai selesai.",
         "",
@@ -1238,7 +1239,7 @@ export async function handleChecklistCommand(
     };
   } catch (error) {
     console.error("[Checklist Command] Error:", error);
-    return { success: false, replyText: "[JobDex.in Checklist]\nGagal menandai checklist tugas." };
+    return { success: false, replyText: "${WA_LABEL.checklist}\nGagal menandai checklist tugas." };
   }
 }
 
@@ -1416,7 +1417,7 @@ export async function handleTugasSayaCommand(
       return {
         success: true,
         replyText: [
-          "[JobDex.in Tugas Saya]",
+          WA_LABEL.tugasSaya,
           "",
           `Halo ${user.name}, tidak ada tugas aktif yang ditemukan untuk kamu.`
         ].join("\n"),
@@ -1433,7 +1434,7 @@ export async function handleTugasSayaCommand(
     const totalCount = filtered.length;
     const displayedTasks = filtered.slice(0, 10);
     const lines = [
-      "[JobDex.in Tugas Saya]",
+      WA_LABEL.tugasSaya,
       "",
       `Halo ${user.name}, berikut tugas aktif kamu:`,
       ""
@@ -1476,7 +1477,7 @@ export async function handleTugasSayaCommand(
     });
 
     if (totalCount > 10) {
-      lines.push(`...dan ${totalCount - 10} tugas lainnya. Buka dashboard JobDex.in untuk detail lengkap.`);
+      lines.push(`...dan ${totalCount - 10} tugas lainnya. Buka dashboard JobdexIn untuk detail lengkap.`);
     }
 
     return {
@@ -1487,7 +1488,7 @@ export async function handleTugasSayaCommand(
     console.error("[Tugas Saya] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Tugas Saya]\nGagal mengambil daftar tugas kamu.",
+      replyText: "${WA_LABEL.tugasSaya}\nGagal mengambil daftar tugas kamu.",
     };
   }
 }
@@ -1510,7 +1511,7 @@ export async function handleDetailTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Detail Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.detailTask}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1592,7 +1593,7 @@ export async function handleDetailTaskCommand(
     };
 
     const replyText = [
-      "[JobDex.in Detail Task]",
+      WA_LABEL.detailTask,
       "",
       `Task: ${task.name}`,
       `Status: ${getFormattedStatus(task.status)}`,
@@ -1634,7 +1635,7 @@ export async function handleDetailTaskCommand(
     console.error("[Detail Task] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Detail Task]\nGagal mengambil detail tugas.",
+      replyText: "${WA_LABEL.detailTask}\nGagal mengambil detail tugas.",
     };
   }
 }
@@ -1660,7 +1661,7 @@ export async function handleUploadHasilCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Upload Hasil]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.uploadHasil}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1672,7 +1673,7 @@ export async function handleUploadHasilCommand(
     }
 
     if (!link) {
-      return { success: false, replyText: "[JobDex.in Upload Hasil]\nGagal mengirim hasil: Link URL wajib disertakan." };
+      return { success: false, replyText: "${WA_LABEL.uploadHasil}\nGagal mengirim hasil: Link URL wajib disertakan." };
     }
 
     const db = getAdminDb();
@@ -1680,7 +1681,7 @@ export async function handleUploadHasilCommand(
     const batch = db.batch();
 
     let updatedChecklist = task.checklist_items || [];
-    const checkedLabel = "Upload hasil ke JobDex.in / Drive";
+    const checkedLabel = "Upload hasil ke Drive";
     let checklistUpdated = false;
 
     if (updatedChecklist.length > 0) {
@@ -1740,7 +1741,7 @@ export async function handleUploadHasilCommand(
     const picName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
 
     const replyText = [
-      "[JobDex.in Upload Hasil]",
+      WA_LABEL.uploadHasil,
       "",
       "Hasil task berhasil dikirim.",
       "",
@@ -1762,7 +1763,7 @@ export async function handleUploadHasilCommand(
     console.error("[Upload Hasil] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Upload Hasil]\nGagal mengirim hasil task.",
+      replyText: "${WA_LABEL.uploadHasil}\nGagal mengirim hasil task.",
     };
   }
 }
@@ -1787,7 +1788,7 @@ export async function handleMintaRevisiCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Revisi Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.mintaRevisi}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1799,7 +1800,7 @@ export async function handleMintaRevisiCommand(
     }
 
     if (!catatan) {
-      return { success: false, replyText: "[JobDex.in Revisi Task]\nGagal meminta revisi: Catatan revisi wajib disertakan." };
+      return { success: false, replyText: "${WA_LABEL.mintaRevisi}\nGagal meminta revisi: Catatan revisi wajib disertakan." };
     }
 
     const db = getAdminDb();
@@ -1838,7 +1839,7 @@ export async function handleMintaRevisiCommand(
     const picName = task.pic_id ? await getUsernameById(task.pic_id) : "-";
 
     const replyText = [
-      "[JobDex.in Revisi Task]",
+      WA_LABEL.mintaRevisi,
       "",
       "Revisi berhasil diminta.",
       "",
@@ -1860,7 +1861,7 @@ export async function handleMintaRevisiCommand(
     console.error("[Minta Revisi] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Revisi Task]\nGagal meminta revisi tugas.",
+      replyText: "${WA_LABEL.mintaRevisi}\nGagal meminta revisi tugas.",
     };
   }
 }
@@ -1883,7 +1884,7 @@ export async function handleCekChecklistCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Checklist Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.cekChecklist}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1910,7 +1911,7 @@ export async function handleCekChecklistCommand(
     };
 
     const replyText = [
-      "[JobDex.in Checklist Task]",
+      WA_LABEL.cekChecklist,
       "",
       `Task: ${task.name}`,
       "",
@@ -1919,7 +1920,7 @@ export async function handleCekChecklistCommand(
       `3. Mulai desain/draft awal: ${getChecklistStatus("draft")}`,
       `4. Revisi internal: ${getChecklistStatus("revisi")}`,
       `5. Finalisasi desain: ${getChecklistStatus("final")}`,
-      `6. Upload hasil ke JobDex.in / Drive: ${getChecklistStatus("upload")}`
+      `6. Upload hasil ke Drive: ${getChecklistStatus("upload")}`
     ].join("\n");
 
     return {
@@ -1932,7 +1933,7 @@ export async function handleCekChecklistCommand(
     console.error("[Cek Checklist] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Checklist Task]\nGagal mengambil checklist tugas.",
+      replyText: "${WA_LABEL.cekChecklist}\nGagal mengambil checklist tugas.",
     };
   }
 }
@@ -1957,7 +1958,7 @@ export async function handleTambahCatatanCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Catatan Task]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.tambahCatatan}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -1969,7 +1970,7 @@ export async function handleTambahCatatanCommand(
     }
 
     if (!catatan) {
-      return { success: false, replyText: "[JobDex.in Catatan Task]\nGagal menambahkan catatan: Catatan wajib disertakan." };
+      return { success: false, replyText: "${WA_LABEL.tambahCatatan}\nGagal menambahkan catatan: Catatan wajib disertakan." };
     }
 
     const db = getAdminDb();
@@ -1997,7 +1998,7 @@ export async function handleTambahCatatanCommand(
     await batch.commit();
 
     const replyText = [
-      "[JobDex.in Catatan Task]",
+      WA_LABEL.tambahCatatan,
       "",
       "Catatan berhasil ditambahkan.",
       "",
@@ -2018,7 +2019,7 @@ export async function handleTambahCatatanCommand(
     console.error("[Tambah Catatan] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Catatan Task]\nGagal menambahkan catatan ke tugas.",
+      replyText: "${WA_LABEL.tambahCatatan}\nGagal menambahkan catatan ke tugas.",
     };
   }
 }
@@ -2043,7 +2044,7 @@ export async function handleGantiPicCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "[JobDex.in Ganti PIC]\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: "${WA_LABEL.gantiPic}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
     }
 
     const task = tasks[0];
@@ -2055,7 +2056,7 @@ export async function handleGantiPicCommand(
     }
 
     if (!picName) {
-      return { success: false, replyText: "[JobDex.in Ganti PIC]\nGagal mengganti PIC: Nama PIC target wajib disertakan." };
+      return { success: false, replyText: "${WA_LABEL.gantiPic}\nGagal mengganti PIC: Nama PIC target wajib disertakan." };
     }
 
     // Resolve target user fuzzy
@@ -2063,7 +2064,7 @@ export async function handleGantiPicCommand(
 
     if (candidates.length > 1) {
       const lines = [
-        "[JobDex.in Ganti PIC]",
+        WA_LABEL.gantiPic,
         "",
         `Ditemukan beberapa anggota dengan nama mirip "${picName}":`,
       ];
@@ -2078,7 +2079,7 @@ export async function handleGantiPicCommand(
     if (!targetUser) {
       return {
         success: false,
-        replyText: `[JobDex.in Ganti PIC]\n\nGagal mengganti PIC: Anggota dengan nama "${picName}" tidak ditemukan.`
+        replyText: `${WA_LABEL.gantiPic}\n\nGagal mengganti PIC: Anggota dengan nama "${picName}" tidak ditemukan.`
       };
     }
 
@@ -2110,7 +2111,7 @@ export async function handleGantiPicCommand(
     await batch.commit();
 
     const replyText = [
-      "[JobDex.in Ganti PIC]",
+      WA_LABEL.gantiPic,
       "",
       "PIC task berhasil diganti.",
       "",
@@ -2129,7 +2130,7 @@ export async function handleGantiPicCommand(
     console.error("[Ganti PIC] Error:", error);
     return {
       success: false,
-      replyText: "[JobDex.in Ganti PIC]\nGagal mengganti PIC tugas.",
+      replyText: "${WA_LABEL.gantiPic}\nGagal mengganti PIC tugas.",
     };
   }
 }
@@ -2167,7 +2168,7 @@ export async function handleBriefingCommand(user: UserProfile): Promise<{ succes
     });
 
     const replyText = [
-      "[JobDex.in Briefing Pagi]",
+      WA_LABEL.briefing,
       "",
       `Halo ${user.name}, ini ringkasan task yang perlu diperhatikan hari ini:`,
       "",
@@ -2182,7 +2183,7 @@ export async function handleBriefingCommand(user: UserProfile): Promise<{ succes
     return { success: true, replyText };
   } catch (error) {
     console.error("[Briefing] Error:", error);
-    return { success: false, replyText: "[JobDex.in Briefing]\nGagal mengambil data briefing." };
+    return { success: false, replyText: "${WA_LABEL.briefing}\nGagal mengambil data briefing." };
   }
 }
 
@@ -2231,11 +2232,11 @@ export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<
     });
 
     if (picDelays.size === 0) {
-      return { success: true, replyText: "[JobDex.in PIC Report]\n\nSemua PIC aktif mengupdate progress dalam 2 hari terakhir." };
+      return { success: true, replyText: "${WA_LABEL.siapaBelumUpdate}\n\nSemua PIC aktif mengupdate progress dalam 2 hari terakhir." };
     }
 
     const lines = [
-      "[JobDex.in PIC Report]",
+      WA_LABEL.siapaBelumUpdate,
       "",
       "Daftar PIC yang belum update progress task (>= 2 hari):",
       ""
@@ -2254,7 +2255,7 @@ export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<
     return { success: true, replyText: lines.join("\n") };
   } catch (error) {
     console.error("[Siapa Belum Update] Error:", error);
-    return { success: false, replyText: "[JobDex.in PIC Report]\nGagal mengambil data laporan." };
+    return { success: false, replyText: "${WA_LABEL.siapaBelumUpdate}\nGagal mengambil data laporan." };
   }
 }
 
@@ -2268,7 +2269,7 @@ export async function handleHubungkanGrupAcaraCommand(
   groupName: string | undefined
 ) {
   if (!groupId) {
-    return { success: false, replyText: "[JobDex.in]\n\nCommand ini hanya bisa dijalankan dari dalam grup WhatsApp acara." };
+    return { success: false, replyText: `${WA_BOT_LABEL}\n\nCommand ini hanya bisa dijalankan dari dalam grup WhatsApp acara.` };
   }
 
   const { user } = await findUserByNameFuzzy(senderPhone);
@@ -2299,7 +2300,7 @@ export async function handleHubungkanGrupAcaraCommand(
   }
 
   if (!matchedEvent) {
-    return { success: false, replyText: `[JobDex.in]\n\nAcara dengan nama "${eventName}" tidak ditemukan.` };
+    return { success: false, replyText: `${WA_BOT_LABEL}\n\nAcara dengan nama "${eventName}" tidak ditemukan.` };
   }
 
   // Security check: super_admin OR koordinator_acara of this event
@@ -2334,7 +2335,7 @@ export async function handleHubungkanGrupAcaraCommand(
 
   return { 
     success: true, 
-    replyText: `[JobDex.in Berhasil]\n\nGrup ini berhasil dihubungkan dengan acara "${matchedEvent.name}".\n\nNotifikasi dan reminder acara akan dikirim ke grup ini.` 
+    replyText: `${WA_LABEL.approval}\n\nGrup ini berhasil dihubungkan dengan acara "${matchedEvent.name}".\n\nNotifikasi dan reminder acara akan dikirim ke grup ini.` 
   };
 }
 

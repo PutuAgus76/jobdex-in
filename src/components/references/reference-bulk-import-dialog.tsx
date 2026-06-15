@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from "react";
 import type { ChangeEvent } from "react";
-import { Check } from "lucide-react";
+import { Check, X, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -453,6 +453,7 @@ export function ReferenceBulkImportDialog({
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
+            <X className="h-4 w-4" />
             Tutup
           </Button>
         </div>
@@ -631,7 +632,8 @@ export function ReferenceBulkImportDialog({
             )}
 
             <div className="flex justify-start">
-              <Button type="button" onClick={handleGeneratePreview}>
+              <Button type="button" size="sm" onClick={handleGeneratePreview}>
+                <Sparkles className="h-4 w-4" />
                 Generate Preview Data
               </Button>
             </div>
@@ -797,14 +799,17 @@ export function ReferenceBulkImportDialog({
 
         {/* Footer */}
         <div className="border-t border-slate-200 dark:border-slate-800 p-5 flex items-center justify-end gap-2 bg-slate-50 dark:bg-slate-900/40">
-          <Button type="button" variant="secondary" onClick={handleClose} disabled={isSaving}>
+          <Button type="button" variant="secondary" size="sm" onClick={handleClose} disabled={isSaving}>
+            <X className="h-4 w-4" />
             Batal
           </Button>
           <Button
             type="button"
+            size="sm"
             onClick={handleSaveImport}
             disabled={isSaving || previewItems.length === 0}
           >
+            <Save className="h-4 w-4" />
             {isSaving ? "Menyimpan..." : "Simpan Semua"}
           </Button>
         </div>

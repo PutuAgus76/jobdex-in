@@ -9,6 +9,7 @@ import { TasksTable } from "@/components/tasks/tasks-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Plus } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getEventsForProfile } from "@/lib/firebase/events";
@@ -185,11 +186,13 @@ export default function TasksPage() {
         {canCreate ? (
           <Button
             type="button"
+            size="sm"
             onClick={() => {
               setSelectedTask(null);
               setFormOpen(true);
             }}
           >
+            <Plus className="h-4 w-4" />
             Tambah Job Desk
           </Button>
         ) : null}
@@ -233,7 +236,8 @@ export default function TasksPage() {
           description="Buat job desk pertama untuk mulai mengelola tugas divisi atau acara."
           action={
             canCreate ? (
-              <Button type="button" onClick={() => setFormOpen(true)}>
+              <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
+                <Plus className="h-4 w-4" />
                 Tambah Job Desk
               </Button>
             ) : undefined

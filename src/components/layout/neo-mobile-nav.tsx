@@ -38,7 +38,7 @@ export function NeoMobileNav() {
   const activeBottomItems = navItems.filter((item) => bottomPaths.includes(item.href));
 
   return (
-    <nav className="fixed left-0 right-0 bottom-0 z-50 grid grid-cols-5 gap-1 border-t-2 border-neutral-950 bg-[var(--jd-neo-surface)] p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:hidden">
+    <nav className="fixed left-0 right-0 bottom-0 z-50 grid grid-cols-5 gap-1 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] md:hidden">
       {activeBottomItems.map((item) => {
         const IconComponent = iconMap[item.href];
         const isActive =
@@ -50,10 +50,10 @@ export function NeoMobileNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center gap-0.5 rounded-lg py-1 px-0.5 font-bold text-[10px] uppercase transition-all ${
+            className={`flex flex-col items-center gap-1 rounded-md py-1.5 px-0.5 font-medium text-[10px] transition-all ${
               isActive
-                ? "bg-[var(--main)] text-neutral-950 border-2 border-neutral-950 shadow-[2px_2px_0px_rgba(0,0,0,1)]"
-                : "text-neutral-500 dark:text-neutral-400 border-2 border-transparent"
+                ? "text-sky-600 dark:text-sky-400 font-semibold"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
             }`}
           >
             {IconComponent ? <IconComponent className="size-5" /> : null}
@@ -66,3 +66,4 @@ export function NeoMobileNav() {
     </nav>
   );
 }
+

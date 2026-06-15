@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Upload, Plus } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ReferenceDetailDialog } from "@/components/references/reference-detail-dialog";
 import { ReferenceFilters } from "@/components/references/reference-filters";
@@ -215,10 +216,12 @@ export default function ReferencesPage() {
         </div>
         {canCreate ? (
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => setBulkImportOpen(true)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
+              <Upload className="h-4 w-4" />
               Import Banyak
             </Button>
-            <Button type="button" onClick={openCreateForm}>
+            <Button type="button" size="sm" onClick={openCreateForm}>
+              <Plus className="h-4 w-4" />
               Tambah Referensi
             </Button>
           </div>
@@ -258,10 +261,12 @@ export default function ReferencesPage() {
           action={
             canCreate ? (
               <div className="flex flex-wrap gap-2 justify-center">
-                <Button type="button" variant="secondary" onClick={() => setBulkImportOpen(true)}>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setBulkImportOpen(true)}>
+                  <Upload className="h-4 w-4" />
                   Import Banyak
                 </Button>
-                <Button type="button" onClick={openCreateForm}>
+                <Button type="button" size="sm" onClick={openCreateForm}>
+                  <Plus className="h-4 w-4" />
                   Tambah Referensi
                 </Button>
               </div>

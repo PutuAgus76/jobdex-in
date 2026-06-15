@@ -4,6 +4,7 @@ import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
 import type { Task, UserProfile } from "@/types";
 import { sanitizePinFromMessage } from "./whatsapp-command-executor";
+import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 
 export { getTaskDeadlineDiffDays };
 
@@ -286,7 +287,7 @@ export function buildGroupReminderMessage(
 
   if (type === "stuck_escalation") {
     const constraint = task.stuck_notes ? `Kendala: ${task.stuck_notes}` : "Kendala: Tidak disebutkan";
-    return `[JobDex.in Warning]
+    return `${WA_LABEL.warning}
 
 🚧 Job Desk Masih Stuck
 
@@ -302,7 +303,7 @@ Koordinator dapat membantu membuka kendala atau mengalihkan sebagian tugas jika 
   }
 
   if (task.status === "menunggu_approval") {
-    return `[JobDex.in Reminder]
+    return `${WA_LABEL.reminder}
 
 ⏳ Menunggu Approval
 
@@ -316,7 +317,7 @@ Catatan:
 Tugas sudah dikirim dan menunggu pengecekan. Koordinator dapat segera approve atau minta revisi.`;
   }
 
-  let header = "[JobDex.in Reminder]";
+  let header: string = WA_LABEL.reminder;
   let icon = "📌";
   let typeTitle = "";
 
@@ -327,23 +328,23 @@ Tugas sudah dikirim dan menunggu pengecekan. Koordinator dapat segera approve at
     icon = "📌";
     typeTitle = "H-5 Deadline Job Desk";
   } else if (type === "h_3") {
-    header = "[JobDex.in Warning]";
+    header = WA_LABEL.warning;
     icon = "⚠️";
     typeTitle = `H-3 Deadline Job Desk Prioritas ${formattedPriority}`;
   } else if (type === "h_1") {
-    header = "[JobDex.in Warning]";
+    header = WA_LABEL.warning;
     icon = "⚠️";
     typeTitle = "H-1 Deadline Job Desk (Urgent)";
   } else if (type === "today") {
-    header = "[JobDex.in Warning]";
+    header = WA_LABEL.warning;
     icon = "⚠️";
     typeTitle = "Hari-H Deadline Job Desk";
   } else if (type === "overdue") {
-    header = "[JobDex.in Overdue]";
+    header = WA_LABEL.overdue;
     icon = "🚨";
     typeTitle = "Job Desk Lewat Deadline";
   } else if (type === "missing_material") {
-    header = "[JobDex.in Reminder]";
+    header = WA_LABEL.reminder;
     icon = "⚠️";
     typeTitle = "Kelengkapan Redaksi / Materi Belum Tersedia";
   }
@@ -357,7 +358,7 @@ Tugas sudah dikirim dan menunggu pengecekan. Koordinator dapat segera approve at
     else if (type === "today") dayText = "Hari-H Deadline";
     else if (type === "overdue") dayText = "Overdue";
 
-    return `[JobDex.in Reminder]
+    return `${WA_LABEL.reminder}
 
 ⚠️ ${dayText} + Redaksi Belum Tersedia
 
@@ -703,10 +704,10 @@ ${notes}   Aksi: ${getDigestAction(item)}`
   const remainingCount = Math.max(digest.taskIds.length - renderedCount, 0);
   const remainingText =
     remainingCount > 0
-      ? `\n\nDan ${remainingCount} tugas lainnya. Buka dashboard JobDex.in untuk melihat lengkapnya.`
+      ? `\n\nDan ${remainingCount} tugas lainnya. Buka dashboard JobdexIn untuk melihat lengkapnya.`
       : "";
 
-  return `[JobDex.in Digest Reminder]
+  return `${WA_LABEL.digestReminder}
 
 Rekap tugas perlu ditindaklanjuti
 Tanggal cek: ${dateText}
@@ -876,7 +877,7 @@ export function buildPersonalReminderMessage(task: Task, picName: string): strin
   const formattedStatus = getFormattedStatus(task.status);
   const formattedPriority = getFormattedPriority(task.priority);
 
-  return `[JobDex.in Reminder Pribadi]
+  return `${WA_LABEL.reminderPribadi}
 
 Halo ${picName}, kamu punya job desk yang perlu diperhatikan:
 
@@ -885,7 +886,7 @@ Deadline: ${formattedDeadline}
 Status: ${formattedStatus}
 Prioritas: ${formattedPriority}
 
-Mohon update progress di JobDex.in jika sudah dikerjakan.`;
+Mohon update progress di JobdexIn jika sudah dikerjakan.`;
 }
 
 /**

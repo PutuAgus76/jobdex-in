@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EventStatusBadge } from "@/components/events/event-status-badge";
-import { formatEventDate } from "@/lib/firebase/events";
+import { Eye, Pencil } from "lucide-react";
 import type { Event, UserProfile } from "@/types";
+import { formatEventDate } from "@/lib/firebase/events";
 
 type EventsTableProps = {
   events: Event[];
@@ -26,54 +27,57 @@ export function EventsTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">
             <thead>
-              <tr>
-                <th className="px-4 py-3">Nama acara</th>
-                <th className="px-4 py-3">Tanggal</th>
-                <th className="px-4 py-3">Koordinator</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Progress</th>
-                <th className="px-4 py-3">Anggota</th>
-                <th className="px-4 py-3">Aksi</th>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Acara</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Tanggal</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Koordinator</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Progress</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Anggota</th>
+                <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-800">
+            <tbody className="divide-y divide-border">
               {events.map((event) => (
                 <tr key={event.id} className="align-middle hover:bg-neutral-100/50 dark:hover:bg-neutral-800/40">
-                  <td className="px-4 py-4">
-                    <p className="font-black text-slate-900 dark:text-white">{event.name}</p>
+                  <td className="px-4 py-3">
+                    <p className="font-bold text-slate-900 dark:text-white">{event.name}</p>
                     <p className="mt-1 line-clamp-2 max-w-xs text-xs text-slate-500 dark:text-slate-400">
                       {event.description || "-"}
                     </p>
                   </td>
-                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-350">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {formatEventDate(event.event_date)}
                   </td>
-                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-350">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {usersById.get(event.coordinator_id)?.name ??
                       "Koordinator belum ditemukan"}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3">
                     <EventStatusBadge status={event.status} />
                   </td>
-                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-350">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {event.progress_percentage ?? 0}%
                   </td>
-                  <td className="px-4 py-4 font-semibold text-slate-650 dark:text-slate-350">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {memberCounts[event.id] ?? 0}
                   </td>
-                  <td className="px-4 py-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="secondary" className="text-xs font-bold py-1 h-auto">
-                        <Link href={`/dashboard/events/${event.id}`}>Detail</Link>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Button asChild size="sm" variant="info">
+                        <Link href={`/dashboard/events/${event.id}`} className="flex items-center gap-1.5">
+                          <Eye className="size-3.5" />
+                          <span>Detail</span>
+                        </Link>
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="warning"
-                        className="text-xs font-bold py-1 h-auto"
                         onClick={() => onEdit(event)}
                       >
-                        Edit
+                        <Pencil className="size-3.5" />
+                        <span>Edit</span>
                       </Button>
                     </div>
                   </td>
@@ -87,10 +91,10 @@ export function EventsTable({
       {/* Mobile Card List View */}
       <div className="block md:hidden space-y-3">
         {events.map((event) => (
-          <div key={event.id} className="p-4 jd-neo-card space-y-3 m-1">
+          <div key={event.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-3 m-1">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-black text-base text-slate-900 dark:text-white">
+                <p className="font-bold text-base text-slate-900 dark:text-white">
                   {event.name}
                 </p>
                 <p className="text-xs opacity-75 mt-0.5 font-semibold">{formatEventDate(event.event_date)}</p>
@@ -104,29 +108,33 @@ export function EventsTable({
             
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700 text-xs">
               <span className="opacity-60">Koordinator:</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">
+              <span className="font-semibold text-slate-900 dark:text-slate-100">
                 {usersById.get(event.coordinator_id)?.name ?? "Belum ada"}
               </span>
               <span className="mx-0.5 opacity-30">|</span>
               <span className="opacity-60">Progress:</span>
-              <span className="font-black text-slate-900 dark:text-slate-100">{event.progress_percentage ?? 0}%</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{event.progress_percentage ?? 0}%</span>
               <span className="mx-0.5 opacity-30">|</span>
               <span className="opacity-60">Anggota:</span>
-              <span className="font-bold text-slate-900 dark:text-slate-100">{memberCounts[event.id] ?? 0}</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100">{memberCounts[event.id] ?? 0}</span>
             </div>
             
             <div className="flex gap-2 pt-3 border-t border-dashed border-neutral-300 dark:border-neutral-700">
-              <Button asChild size="sm" variant="secondary" className="flex-1 text-xs font-bold py-1.5 h-auto">
-                <Link href={`/dashboard/events/${event.id}`}>Detail</Link>
+              <Button asChild size="sm" variant="info" className="flex-1">
+                <Link href={`/dashboard/events/${event.id}`} className="flex items-center justify-center gap-1.5">
+                  <Eye className="size-3.5" />
+                  <span>Detail</span>
+                </Link>
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="warning"
-                className="flex-1 text-xs font-bold py-1.5 h-auto"
+                className="flex-1"
                 onClick={() => onEdit(event)}
               >
-                Edit
+                <Pencil className="size-3.5" />
+                <span>Edit</span>
               </Button>
             </div>
           </div>

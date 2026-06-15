@@ -1,4 +1,5 @@
-import { TASK_STATUS_LABELS } from "@/lib/task-status";
+﻿import { TASK_STATUS_LABELS } from "@/lib/task-status";
+import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import type { Task, TaskStatus, UserProfile } from "@/types";
 
 type NotificationTemplateInput = {
@@ -36,7 +37,7 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_help_needed") {
     return [
-      "[JobDex.in] Perlu Bantuan",
+      WA_LABEL.reminder + " Perlu Bantuan",
       "",
       `Anggota: ${actorName}`,
       `Tugas: ${input.task.name}`,
@@ -48,7 +49,7 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_result_uploaded") {
     return [
-      "[JobDex.in] Hasil Desain Diupload",
+      WA_LABEL.reminder + " Hasil Desain Diupload",
       "",
       `Anggota: ${actorName}`,
       `Tugas: ${input.task.name}`,
@@ -60,7 +61,7 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_revision_requested") {
     return [
-      "[JobDex.in] Revisi Diperlukan",
+      WA_LABEL.reminder + " Revisi Diperlukan",
       "",
       `Tugas: ${input.task.name}`,
       `PIC: ${picName}`,
@@ -70,7 +71,7 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_approved") {
     return [
-      "[JobDex.in] Tugas Disetujui",
+      WA_LABEL.reminder + " Tugas Disetujui",
       "",
       `Tugas: ${input.task.name}`,
       `PIC: ${picName}`,
@@ -80,7 +81,7 @@ export function buildWhatsAppMessage(
 
   if (eventType === "task_created") {
     return [
-      "[JobDex.in] Tugas Baru",
+      WA_LABEL.reminder + " Tugas Baru",
       "",
       `Tugas: ${input.task.name}`,
       `PIC: ${picName}`,
@@ -90,7 +91,7 @@ export function buildWhatsAppMessage(
   }
 
   return [
-    "[JobDex.in] Update Tugas",
+    WA_LABEL.reminder + " Update Tugas",
     "",
     `Nama: ${actorName}`,
     `Tugas: ${input.task.name}`,

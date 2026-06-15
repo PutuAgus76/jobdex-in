@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { ExternalLink, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskUploadHistory } from "@/components/tasks/task-upload-history";
 import { useAuth } from "@/hooks/use-auth";
@@ -139,8 +140,9 @@ export function TaskUploadSection({
             </div>
             <div className="flex flex-wrap gap-2">
               {latestUpload ? (
-                <Button asChild variant="secondary">
-                  <a href={latestUpload.upload_url} target="_blank" rel="noreferrer">
+                <Button asChild variant="secondary" size="sm">
+                  <a href={latestUpload.upload_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                    <ExternalLink className="h-4 w-4" />
                     Buka Gambar
                   </a>
                 </Button>
@@ -148,9 +150,11 @@ export function TaskUploadSection({
               {canUpload ? (
                 <Button
                   type="button"
+                  size="sm"
                   onClick={() => inputRef.current?.click()}
                   disabled={uploading}
                 >
+                  <Upload className="h-4 w-4" />
                   {uploading ? "Mengupload..." : "Upload Hasil Desain"}
                 </Button>
               ) : null}

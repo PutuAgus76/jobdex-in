@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { X, RotateCcw } from "lucide-react";
 
 type TaskRevisionDialogProps = {
   open: boolean;
@@ -65,8 +66,14 @@ export function TaskRevisionDialog({
             <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
           ) : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Minta revisi"}</Button>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+              Batal
+            </Button>
+            <Button type="submit" variant="warning" size="sm" disabled={isSubmitting}>
+              <RotateCcw className="h-4 w-4" />
+              {isSubmitting ? "Menyimpan..." : "Minta revisi"}
+            </Button>
           </div>
         </form>
       </div>

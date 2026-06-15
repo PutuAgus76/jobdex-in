@@ -132,11 +132,11 @@ export function TaskRiskSection({ profile }: TaskRiskSectionProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <AlertTriangle className="size-5 text-red-500 fill-red-500/10 shrink-0" />
           <span>Tugas Berisiko</span>
           {tasks.length > 0 && (
-            <span className="inline-flex items-center justify-center border-2 border-black rounded-[4px] bg-[var(--main)] px-1.5 py-0.5 text-xs font-black text-neutral-950 shadow-[1.5px_1.5px_0px_#000] dark:border-black shrink-0">
+            <span className="inline-flex items-center justify-center border border-sky-200 dark:border-sky-800 rounded-md bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 text-xs font-semibold text-sky-700 dark:text-sky-400 shrink-0">
               {tasks.length}
             </span>
           )}

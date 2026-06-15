@@ -16,27 +16,31 @@ type ButtonVariant =
   | "success"
   | "destructive"
   | "heroPrimary"
-  | "heroOutline";
-type ButtonSize = "sm" | "md" | "lg";
+  | "heroOutline"
+  | "info";
+
+type ButtonSize = "sm" | "md" | "lg" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "jd-neo-button jd-neo-button-primary",
-  dark: "jd-neo-button jd-neo-btn-gray",
-  light: "jd-neo-button jd-neo-btn-gray",
-  heroPrimary: "jd-neo-button jd-neo-button-primary",
-  heroOutline: "jd-neo-button jd-neo-btn-blue",
-  outline: "jd-neo-button jd-neo-btn-gray",
-  secondary: "jd-neo-button jd-neo-btn-blue",
-  ghost: "inline-flex items-center justify-center gap-2 rounded-base font-bold transition-all duration-150 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80 p-2 text-sm text-neutral-800 dark:text-neutral-200",
-  destructive: "jd-neo-button jd-neo-btn-red",
-  success: "jd-neo-button jd-neo-btn-green",
-  warning: "jd-neo-button jd-neo-btn-yellow",
+  primary: "bg-sky-600 text-white hover:bg-sky-700 shadow-sm",
+  secondary: "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700",
+  outline: "border border-slate-300 dark:border-slate-700 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300",
+  ghost: "bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-350",
+  light: "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200",
+  dark: "bg-slate-900 hover:bg-slate-950 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-950",
+  warning: "bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-sm",
+  success: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm",
+  destructive: "bg-red-600 hover:bg-red-700 text-white shadow-sm",
+  heroPrimary: "bg-sky-600 text-white hover:bg-sky-700 shadow-sm",
+  heroOutline: "border border-slate-200 bg-transparent hover:bg-slate-100 text-slate-700 dark:text-slate-300",
+  info: "bg-sky-600 text-white hover:bg-sky-700 shadow-sm",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "jd-btn-sm",
-  md: "jd-btn-md",
-  lg: "jd-btn-lg",
+  sm: "h-8 px-3 text-xs rounded-md",
+  md: "h-9 px-4 text-sm rounded-lg",
+  lg: "h-10 px-5 text-sm rounded-lg",
+  icon: "h-8 w-8 p-0 rounded-md",
 };
 
 function sanitizeClassName(className?: string): string {
@@ -64,6 +68,7 @@ export function buttonStyles({
 } = {}) {
   const sanitizedClassName = sanitizeClassName(className);
   return cn(
+    "inline-flex items-center justify-center gap-1.5 font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500/20 focus-visible:border-sky-500 disabled:pointer-events-none disabled:opacity-50 [&_svg]:text-current [&_svg]:shrink-0",
     variantClasses[variant],
     sizeClasses[size],
     sanitizedClassName,

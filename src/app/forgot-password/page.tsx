@@ -9,14 +9,14 @@ export default function ForgotPasswordPage() {
       {/* Brand Logo */}
       <div className="mb-6 flex flex-col items-center">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="flex size-10 items-center justify-center rounded-lg border-2 border-[var(--jd-neo-border)] bg-[var(--jd-neo-yellow)] text-sm font-black text-neutral-900 shadow-[2px_2px_0px_rgba(0,0,0,1)] transition-transform group-hover:scale-105">
+          <span className="flex size-10 items-center justify-center rounded-lg border border-sky-600 bg-sky-600 text-sm font-bold text-white shadow-sm transition-transform group-hover:scale-105">
             JD
           </span>
           <div>
-            <p className="text-lg font-black tracking-wider text-[var(--jd-neo-text)]">
-              JobDex<span className="text-[#8fa882]">.in</span>
+            <p className="text-lg font-bold tracking-wider text-[var(--jd-neo-text)]">
+              JobDex<span className="text-sky-550">.in</span>
             </p>
-            <p className="text-[9px] uppercase tracking-wider font-extrabold text-[var(--jd-neo-muted)]">
+            <p className="text-[9px] uppercase tracking-wider font-semibold text-[var(--jd-neo-muted)]">
               Humas & Media Kreatif
             </p>
           </div>
@@ -25,7 +25,7 @@ export default function ForgotPasswordPage() {
 
       <Card className="w-full max-w-md bg-[var(--jd-neo-surface)]">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl font-black text-[var(--jd-neo-text)]">Reset Password</CardTitle>
+          <CardTitle className="text-xl font-bold text-[var(--jd-neo-text)]">Reset Password</CardTitle>
           <p className="mt-2 text-xs leading-relaxed text-[var(--jd-neo-muted)] font-normal">
             Masukkan email akunmu untuk menerima tautan atur ulang kata sandi dari Firebase.
           </p>
@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
           <ForgotPasswordForm />
           <p className="mt-6 text-center text-xs text-[var(--jd-neo-muted)] font-normal">
             Ingat password?{" "}
-            <Link href="/login" className="font-bold text-[var(--jd-neo-text)] underline hover:text-[#8fa882]">
+            <Link href="/login" className="font-bold text-[var(--jd-neo-text)] underline hover:text-sky-600">
               Login
             </Link>
           </p>

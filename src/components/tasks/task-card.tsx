@@ -12,6 +12,8 @@ import { SuggestedReferencesDialog } from "@/components/references/suggested-ref
 import { Badge } from "@/components/ui/badge";
 import type { Event, Task, UserProfile } from "@/types";
 
+import { Eye, Pencil, Archive, Sparkles } from "lucide-react";
+
 type TaskCardProps = {
   task: Task;
   usersById: Map<string, UserProfile>;
@@ -55,32 +57,32 @@ export function TaskCard({
             <TaskStatusBadge status={task.status} />
             <TaskPriorityBadge priority={task.priority} />
           </div>
-          <CardTitle className="mt-3 text-lg font-black text-slate-900 dark:text-white">{task.name}</CardTitle>
+          <CardTitle className="mt-3 text-lg font-bold text-slate-900 dark:text-white">{task.name}</CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="space-y-2 text-sm border-t border-dashed border-neutral-200 dark:border-neutral-800 pt-3">
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500 dark:text-slate-400 font-medium">PIC</dt>
-              <dd className="font-bold text-slate-800 dark:text-slate-200">
+              <dd className="font-semibold text-slate-800 dark:text-slate-200">
                 {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500 dark:text-slate-400 font-medium">Deadline</dt>
-              <dd className="font-bold text-slate-800 dark:text-slate-200">
+              <dd className="font-semibold text-slate-800 dark:text-slate-200">
                 {formatTaskDate(task.deadline)}
               </dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-slate-500 dark:text-slate-400 font-medium">Acara/Divisi</dt>
-              <dd className="text-right font-bold text-slate-800 dark:text-slate-200">
+              <dd className="text-right font-semibold text-slate-800 dark:text-slate-200">
                 {eventName}
               </dd>
             </div>
             <div className="flex justify-between gap-3 items-center">
               <dt className="text-slate-500 dark:text-slate-400 font-medium">Risiko</dt>
-              <dd className="font-bold">
-                <Badge variant={riskVariant} className="text-[10px] font-bold">
+              <dd className="font-semibold">
+                <Badge variant={riskVariant} className="text-[10px] font-medium">
                   {riskLabel}
                 </Badge>
               </dd>
@@ -91,25 +93,30 @@ export function TaskCard({
 
       <CardContent className="pt-0">
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="secondary" className="text-xs font-bold py-1 h-auto">
-            <Link href={`/dashboard/tasks/${task.id}`}>Detail</Link>
+          <Button asChild size="sm" variant="info">
+            <Link href={`/dashboard/tasks/${task.id}`} className="flex items-center gap-1.5">
+              <Eye className="size-3.5" />
+              <span>Detail</span>
+            </Link>
           </Button>
           <Button
             type="button"
             size="sm"
             variant="secondary"
             onClick={() => setRefDialogOpen(true)}
-            className="text-xs font-bold py-1 h-auto"
           >
-            Perlu Referensi
+            <Sparkles className="size-3.5" />
+            <span>Referensi</span>
           </Button>
           {canEdit ? (
             <>
-              <Button type="button" size="sm" variant="warning" className="text-xs font-bold py-1 h-auto" onClick={() => onEdit(task)}>
-                Edit
+              <Button type="button" size="sm" variant="warning" onClick={() => onEdit(task)}>
+                <Pencil className="size-3.5" />
+                <span>Edit</span>
               </Button>
-              <Button type="button" size="sm" variant="destructive" className="text-xs font-bold py-1 h-auto" onClick={() => onArchive(task)}>
-                Archive
+              <Button type="button" size="sm" variant="destructive" onClick={() => onArchive(task)}>
+                <Archive className="size-3.5" />
+                <span>Archive</span>
               </Button>
             </>
           ) : null}

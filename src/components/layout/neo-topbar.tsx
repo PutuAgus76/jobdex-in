@@ -107,10 +107,10 @@ export function NeoTopbar(props: {
                   <img
                     src={userProfile.avatar_url}
                     alt={userProfile?.name || "Avatar"}
-                    className="size-8 rounded-full border-2 border-[var(--border)] object-cover shrink-0"
+                    className="size-8 rounded-full border border-slate-200 dark:border-slate-800 object-cover shrink-0"
                   />
                 ) : (
-                  <div className="size-8 rounded-full border-2 border-[var(--border)] bg-[var(--jd-neo-orange)] flex items-center justify-center text-xs font-black text-neutral-950 shrink-0">
+                  <div className="size-8 rounded-full border border-slate-200 dark:border-slate-800 bg-sky-100 dark:bg-sky-950/40 flex items-center justify-center text-xs font-semibold text-sky-700 dark:text-sky-400 shrink-0">
                     {getInitials(userProfile?.name || user?.displayName)}
                   </div>
                 )}

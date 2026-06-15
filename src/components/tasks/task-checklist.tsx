@@ -107,13 +107,13 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
   };
 
   return (
-    <div className="border-2 border-black rounded-[4px] bg-white dark:bg-slate-900 p-5 shadow-[4px_4px_0px_#000] dark:shadow-[4px_4px_0px_#000] space-y-4">
+    <div className="border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 p-5 shadow-sm space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <ClipboardList className="size-4 text-slate-500 shrink-0" />
           <span>Checklist Alur Tugas</span>
           {checklistItems.length > 0 && (
-            <span className="text-[10px] border-2 border-black rounded-[4px] bg-[var(--main)] px-2 py-0.5 text-neutral-955 font-extrabold shadow-[1.5px_1.5px_0px_#000] dark:border-black shrink-0">
+            <span className="text-[10px] border border-sky-200 dark:border-sky-850 rounded-md bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 text-sky-700 dark:text-sky-400 font-semibold shrink-0">
               {checklistItems.filter((i) => i.is_done).length}/{checklistItems.length}
             </span>
           )}
@@ -130,7 +130,7 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
             disabled={updatingId !== null}
             variant="outline"
             size="sm"
-            className="text-xs font-bold py-1.5 h-auto"
+            className="text-xs font-semibold py-1.5 h-auto"
           >
             {updatingId === "init" ? "Membuat..." : "Buat Checklist Default"}
           </Button>
@@ -144,13 +144,13 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
             return (
               <label
                 key={item.id}
-                className={`flex items-start gap-3 p-3 border-2 border-black rounded-[4px] transition-all duration-100 shadow-[2px_2px_0px_#000] dark:shadow-[2px_2px_0px_#000] ${
+                className={`flex items-start gap-3 p-3 border border-slate-200 dark:border-slate-800 rounded-lg transition-all duration-150 shadow-xs ${
                   isDone
-                    ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-950 dark:text-emerald-200"
+                    ? "bg-emerald-50/50 dark:bg-emerald-950/10 text-emerald-950 dark:text-emerald-200 border-emerald-100 dark:border-emerald-900"
                     : "bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-100"
                 } ${
                   canUpdate
-                    ? "cursor-pointer hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000]"
+                    ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-850"
                     : "cursor-not-allowed"
                 }`}
               >
@@ -159,18 +159,18 @@ export function TaskChecklist({ task, profile, onUpdate }: TaskChecklistProps) {
                   checked={isDone}
                   disabled={isDisabled}
                   onChange={() => handleToggleChecklist(item.id, isDone)}
-                  className="mt-0.5 size-4 accent-[var(--main)] border-2 border-black rounded-[2px] cursor-pointer disabled:cursor-not-allowed bg-white dark:bg-slate-950 focus:ring-0 focus:ring-offset-0"
+                  className="mt-0.5 size-4 accent-sky-600 border border-slate-300 dark:border-slate-700 rounded cursor-pointer disabled:cursor-not-allowed bg-white dark:bg-slate-950 focus:ring-0 focus:ring-offset-0"
                 />
                 <div className="space-y-0.5 min-w-0 flex-1">
                   <span
-                    className={`text-xs font-bold leading-tight block ${
+                    className={`text-xs font-medium leading-tight block ${
                       isDone ? "line-through text-slate-400 dark:text-slate-500" : ""
                     }`}
                   >
                     {item.label}
                   </span>
                   {isDone && item.done_by_name && (
-                    <span className="block text-[9px] text-emerald-700 dark:text-emerald-400 font-extrabold uppercase tracking-wider mt-1 flex items-center gap-0.5">
+                    <span className="block text-[9px] text-emerald-700 dark:text-emerald-400 font-semibold uppercase tracking-wider mt-1 flex items-center gap-0.5">
                       <Check className="size-3 shrink-0" />
                       <span>Selesai oleh {item.done_by_name}</span>
                     </span>

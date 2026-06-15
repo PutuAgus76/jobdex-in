@@ -51,8 +51,8 @@ export function ReferenceDetailDialog({
   const otherLinks = reference.other_links || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-5xl border-2 border-black rounded-[4px] bg-white dark:bg-slate-900 shadow-[6px_6px_0px_#000] my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 px-4 py-8 backdrop-blur-sm">
+      <div className="w-full max-w-5xl border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-lg my-auto">
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 p-5">
           <div>
             <div className="flex flex-wrap gap-2 items-center">
@@ -76,7 +76,7 @@ export function ReferenceDetailDialog({
         <div className="grid max-h-[78vh] gap-5 overflow-y-auto p-5 lg:grid-cols-[1.1fr_1fr]">
           <div className="space-y-5">
             {reference.thumbnail_url ? (
-              <div className="overflow-hidden border-2 border-black rounded-[4px] bg-slate-100 dark:bg-slate-950 shadow-[3px_3px_0px_#000] dark:shadow-[3px_3px_0px_#000]">
+              <div className="overflow-hidden border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-100 dark:bg-slate-950 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={reference.thumbnail_url}
@@ -102,9 +102,9 @@ export function ReferenceDetailDialog({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-bold border-2 border-black rounded-[4px] p-3 bg-white dark:bg-slate-900 shadow-[2px_2px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none transition-all jd-safe-text min-w-0"
+                        className="flex items-center gap-2 text-sm text-blue-650 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-semibold border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 bg-blue-50/20 dark:bg-blue-950/10 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-all jd-safe-text min-w-0"
                       >
-                        <FolderOpen className="size-4 shrink-0" />
+                        <FolderOpen className="size-4 shrink-0 text-blue-500" />
                         <span>Buka Folder Drive {driveLinks.length > 1 ? `#${idx + 1}` : ""}</span>
                       </a>
                     ))}
@@ -122,9 +122,9 @@ export function ReferenceDetailDialog({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-200 font-bold border-2 border-black rounded-[4px] p-3 bg-white dark:bg-slate-900 shadow-[2px_2px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none transition-all jd-safe-text min-w-0"
+                        className="flex items-center gap-2 text-sm text-purple-650 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-semibold border border-purple-200 dark:border-purple-900/50 rounded-lg p-3 bg-purple-50/20 dark:bg-purple-950/10 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-all jd-safe-text min-w-0"
                       >
-                        <Palette className="size-4 shrink-0" />
+                        <Palette className="size-4 shrink-0 text-purple-500" />
                         <span>Canva Design Tautan {canvaLinks.length > 1 ? `#${idx + 1}` : ""}</span>
                       </a>
                     ))}
@@ -142,9 +142,9 @@ export function ReferenceDetailDialog({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-200 font-bold border-2 border-black rounded-[4px] p-3 bg-white dark:bg-slate-900 shadow-[2px_2px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none transition-all jd-safe-text min-w-0"
+                        className="flex items-center gap-2 text-sm text-emerald-655 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 font-semibold border border-emerald-200 dark:border-emerald-900/50 rounded-lg p-3 bg-emerald-50/20 dark:bg-emerald-950/10 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-all jd-safe-text min-w-0"
                       >
-                        <FileText className="size-4 shrink-0" />
+                        <FileText className="size-4 shrink-0 text-emerald-500" />
                         <span>Google Docs Tautan {docLinks.length > 1 ? `#${idx + 1}` : ""}</span>
                       </a>
                     ))}
@@ -162,9 +162,9 @@ export function ReferenceDetailDialog({
                         href={url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-200 font-bold border-2 border-black rounded-[4px] p-3 bg-white dark:bg-slate-900 shadow-[2px_2px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none transition-all jd-safe-text min-w-0"
+                        className="flex items-center gap-2 text-sm text-amber-655 hover:text-amber-800 dark:text-amber-400 dark:hover:text-amber-300 font-semibold border border-amber-200 dark:border-amber-900/50 rounded-lg p-3 bg-amber-50/20 dark:bg-amber-950/10 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-all jd-safe-text min-w-0"
                       >
-                        <LinkIcon className="size-4 shrink-0" />
+                        <LinkIcon className="size-4 shrink-0 text-amber-500" />
                         <span>Tautan Referensi {otherLinks.length > 1 ? `#${idx + 1}` : ""}</span>
                       </a>
                     ))}
@@ -180,15 +180,15 @@ export function ReferenceDetailDialog({
                   <FolderOpen className="size-3.5 text-slate-400 dark:text-slate-500" />
                   <span>Daftar File dalam Folder ({reference.file_inventory.length})</span>
                 </p>
-                <div className="grid gap-3 max-h-[300px] overflow-y-auto border-2 border-black rounded-[4px] p-3 bg-white dark:bg-slate-955 shadow-[2px_2px_0px_#000]">
+                <div className="grid gap-3 max-h-[300px] overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg p-3 bg-white dark:bg-slate-900 shadow-sm">
                   {reference.file_inventory.map((file, idx) => (
                     <div key={idx} className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-900 pb-2 last:border-0 last:pb-0">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight jd-safe-text" title={file.name}>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight jd-safe-text" title={file.name}>
                           {idx + 1}. {file.name}
                         </p>
                         {file.mime_type && (
-                          <span className="mt-1 inline-block text-[10px] bg-slate-105 dark:bg-slate-800 text-slate-600 dark:text-slate-450 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">
+                          <span className="mt-1 inline-block text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 font-mono">
                             {file.mime_type}
                           </span>
                         )}
@@ -198,7 +198,7 @@ export function ReferenceDetailDialog({
                           href={file.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex h-8 items-center border-2 border-black rounded-[4px] bg-[var(--main)] px-3 text-xs font-extrabold text-neutral-955 shadow-[1.5px_1.5px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[1px_1px_0px_#000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-none transition-all shrink-0"
+                          className="inline-flex h-8 items-center bg-sky-600 hover:bg-sky-700 text-white rounded-md px-3 text-xs font-semibold shadow-sm transition-colors shrink-0"
                         >
                           Buka File
                         </a>
@@ -232,13 +232,13 @@ export function ReferenceDetailDialog({
             <Block label="Style notes / supergrafis" value={reference.style_notes} />
             
             {/* Dedicated Gemini Catatan Analysis Section */}
-            <section className="border-2 border-black rounded-[4px] bg-sky-50 dark:bg-sky-950/20 p-4 shadow-[2px_2px_0px_#000]">
-              <p className="text-sm font-extrabold text-blue-950 dark:text-blue-250 flex items-center gap-1.5 mb-2">
-                <Sparkles className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <section className="border border-sky-100 dark:border-sky-900/50 rounded-lg bg-sky-50/50 dark:bg-sky-950/10 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-sky-950 dark:text-sky-200 flex items-center gap-1.5 mb-2">
+                <Sparkles className="size-4 text-sky-600 dark:text-sky-400 shrink-0" />
                 <span>Hasil Catatan & Analisis Gemini (File Inventory)</span>
               </p>
               {reference.file_inventory_notes ? (
-                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-300">
+                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-350">
                   {reference.file_inventory_notes}
                 </p>
               ) : (

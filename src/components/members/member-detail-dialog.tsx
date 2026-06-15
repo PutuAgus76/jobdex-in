@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { X } from "lucide-react";
 import { MemberStatusBadge } from "@/components/members/member-status-badge";
 import type { UserProfile } from "@/types";
 
@@ -46,6 +47,7 @@ export function MemberDetailDialog({ member, onClose }: MemberDetailDialogProps)
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>

@@ -6,6 +6,7 @@ import { EventStatusBadge } from "@/components/events/event-status-badge";
 import { EventTasksSection } from "@/components/tasks/event-tasks-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Copy } from "lucide-react";
 import { formatEventDate } from "@/lib/firebase/events";
 import { getTaskProgressWeight } from "@/lib/firebase/tasks";
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
@@ -52,8 +53,11 @@ export function EventDetail({
             {event.description || "Tidak ada deskripsi."}
           </p>
         </section>
-        <Button asChild variant="secondary">
-          <Link href="/dashboard/events">Kembali</Link>
+        <Button asChild variant="secondary" size="sm">
+          <Link href="/dashboard/events" className="flex items-center gap-1.5">
+            <ArrowLeft className="h-4 w-4" />
+            Kembali
+          </Link>
         </Button>
       </div>
 
@@ -118,15 +122,18 @@ export function EventDetail({
                   <code className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                     {event.whatsapp_group_id}
                   </code>
-                  <button
+                  <Button
                     type="button"
-                    className="rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[10px]"
                     onClick={() => {
                       navigator.clipboard.writeText(event.whatsapp_group_id || "");
                     }}
                   >
+                    <Copy className="h-3 w-3" />
                     Copy
-                  </button>
+                  </Button>
                 </div>
                 {event.whatsapp_group_name && (
                   <p className="text-xs text-slate-500 dark:text-slate-400">

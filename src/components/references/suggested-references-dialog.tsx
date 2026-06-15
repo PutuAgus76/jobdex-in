@@ -74,12 +74,14 @@ export function SuggestedReferencesDialog({
               Menampilkan arsip referensi terdekat untuk mempermudah pengerjaan tugas Anda.
             </p>
           </div>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 dark:text-slate-500"
           >
-            <X className="size-5" />
-          </button>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Content Body */}
@@ -112,8 +114,8 @@ export function SuggestedReferencesDialog({
                   passHref
                   legacyBehavior
                 >
-                  <Button variant="primary" size="sm" className="inline-flex items-center gap-2">
-                    <Bot className="size-4" />
+                  <Button variant="primary" size="sm">
+                    <Bot className="h-4 w-4" />
                     Tanya AI Assistant
                   </Button>
                 </Link>
@@ -216,12 +218,13 @@ export function SuggestedReferencesDialog({
             passHref
             legacyBehavior
           >
-            <Button variant="outline" size="sm" className="inline-flex items-center gap-2 text-xs font-semibold py-2">
-              <Bot className="size-4 text-slate-500" />
+            <Button variant="outline" size="sm">
+              <Bot className="h-4 w-4 text-slate-500" />
               Lanjut Tanya AI Assistant
             </Button>
           </Link>
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-xs font-semibold px-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
             Tutup
           </Button>
         </div>

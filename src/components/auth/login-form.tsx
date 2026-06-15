@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getFirebaseAuthErrorMessage,
@@ -92,18 +93,19 @@ export function LoginForm() {
       </div>
 
       {error ? (
-        <p className="jd-neo-badge jd-neo-badge-red text-xs w-full py-2 flex items-center justify-center font-bold">
+        <p className="w-full text-center py-2 px-3 text-xs font-semibold text-red-700 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-md">
           {error}
         </p>
       ) : null}
 
       <div className="flex items-center justify-between gap-3 text-xs">
-        <Link href="/forgot-password" className="font-bold text-[var(--jd-neo-text)] underline hover:text-[#8fa882]">
+        <Link href="/forgot-password" className="font-semibold text-slate-650 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:underline">
           Lupa password?
         </Link>
       </div>
 
-      <Button type="submit" className="w-full font-black shadow-[3px_3px_0px_rgba(0,0,0,1)]" disabled={isSubmitting || loading}>
+      <Button type="submit" size="md" className="w-full" disabled={isSubmitting || loading}>
+        <LogIn className="h-4 w-4" />
         {isSubmitting ? "Memproses..." : "Masuk"}
       </Button>
     </form>

@@ -1,6 +1,6 @@
-"use client";
-
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Copy, MessageCircle } from "lucide-react";
 
 type AIMessageProps = {
   role: "user" | "assistant";
@@ -27,17 +27,17 @@ export function AIMessage({
     <div className={cn("flex my-2", isAssistant ? "justify-start" : "justify-end")}>
       <article
         className={cn(
-          "max-w-[85%] md:max-w-[70%] rounded-base border-2 border-border p-3.5 shadow-shadow transition-all",
+          "max-w-[85%] md:max-w-[70%] rounded-2xl p-3.5 shadow-xs transition-all",
           isAssistant
-            ? "bg-secondary-background text-foreground"
-            : "bg-main text-main-foreground",
+            ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            : "bg-sky-100 dark:bg-sky-950/40 text-slate-900 dark:text-slate-100",
         )}
       >
         <div className="flex items-center justify-between gap-3">
           <p
             className={cn(
-              "text-[10px] font-black uppercase tracking-wider",
-              isAssistant ? "text-slate-700 dark:text-slate-300" : "text-main-foreground/80",
+              "text-[10px] font-bold uppercase tracking-wider",
+              isAssistant ? "text-slate-500 dark:text-slate-400" : "text-sky-600 dark:text-sky-400",
             )}
           >
             {authorName ?? (isAssistant ? "AI Assistant" : "Anda")}
@@ -45,8 +45,8 @@ export function AIMessage({
           {time ? (
             <span
               className={cn(
-                "text-[10px] font-bold",
-                isAssistant ? "text-slate-600 dark:text-slate-400" : "text-main-foreground/70"
+                "text-[10px] font-medium",
+                isAssistant ? "text-slate-400 dark:text-slate-500" : "text-sky-500/80 dark:text-sky-400/80"
               )}
             >
               {time}
@@ -55,30 +55,33 @@ export function AIMessage({
         </div>
         <div
           style={{ overflowWrap: "anywhere" }}
-          className={cn(
-            "mt-2 whitespace-pre-wrap text-sm leading-6 break-words font-normal",
-            isAssistant ? "text-foreground" : "text-main-foreground",
-          )}
+          className="mt-2 whitespace-pre-wrap text-sm leading-6 break-words font-normal"
         >
           {content}
         </div>
         {isAssistant ? (
-          <div className="mt-3 flex flex-wrap gap-2 border-t border-border/10 pt-2.5">
-            <button
+          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 dark:border-slate-700 pt-2.5">
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => onCopy?.(content)}
-              className="jd-neo-button text-[11px] py-1 px-2.5 font-bold cursor-pointer"
+              className="h-7 px-2 text-[10px] font-bold"
             >
-              Salin
-            </button>
-            <button
+              <Copy className="size-3" />
+              <span>Salin</span>
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => onSendWhatsApp?.(content)}
               disabled={sendingWhatsApp}
-              className="jd-neo-button text-[11px] py-1 px-2.5 font-bold cursor-pointer disabled:opacity-50"
+              className="h-7 px-2 text-[10px] font-bold"
             >
-              {sendingWhatsApp ? "Mengirim..." : "Kirim ke WA"}
-            </button>
+              <MessageCircle className="size-3" />
+              <span>{sendingWhatsApp ? "Mengirim..." : "Kirim ke WA"}</span>
+            </Button>
           </div>
         ) : null}
       </article>

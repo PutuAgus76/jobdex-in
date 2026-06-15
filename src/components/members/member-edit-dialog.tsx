@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { USER_ROLE_OPTIONS } from "@/lib/roles";
+import { X, Save } from "lucide-react";
 import {
   isValidWhatsAppNumber,
   normalizeWhatsAppNumber,
@@ -122,6 +123,7 @@ function MemberEditForm({
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{member.email}</p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>
@@ -242,10 +244,12 @@ function MemberEditForm({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              <Save className="h-4 w-4" />
               {isSubmitting ? "Menyimpan..." : "Simpan perubahan"}
             </Button>
           </div>

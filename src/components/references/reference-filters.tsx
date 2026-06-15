@@ -23,7 +23,7 @@ type ReferenceFiltersProps = {
 };
 
 const selectClassName =
-  "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+  "h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 dark:focus:ring-sky-950/30";
 
 export function ReferenceFilters({
   search,
@@ -97,12 +97,12 @@ export function ReferenceFilters({
         ))}
       </select>
       {canShowArchived ? (
-        <label className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 border-2 border-black rounded-[4px] bg-white dark:bg-slate-900 px-3 py-2 text-sm font-bold text-slate-700 dark:text-slate-350 shadow-[2px_2px_0px_#000] cursor-pointer">
+        <label className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-350 shadow-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
           <input
             type="checkbox"
             checked={showArchived}
             onChange={(event) => onShowArchivedChange(event.target.checked)}
-            className="accent-[var(--main)] border-2 border-black rounded-[2px]"
+            className="accent-sky-600 border border-slate-300 dark:border-slate-700 rounded"
           />
           Archived
         </label>

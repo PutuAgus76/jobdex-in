@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 type AlertVariant = "default" | "destructive" | "warning" | "success";
 
 const variantClasses: Record<AlertVariant, string> = {
-  default: "bg-main text-main-foreground",
-  destructive: "bg-[var(--jd-neo-red)] text-neutral-950",
-  warning: "bg-[var(--jd-neo-yellow)] text-neutral-950",
-  success: "bg-[var(--jd-neo-green)] text-neutral-950",
+  default: "border border-sky-200 dark:border-sky-800 bg-sky-50/40 dark:bg-sky-950/10 text-sky-800 dark:text-sky-300",
+  destructive: "border border-red-200 dark:border-red-900 bg-red-50/40 dark:bg-red-950/10 text-red-800 dark:text-red-300",
+  warning: "border border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/10 text-amber-800 dark:text-amber-300",
+  success: "border border-emerald-200 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/10 text-emerald-805 dark:text-emerald-300",
 };
 
 export function Alert({
@@ -19,7 +19,7 @@ export function Alert({
     <div
       role="alert"
       className={cn(
-        "relative w-full rounded-base border-2 border-border p-4 text-sm flex gap-3.5 items-start shadow-shadow",
+        "relative w-full rounded-lg p-4 text-sm flex gap-3.5 items-start shadow-xs",
         variantClasses[variant],
         className,
       )}
@@ -32,7 +32,7 @@ export function AlertTitle({ className, ...props }: ComponentPropsWithoutRef<"di
   return (
     <h5
       className={cn(
-        "font-heading font-black tracking-tight leading-none text-sm",
+        "font-heading font-bold tracking-tight leading-none text-sm",
         className,
       )}
       {...props}

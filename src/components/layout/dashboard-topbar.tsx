@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getDashboardNavigation } from "@/lib/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
+import { User, Home, LogOut, Menu } from "lucide-react";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
@@ -78,10 +79,16 @@ export function DashboardTopbar() {
               </div>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link href="/dashboard/profile">Profile</Link>
+              <Link href="/dashboard/profile" className="flex items-center gap-1.5">
+                <User className="h-4 w-4" />
+                Profile
+              </Link>
             </Button>
             <Button asChild variant="secondary" size="sm">
-              <Link href="/">Landing</Link>
+              <Link href="/" className="flex items-center gap-1.5">
+                <Home className="h-4 w-4" />
+                Landing
+              </Link>
             </Button>
             <Button
               type="button"
@@ -90,6 +97,7 @@ export function DashboardTopbar() {
               onClick={handleLogout}
               disabled={isLoggingOut}
             >
+              <LogOut className="h-4 w-4" />
               {isLoggingOut ? "Keluar..." : "Logout"}
             </Button>
           </div>
@@ -104,10 +112,10 @@ export function DashboardTopbar() {
               variant="outline"
               size="sm"
               onClick={() => setMenuOpen(!menuOpen)}
-              className="gap-1 px-2.5"
+              className="gap-1.5 px-2.5"
             >
+              <Menu className="h-4 w-4" />
               <span className="text-xs">Menu</span>
-              <span className="text-[10px] opacity-60">▼</span>
             </Button>
 
             {menuOpen ? (
@@ -152,6 +160,7 @@ export function DashboardTopbar() {
                     }}
                     disabled={isLoggingOut}
                   >
+                    <LogOut className="h-4 w-4" />
                     {isLoggingOut ? "Keluar..." : "Logout"}
                   </Button>
                 </div>

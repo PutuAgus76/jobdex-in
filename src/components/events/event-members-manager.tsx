@@ -5,6 +5,7 @@ import { AddEventMemberDialog } from "@/components/events/add-event-member-dialo
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { RoleBadge } from "@/components/ui/role-badge";
+import { Plus, Trash2 } from "lucide-react";
 import type { EventMember, UserProfile } from "@/types";
 
 type EventMembersManagerProps = {
@@ -40,7 +41,8 @@ export function EventMembersManager({
           </p>
         </div>
         {canManage ? (
-          <Button type="button" onClick={() => setAddOpen(true)}>
+          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
             Tambah anggota
           </Button>
         ) : null}
@@ -52,18 +54,18 @@ export function EventMembersManager({
           description="Tambahkan anggota yang terlibat agar koordinasi acara lebih jelas."
         />
       ) : (
-        <div className="overflow-hidden jd-neo-table">
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
           <table className="w-full min-w-[720px] text-left text-sm border-collapse">
-            <thead>
+            <thead className="bg-slate-50 dark:bg-slate-850 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="px-4 py-3 font-semibold">Nama</th>
-                <th className="px-4 py-3 font-semibold">Email</th>
-                <th className="px-4 py-3 font-semibold">Role akun</th>
-                <th className="px-4 py-3 font-semibold">Role acara</th>
-                <th className="px-4 py-3 font-semibold">Aksi</th>
+                <th className="px-4 py-3 font-medium">Nama</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Role akun</th>
+                <th className="px-4 py-3 font-medium">Role acara</th>
+                <th className="px-4 py-3 font-medium">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y-2 divide-neutral-950 dark:divide-neutral-850">
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
               {eventMembers.map((member) => {
                 const user = usersById.get(member.user_id);
 
@@ -86,9 +88,10 @@ export function EventMembersManager({
                         <Button
                           type="button"
                           size="sm"
-                          variant="secondary"
+                          variant="destructive"
                           onClick={() => onRemove(member.user_id)}
                         >
+                          <Trash2 className="h-4 w-4" />
                           Hapus
                         </Button>
                       ) : (

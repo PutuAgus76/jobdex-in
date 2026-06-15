@@ -1,10 +1,11 @@
-import "server-only";
+﻿import "server-only";
+import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { ParsedWhatsAppCommand } from "./whatsapp-command-parser";
 import type { UserProfile } from "@/types";
 
-const CASE_1_TEMPLATE = `[JobDex.in AI]
+const CASE_1_TEMPLATE = `${WA_LABEL.ai}
 
 Silakan lengkapi format job desk berikut:
 
@@ -40,7 +41,7 @@ referensi: https://drive.google.com/...
 warna: #185FA5, #EF9F27
 arahan visual: modern, biru elegan`;
 
-const CASE_2_TEMPLATE = `[JobDex.in AI]
+const CASE_2_TEMPLATE = `${WA_LABEL.ai}
 
 Untuk menambahkan job desk acara, gunakan format ini:
 
@@ -73,7 +74,7 @@ referensi: https://drive.google.com/...
 warna: #185FA5, #EF9F27
 arahan visual: modern, kampus, biru elegan
 
-Jika acara belum ada di JobDex.in, buat acaranya dulu dengan:
+Jika acara belum ada di JobdexIn, buat acaranya dulu dengan:
 
 !jobdex tambah acara
 nama: PKKMB 2026
@@ -81,7 +82,7 @@ tanggal: 1 Agustus 2026
 koordinator: Nama Koordinator
 deskripsi: ...`;
 
-const CASE_5_TEMPLATE = `[JobDex.in AI]
+const CASE_5_TEMPLATE = `${WA_LABEL.ai}
 
 Untuk membuat acara, gunakan format:
 
@@ -99,7 +100,7 @@ tanggal: 1 Agustus 2026
 koordinator: Sumesta C
 deskripsi: Acara pengenalan kampus mahasiswa baru`;
 
-const CASE_REF_TEMPLATE = `[JobDex.in AI]
+const CASE_REF_TEMPLATE = `${WA_LABEL.ai}
 
 Silakan lengkapi format tambah referensi desain berikut:
 
@@ -205,7 +206,7 @@ export async function buildWhatsAppCommandPreview(
   // Append a success or warning message based on sender registration in JobDex.in
   const getSenderWarning = () => {
     if (!senderProfile) {
-      return `\n⚠️ Catatan: Nomor WhatsApp Anda belum terhubung ke akun JobDex.in, sehingga command eksekusi nantinya tidak dapat dijalankan.`;
+      return `\n⚠️ Catatan: Nomor WhatsApp Anda belum terhubung ke akun JobdexIn, sehingga command eksekusi nantinya tidak dapat dijalankan.`;
     }
     const roleLabel = senderProfile.role?.replace("_", " ") || "anggota";
     return `\n✅ Pengirim dikenali: ${senderProfile.name} (${roleLabel})`;
@@ -285,7 +286,7 @@ export async function buildWhatsAppCommandPreview(
         ].filter(Boolean).join("\n");
 
         const previewText = [
-          `[JobDex.in AI]`,
+          `${WA_LABEL.ai}`,
           ``,
           `Data job desk sudah mulai terbaca, tetapi masih kurang:`,
           ``,
@@ -365,7 +366,7 @@ export async function buildWhatsAppCommandPreview(
       }
 
       const previewText = [
-        `[JobDex.in AI Preview]`,
+        `${WA_LABEL.ai} Preview`,
         ``,
         `Saya membaca rencana tambah job desk:`,
         ``,
@@ -431,7 +432,7 @@ export async function buildWhatsAppCommandPreview(
         ].join("\n");
 
         const previewText = [
-          `[JobDex.in AI]`,
+          `${WA_LABEL.ai}`,
           ``,
           `Data acara sudah mulai terbaca, tetapi masih kurang:`,
           ``,
@@ -482,7 +483,7 @@ export async function buildWhatsAppCommandPreview(
       }
 
       const previewText = [
-        `[JobDex.in AI Preview]`,
+        `${WA_LABEL.ai} Preview`,
         ``,
         `Saya membaca rencana tambah acara:`,
         ``,
@@ -539,7 +540,7 @@ export async function buildWhatsAppCommandPreview(
       ];
 
       const previewText = [
-        `[JobDex.in AI Preview Bulk]`,
+        `${WA_LABEL.ai} Preview Bulk`,
         ``,
         `Saya membaca ${totalItems} rencana job desk (${globalTipe.charAt(0).toUpperCase() + globalTipe.slice(1)}):`,
         ``,
@@ -561,7 +562,7 @@ export async function buildWhatsAppCommandPreview(
       if (!query) {
         return {
           isValid: false,
-          previewText: `[JobDex.in AI Preview]\n\nFormat salah. Harap tentukan nama task yang ingin diapprove.\nContoh: !jobdex approve task Desain feed`,
+          previewText: `${WA_LABEL.ai} Preview\n\nFormat salah. Harap tentukan nama task yang ingin diapprove.\nContoh: !jobdex approve task Desain feed`,
         };
       }
 
@@ -580,7 +581,7 @@ export async function buildWhatsAppCommandPreview(
       if (matched.length === 0) {
         return {
           isValid: false,
-          previewText: `[JobDex.in AI Preview]\n\nTask dengan judul mirip "${query}" tidak ditemukan.\nHarap periksa kembali judul task yang Anda masukkan.`,
+          previewText: `${WA_LABEL.ai} Preview\n\nTask dengan judul mirip "${query}" tidak ditemukan.\nHarap periksa kembali judul task yang Anda masukkan.`,
         };
       }
 
@@ -590,7 +591,7 @@ export async function buildWhatsAppCommandPreview(
         const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
 
         const previewText = [
-          `[JobDex.in AI Preview]`,
+          `${WA_LABEL.ai} Preview`,
           ``,
           `Saya menemukan task:`,
           `Judul: ${task.name}`,
@@ -707,7 +708,7 @@ export async function buildWhatsAppCommandPreview(
         ].filter(Boolean).join("\n");
 
         const previewText = [
-          `[JobDex.in AI]`,
+          `${WA_LABEL.ai}`,
           ``,
           `Data referensi sudah mulai terbaca, tetapi masih kurang:`,
           ``,
@@ -745,7 +746,7 @@ export async function buildWhatsAppCommandPreview(
 
       // Check role authorization
       if (!senderProfile) {
-        validations.push(`- Otorisasi dibatasi (Nomor belum terdaftar di JobDex.in)`);
+        validations.push(`- Otorisasi dibatasi (Nomor belum terdaftar di JobdexIn)`);
         isValid = false;
       } else {
         const role = senderProfile.role;
@@ -818,7 +819,7 @@ export async function buildWhatsAppCommandPreview(
       const catatan = fields.catatan || fields.notes || "-";
 
       const previewText = [
-        `[JobDex.in AI Preview]`,
+        `${WA_LABEL.ai} Preview`,
         ``,
         `Saya membaca rencana tambah referensi desain:`,
         ``,
@@ -851,7 +852,7 @@ export async function buildWhatsAppCommandPreview(
     default: {
       return {
         isValid: false,
-        previewText: `[JobDex.in AI Preview]\n\nCommand tidak dikenal atau gagal diproses.`,
+        previewText: `${WA_LABEL.ai} Preview\n\nCommand tidak dikenal atau gagal diproses.`,
       };
     }
   }

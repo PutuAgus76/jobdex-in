@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Save } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -132,7 +133,8 @@ export default function CompleteProfilePage() {
               </p>
             ) : null}
 
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="md" disabled={isSubmitting}>
+              <Save className="h-4 w-4" />
               {isSubmitting ? "Menyimpan..." : "Simpan profil"}
             </Button>
           </form>

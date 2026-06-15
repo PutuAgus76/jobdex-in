@@ -229,23 +229,23 @@ export function NeoDatePicker({
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-[280px] rounded-base border-2 border-border bg-secondary-background p-3 shadow-shadow font-sans left-0 md:left-auto md:right-0">
+        <div className="absolute z-50 mt-1 w-[280px] rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 shadow-md font-sans left-0 md:left-auto md:right-0">
           {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b-2 border-dashed border-border mb-3">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-1 rounded-[4px] border-2 border-border bg-white text-slate-900 shadow-[1px_1px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[0.5px_0.5px_0px_#000]"
+              className="p-1 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
               <ChevronLeft className="size-4" />
             </button>
-            <span className="text-sm font-black text-foreground">
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
               {MONTH_NAMES[month]} {year}
             </span>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1 rounded-[4px] border-2 border-border bg-white text-slate-900 shadow-[1px_1px_0px_#000] hover:translate-x-[0.5px] hover:translate-y-[0.5px] hover:shadow-[0.5px_0.5px_0px_#000]"
+              className="p-1 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
             >
               <ChevronRight className="size-4" />
             </button>
@@ -254,7 +254,7 @@ export function NeoDatePicker({
           {/* Weekday Names */}
           <div className="grid grid-cols-7 gap-1 text-center mb-1">
             {WEEKDAY_NAMES.map((name) => (
-              <span key={name} className="text-[10px] font-black text-slate-500 uppercase">
+              <span key={name} className="text-[10px] font-medium text-slate-400 uppercase">
                 {name}
               </span>
             ))}
@@ -272,14 +272,14 @@ export function NeoDatePicker({
                   key={idx}
                   type="button"
                   onClick={() => handleDaySelect(cell.day, cell.monthType)}
-                  className={`size-8 text-xs font-bold rounded-[4px] flex items-center justify-center transition-all ${
+                  className={`size-8 text-xs font-medium rounded-md flex items-center justify-center transition-all ${
                     active
-                      ? "bg-[var(--main)] text-neutral-950 border-2 border-border shadow-[1px_1px_0px_#000]"
+                      ? "bg-sky-600 text-white border border-sky-600 shadow-sm"
                       : today
-                      ? "bg-white text-foreground border-2 border-dashed border-border"
+                      ? "bg-sky-50 dark:bg-sky-950/30 text-sky-700 dark:text-sky-400 border border-dashed border-sky-300 dark:border-sky-850"
                       : current
-                      ? "bg-white text-foreground hover:bg-slate-100 hover:border-2 hover:border-border hover:shadow-[1px_1px_0px_#000] border border-transparent"
-                      : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 border border-transparent"
+                      ? "bg-transparent text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                      : "bg-transparent text-slate-300 dark:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-900/30"
                   }`}
                 >
                   {cell.day}

@@ -8,6 +8,7 @@ import { EventsTable } from "@/components/events/events-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Plus } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getEventMembers } from "@/lib/firebase/event-members";
@@ -170,11 +171,13 @@ function EventsManagement() {
         </div>
         <Button
           type="button"
+          size="sm"
           onClick={() => {
             setSelectedEvent(null);
             setFormOpen(true);
           }}
         >
+          <Plus className="h-4 w-4" />
           Tambah Acara
         </Button>
       </section>
@@ -203,11 +206,13 @@ function EventsManagement() {
           action={
             <Button
               type="button"
+              size="sm"
               onClick={() => {
                 setSelectedEvent(null);
                 setFormOpen(true);
               }}
             >
+              <Plus className="h-4 w-4" />
               Tambah Acara
             </Button>
           }

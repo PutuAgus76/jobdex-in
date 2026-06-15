@@ -51,6 +51,7 @@ import {
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile, Event } from "@/types";
 import { USER_ROLE_LABELS } from "@/lib/roles";
+import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import {
   isReferenceSearchQuestion,
   searchDesignReferencesFromQuestion,
@@ -688,7 +689,7 @@ export async function POST(request: NextRequest) {
     // Tugas 8: Cek Pengirim Command
     if (isCekPengirim) {
       const replyMessage = [
-        "[JobDex.in Debug Pengirim]",
+        WA_LABEL.debugPengirim,
         "",
         `Nomor terdeteksi: ${resolvedSenderNumber || "Tidak terdeteksi"}`,
         `Sumber: ${senderSource || "Tidak diketahui"}`,
@@ -711,7 +712,7 @@ export async function POST(request: NextRequest) {
     // Tugas 8b: Cek Role Command
     if (intent === "cek_role") {
       const replyMessage = [
-        "[JobDex.in Cek Role]",
+        WA_LABEL.cekRole,
         "",
         `Halo ${senderUserProfile ? senderUserProfile.name : "Pengguna"},`,
         `Nomor terdeteksi: ${resolvedSenderNumber || "Tidak terdeteksi"}`,
@@ -734,11 +735,11 @@ export async function POST(request: NextRequest) {
 
     if (requiresAuth && !isSenderMatched) {
       const replyMessage = [
-        "[JobDex.in Auth]",
+        WA_LABEL.auth,
         "",
         `Nomor WhatsApp kamu terdeteksi: ${resolvedSenderNumber || incoming.sender}`,
         "",
-        "Namun nomor ini belum terhubung dengan akun JobDex.in.",
+        "Namun nomor ini belum terhubung dengan akun JobdexIn.",
         "Silakan hubungi admin untuk menambahkan nomor WhatsApp ke profil akun."
       ].join("\n");
 
@@ -781,7 +782,7 @@ export async function POST(request: NextRequest) {
     // 1. Bantuan Task Command
     if (intent === "bantuan_task") {
       const replyMessage = [
-        "[JobDex.in Bantuan]",
+        WA_LABEL.bantuan,
         "",
         "Command utama:",
         "- !jobdex tugas saya",
@@ -840,7 +841,7 @@ export async function POST(request: NextRequest) {
       const statusText = isConnected ? "Terhubung" : "Belum terhubung";
 
       const replyMessage = [
-        "[JobDex.in Debug Grup]",
+        WA_LABEL.debugGrup,
         "",
         `Group ID: ${incoming.groupId || "Personal Chat"}`,
         `Group Name: ${groupSubject || "-"}`,
@@ -879,7 +880,7 @@ export async function POST(request: NextRequest) {
       let replyMessage = "";
       if (events.length === 0) {
         replyMessage = [
-          "[JobDex.in Grup Acara]",
+          WA_LABEL.grupAcara,
           "",
           "Belum ada acara yang memiliki grup WhatsApp khusus."
         ].join("\n");
@@ -888,7 +889,7 @@ export async function POST(request: NextRequest) {
           return `${index + 1}. ${e.name}\n   Group ID: ${e.whatsapp_group_id}\n   Status: Terhubung`;
         });
         replyMessage = [
-          "[JobDex.in Grup Acara]",
+          WA_LABEL.grupAcara,
           "",
           "Daftar acara yang memiliki grup WhatsApp khusus:",
           "",
@@ -926,7 +927,7 @@ export async function POST(request: NextRequest) {
       
       if (!incoming.isGroup || !incoming.groupId) {
         const replyMessage = [
-          "[JobDex.in Grup Acara]",
+          WA_LABEL.grupAcara,
           "",
           "Command ini hanya dapat dijalankan di dalam grup WhatsApp."
         ].join("\n");
@@ -954,7 +955,7 @@ export async function POST(request: NextRequest) {
 
       if (!matchedEvent) {
         const replyMessage = [
-          "[JobDex.in Grup Acara]",
+          WA_LABEL.grupAcara,
           "",
           `Acara dengan nama "${eventName}" tidak ditemukan.`
         ].join("\n");
@@ -1006,7 +1007,7 @@ export async function POST(request: NextRequest) {
       if (!isAllowed) {
         authorizationResult = "denied";
         const replyMessage = [
-          "[JobDex.in Akses Ditolak]",
+          WA_LABEL.accessDenied,
           "",
           "Maaf, Anda tidak memiliki izin untuk menghubungkan grup WhatsApp ke acara ini. Pindai/hubungkan hanya diperbolehkan untuk Super Admin, Koordinator Acara terkait, atau Koordinator Divisi terkait."
         ].join("\n");
@@ -1046,7 +1047,7 @@ export async function POST(request: NextRequest) {
       );
 
       const replyMessage = [
-        "[JobDex.in Grup Acara]",
+        WA_LABEL.grupAcara,
         "",
         "Grup ini berhasil dihubungkan ke acara:",
         matchedEvent.name,
@@ -1146,7 +1147,7 @@ export async function POST(request: NextRequest) {
       const isCode = parsedCommand.fields.is_code === "true";
       const result = await handleDetailTaskCommand(taskName, isCode, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1187,7 +1188,7 @@ export async function POST(request: NextRequest) {
       const catatan = String(parsedCommand.fields.catatan || "");
       const result = await handleUploadHasilCommand(taskName, isCode, link, catatan, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1227,7 +1228,7 @@ export async function POST(request: NextRequest) {
       const catatan = String(parsedCommand.fields.catatan || "");
       const result = await handleMintaRevisiCommand(taskName, isCode, catatan, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1266,7 +1267,7 @@ export async function POST(request: NextRequest) {
       const isCode = parsedCommand.fields.is_code === "true";
       const result = await handleCekChecklistCommand(taskName, isCode, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1306,7 +1307,7 @@ export async function POST(request: NextRequest) {
       const catatan = String(parsedCommand.fields.catatan || "");
       const result = await handleTambahCatatanCommand(taskName, isCode, catatan, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1346,7 +1347,7 @@ export async function POST(request: NextRequest) {
       const picName = String(parsedCommand.fields.pic_name || "");
       const result = await handleGantiPicCommand(taskName, isCode, picName, senderUserProfile!);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1416,7 +1417,7 @@ export async function POST(request: NextRequest) {
         result = await handleConfirmArchiveCommand(code, senderUserProfile!);
       }
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1456,7 +1457,7 @@ export async function POST(request: NextRequest) {
 
       const result = await handleApproveTaskCommand(taskName, senderUserProfile!, isCode);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1498,7 +1499,7 @@ export async function POST(request: NextRequest) {
 
       if (!statusVal || !taskName) {
         const replyMessage = [
-          "[JobDex.in Task]",
+          WA_LABEL.task,
           "",
           "Format update status belum lengkap.",
           "",
@@ -1519,7 +1520,7 @@ export async function POST(request: NextRequest) {
 
       const result = await handleUpdateTaskStatusCommand(taskName, senderUserProfile!, isCode, statusVal, notes);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1559,7 +1560,7 @@ export async function POST(request: NextRequest) {
 
       if (!taskName) {
         const replyMessage = [
-          "[JobDex.in Task]",
+          WA_LABEL.task,
           "",
           "Format edit task belum lengkap.",
           "",
@@ -1586,7 +1587,7 @@ export async function POST(request: NextRequest) {
 
       const result = await handleEditTaskCommand(taskName, senderUserProfile!, isCode, changesPayload);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1626,7 +1627,7 @@ export async function POST(request: NextRequest) {
 
       if (!taskName) {
         const replyMessage = [
-          "[JobDex.in Task]",
+          WA_LABEL.task,
           "",
           "Format archive task belum lengkap.",
           "",
@@ -1647,7 +1648,7 @@ export async function POST(request: NextRequest) {
 
       const result = await handleArchiveTaskCommand(taskName, senderUserProfile!, isCode);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1688,7 +1689,7 @@ export async function POST(request: NextRequest) {
 
       if (!taskName || !item) {
         const replyMessage = [
-          "[JobDex.in Task]",
+          WA_LABEL.task,
           "",
           "Format checklist task belum lengkap.",
           "",
@@ -1709,7 +1710,7 @@ export async function POST(request: NextRequest) {
 
       const result = await handleChecklistCommand(taskName, senderUserProfile!, isCode, item);
 
-      if (result.replyText.startsWith("[JobDex.in Akses Ditolak]")) {
+      if (result.replyText.startsWith(WA_LABEL.accessDenied)) {
         authorizationResult = "denied";
       }
       targetTaskId = result.taskId || "";
@@ -1745,7 +1746,7 @@ export async function POST(request: NextRequest) {
     // Intercept if it looks like a task command but fell through (parser failed or incomplete)
     if (isTaskLike) {
       const replyMessage = [
-        "[JobDex.in Task]",
+        WA_LABEL.task,
         "",
         "Format perintah task tidak dikenali atau belum lengkap.",
         "",
@@ -1893,7 +1894,7 @@ export async function POST(request: NextRequest) {
       profile: getBotProfile(),
     });
     const prompt = [
-      "CONTEXT JOBDEX.IN:",
+      "CONTEXT JOBDEXIN:",
       contextSummary,
       "",
       "PERTANYAAN DARI WHATSAPP:",
@@ -1925,7 +1926,7 @@ export async function POST(request: NextRequest) {
     });
 
     const replyMessage = [
-      "[JobDex.in AI]",
+      WA_LABEL.ai,
       "",
       "Pertanyaan:",
       sanitizePinFromMessage(question),
@@ -1966,7 +1967,7 @@ export async function POST(request: NextRequest) {
     }
 
     const errorReply = [
-      "[JobDex.in AI]",
+      WA_LABEL.ai,
       GEMINI_EMPTY_ANSWER_FALLBACK,
     ].join("\n");
 

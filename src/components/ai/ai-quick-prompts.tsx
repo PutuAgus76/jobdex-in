@@ -16,7 +16,7 @@ export function AIQuickPrompts({ disabled = false, onSelect }: AIQuickPromptsPro
           type="button"
           disabled={disabled}
           onClick={() => onSelect(prompt)}
-          className="jd-neo-badge jd-neo-badge-purple cursor-pointer hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[3px_3px_0px_var(--border)] active:translate-x-0 active:translate-y-0 active:shadow-[2px_2px_0px_var(--border)] transition-all disabled:opacity-50 shrink-0 text-xs font-bold select-none"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-100 dark:border-sky-900/50 rounded-full cursor-pointer hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors disabled:opacity-50 shrink-0 select-none"
         >
           <span className="normal-case">{prompt}</span>
         </button>

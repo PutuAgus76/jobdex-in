@@ -1,7 +1,8 @@
-import "server-only";
+﻿import "server-only";
 
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import type { UserProfile } from "@/types";
+import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import { findUserByName, findEventByName } from "./whatsapp-command-preview";
 
 const MONTH_MAP: Record<string, string> = {
@@ -116,7 +117,7 @@ export async function cancelPreviewCommand(
   if (!cleanCode) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nFormat pembatalan salah. Gunakan:\n!jobdex batal <PREVIEW_ID>`,
+      replyText: `${WA_LABEL.ai}\n\nFormat pembatalan salah. Gunakan:\n!jobdex batal <PREVIEW_ID>`,
     };
   }
 
@@ -129,7 +130,7 @@ export async function cancelPreviewCommand(
   if (previewQuery.empty) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" tidak ditemukan.`,
+      replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" tidak ditemukan.`,
     };
   }
 
@@ -139,7 +140,7 @@ export async function cancelPreviewCommand(
   if (previewData.status !== "pending") {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" sudah tidak berstatus pending (Status saat ini: ${previewData.status}).`,
+      replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" sudah tidak berstatus pending (Status saat ini: ${previewData.status}).`,
     };
   }
 
@@ -154,7 +155,7 @@ export async function cancelPreviewCommand(
 
   return {
     success: true,
-    replyText: `[JobDex.in AI]\n\nRencana tindakan "${previewData.parsed_intent || "tambah data"}" (ID: ${cleanCode}) berhasil dibatalkan oleh ${user.name}.`,
+    replyText: `${WA_LABEL.ai}\n\nRencana tindakan "${previewData.parsed_intent || "tambah data"}" (ID: ${cleanCode}) berhasil dibatalkan oleh ${user.name}.`,
   };
 }
 
@@ -171,7 +172,7 @@ export async function confirmPreviewCommand(
   if (!cleanCode) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nFormat konfirmasi salah. Gunakan:\n!jobdex konfirmasi <PREVIEW_ID>`,
+      replyText: `${WA_LABEL.ai}\n\nFormat konfirmasi salah. Gunakan:\n!jobdex konfirmasi <PREVIEW_ID>`,
     };
   }
 
@@ -184,7 +185,7 @@ export async function confirmPreviewCommand(
   if (previewQuery.empty) {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" tidak ditemukan.`,
+      replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" tidak ditemukan.`,
     };
   }
 
@@ -194,7 +195,7 @@ export async function confirmPreviewCommand(
   if (previewData.status !== "pending") {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" sudah tidak pending (Status saat ini: ${previewData.status}).`,
+      replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" sudah tidak pending (Status saat ini: ${previewData.status}).`,
     };
   }
 
@@ -205,7 +206,7 @@ export async function confirmPreviewCommand(
       await previewDoc.ref.update({ status: "expired" });
       return {
         success: false,
-        replyText: `[JobDex.in AI]\n\nPreview ID "${cleanCode}" sudah kedaluwarsa (Batas waktu 30 menit). Silakan kirim command baru untuk mendapatkan Preview ID baru.`,
+        replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" sudah kedaluwarsa (Batas waktu 30 menit). Silakan kirim command baru untuk mendapatkan Preview ID baru.`,
       };
     }
   }
@@ -232,7 +233,7 @@ export async function confirmPreviewCommand(
   if (user.role === "anggota") {
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nOtorisasi ditolak. Anggota biasa tidak diperbolehkan membuat job desk atau acara baru.`,
+      replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak. Anggota biasa tidak diperbolehkan membuat job desk atau acara baru.`,
     };
   }
 
@@ -256,7 +257,7 @@ export async function confirmPreviewCommand(
         if (!picUser) {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: PIC "${picRaw}" tidak ditemukan dalam database JobDex.in.`,
+            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: PIC "${picRaw}" tidak ditemukan dalam database JobdexIn.`,
           };
         }
 
@@ -269,14 +270,14 @@ export async function confirmPreviewCommand(
           if (!acaraRaw) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Field 'acara' wajib disuplai jika tipe job desk adalah 'acara'.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Field 'acara' wajib disuplai jika tipe job desk adalah 'acara'.`,
             };
           }
           const event = findEventByName(acaraRaw, allEvents) as { id: string; name: string; coordinator_id: string } | null;
           if (!event) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
             };
           }
           eventId = event.id;
@@ -286,7 +287,7 @@ export async function confirmPreviewCommand(
           if (user.role === "koordinator_acara" && event.coordinator_id !== user.id) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat job desk untuk acara yang Anda koordinasikan sendiri.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat job desk untuk acara yang Anda koordinasikan sendiri.`,
             };
           }
         } else {
@@ -294,7 +295,7 @@ export async function confirmPreviewCommand(
           if (user.role === "koordinator_acara") {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat job desk tipe divisi.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat job desk tipe divisi.`,
             };
           }
         }
@@ -392,14 +393,14 @@ export async function confirmPreviewCommand(
           if (!acaraRaw) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Field 'acara' wajib disuplai untuk job desk tipe 'acara'.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Field 'acara' wajib disuplai untuk job desk tipe 'acara'.`,
             };
           }
           const event = findEventByName(acaraRaw, allEvents) as { id: string; name: string; coordinator_id: string } | null;
           if (!event) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
             };
           }
           eventId = event.id;
@@ -409,14 +410,14 @@ export async function confirmPreviewCommand(
           if (user.role === "koordinator_acara" && event.coordinator_id !== user.id) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat job desk bulk untuk acara yang Anda koordinasikan sendiri.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat job desk bulk untuk acara yang Anda koordinasikan sendiri.`,
             };
           }
         } else {
           if (user.role === "koordinator_acara") {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat job desk tipe divisi.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat job desk tipe divisi.`,
             };
           }
         }
@@ -424,7 +425,7 @@ export async function confirmPreviewCommand(
         if (items.length === 0) {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Tidak ada baris job desk yang terbaca untuk dibuat secara bulk.`,
+            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Tidak ada baris job desk yang terbaca untuk dibuat secara bulk.`,
           };
         }
 
@@ -476,7 +477,7 @@ export async function confirmPreviewCommand(
         if (errors.length > 0) {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nGagal membuat bulk job desk. Terdapat kesalahan validasi:\n\n${errors.join("\n")}\n\nEksekusi dibatalkan secara keseluruhan (All-or-Nothing).`,
+            replyText: `${WA_LABEL.ai}\n\nGagal membuat bulk job desk. Terdapat kesalahan validasi:\n\n${errors.join("\n")}\n\nEksekusi dibatalkan secara keseluruhan (All-or-Nothing).`,
           };
         }
 
@@ -561,7 +562,7 @@ export async function confirmPreviewCommand(
         if (user.role === "koordinator_acara") {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat acara baru.`,
+            replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat acara baru.`,
           };
         }
 
@@ -570,14 +571,14 @@ export async function confirmPreviewCommand(
         if (!koorUser) {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Koordinator "${koordinatorRaw}" tidak ditemukan.`,
+            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Koordinator "${koordinatorRaw}" tidak ditemukan.`,
           };
         }
 
         if (!tanggal || tanggal === "-") {
           return {
             success: false,
-            replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Tanggal acara tidak valid.`,
+            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Tanggal acara tidak valid.`,
           };
         }
 
@@ -654,14 +655,14 @@ export async function confirmPreviewCommand(
           if (!acaraRaw) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Field 'acara' wajib disuplai untuk referensi scope 'acara'.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Field 'acara' wajib disuplai untuk referensi scope 'acara'.`,
             };
           }
           const event = findEventByName(acaraRaw, allEvents) as { id: string; name: string; coordinator_id: string } | null;
           if (!event) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
+              replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Acara "${acaraRaw}" tidak ditemukan. Harap buat acara terlebih dahulu.`,
             };
           }
           eventId = event.id;
@@ -671,21 +672,21 @@ export async function confirmPreviewCommand(
           if (user.role === "koordinator_acara" && event.coordinator_id !== user.id) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat referensi untuk acara yang Anda koordinasikan sendiri.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Anda hanya diperbolehkan membuat referensi untuk acara yang Anda koordinasikan sendiri.`,
             };
           }
         } else if (isDivisi) {
           if (user.role === "koordinator_acara") {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat referensi scope divisi.`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Koordinator acara tidak diperbolehkan membuat referensi scope divisi.`,
             };
           }
           
           if (user.role === "koordinator_divisi" && user.division_id && divisiRaw && user.division_id.toLowerCase() !== divisiRaw.toLowerCase()) {
             return {
               success: false,
-              replyText: `[JobDex.in AI]\n\nOtorisasi ditolak: Sebagai Koordinator Divisi, Anda hanya boleh menambah referensi untuk divisi Anda sendiri (${user.division_id}).`,
+              replyText: `${WA_LABEL.ai}\n\nOtorisasi ditolak: Sebagai Koordinator Divisi, Anda hanya boleh menambah referensi untuk divisi Anda sendiri (${user.division_id}).`,
             };
           }
         }
@@ -785,7 +786,7 @@ export async function confirmPreviewCommand(
       default: {
         return {
           success: false,
-          replyText: `[JobDex.in AI]\n\nGagal mengeksekusi: Tipe preview "${intent}" belum didukung untuk eksekusi otomatis.`,
+          replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: Tipe preview "${intent}" belum didukung untuk eksekusi otomatis.`,
         };
       }
     }
@@ -793,7 +794,7 @@ export async function confirmPreviewCommand(
     console.error("Execution error:", err);
     return {
       success: false,
-      replyText: `[JobDex.in AI]\n\nTerjadi kesalahan internal saat menulis ke database: ${err instanceof Error ? err.message : "Kesalahan tidak diketahui"}`,
+      replyText: `${WA_LABEL.ai}\n\nTerjadi kesalahan internal saat menulis ke database: ${err instanceof Error ? err.message : "Kesalahan tidak diketahui"}`,
     };
   }
 }

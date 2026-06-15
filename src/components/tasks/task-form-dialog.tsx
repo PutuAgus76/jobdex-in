@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { X, FolderOpen, Save } from "lucide-react";
 import { TASK_PRIORITY_OPTIONS } from "@/lib/task-priority";
 import { TASK_STATUS_OPTIONS } from "@/lib/task-status";
 import { getTaskDateInputValue } from "@/lib/firebase/tasks";
@@ -141,6 +142,7 @@ function TaskForm({
               </p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
               Tutup
             </Button>
           </div>
@@ -235,7 +237,8 @@ function TaskForm({
                 </p>
               </div>
               <Button asChild type="button" variant="secondary" size="sm">
-                <Link href="/dashboard/references" target="_blank">
+                <Link href="/dashboard/references" target="_blank" className="flex items-center gap-1.5">
+                  <FolderOpen className="h-4 w-4" />
                   Buka Referensi
                 </Link>
               </Button>
@@ -252,8 +255,14 @@ function TaskForm({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Menyimpan..." : "Simpan task"}</Button>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+              Batal
+            </Button>
+            <Button type="submit" size="sm" disabled={isSubmitting}>
+              <Save className="h-4 w-4" />
+              {isSubmitting ? "Menyimpan..." : "Simpan task"}
+            </Button>
           </div>
         </form>
       </div>

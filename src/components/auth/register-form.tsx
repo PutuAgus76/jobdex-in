@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getFirebaseAuthErrorMessage,
@@ -166,12 +167,13 @@ export function RegisterForm() {
       </div>
 
       {error ? (
-        <p className="jd-neo-badge jd-neo-badge-red text-xs w-full py-2 flex items-center justify-center font-bold">
+        <p className="w-full text-center py-2 px-3 text-xs font-semibold text-red-700 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-md">
           {error}
         </p>
       ) : null}
 
-      <Button type="submit" className="w-full font-black shadow-[3px_3px_0px_rgba(0,0,0,1)]" disabled={isSubmitting || loading}>
+      <Button type="submit" size="md" className="w-full" disabled={isSubmitting || loading}>
+        <UserPlus className="h-4 w-4" />
         {isSubmitting ? "Membuat akun..." : "Buat akun"}
       </Button>
     </form>
