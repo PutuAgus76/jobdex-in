@@ -503,23 +503,37 @@ function getDigestAction(item: ReminderDigestTask) {
 
   if (item.task.status === "menunggu_approval") {
     return category === "overdue"
-      ? "Koordinator perlu approve / revisi."
-      : "Koordinator perlu cek hasil.";
+      ? "[Prioritas Tinggi] Koordinator harap SEGERA review/approve karena sudah lewat deadline."
+      : "Koordinator perlu cek hasil dan approve/revisi.";
   }
 
   if (item.task.status === "stuck" || item.task.status === "butuh_bantuan") {
-    return "Koordinator perlu bantu / alihkan.";
+    return "Koordinator perlu hubungi PIC untuk membantu kendala/alihkan tugas.";
+  }
+  
+  if (item.task.status === "perlu_revisi" || item.task.status === "revisi_dikerjakan") {
+    return "PIC perlu segera menyelesaikan revisi sesuai arahan koordinator.";
   }
 
   if (item.task.status === "belum_dimulai") {
-    return "PIC perlu mulai dan update progress.";
+    return category === "overdue" || category === "today" || category === "h_1"
+      ? "PIC belum mulai! Koordinator harap tegur PIC segera."
+      : "PIC disarankan mulai mengerjakan agar tidak menumpuk.";
   }
 
-  if (category === "today" || category === "h_1") {
-    return "PIC perlu update progress hari ini.";
+  if (category === "overdue") {
+    return "[Prioritas Tinggi] Sudah lewat deadline! PIC harap segera upload hasil akhir.";
   }
 
-  return "PIC perlu update progress.";
+  if (category === "today") {
+    return "Batas akhir hari ini! PIC perlu segera selesaikan dan upload.";
+  }
+  
+  if (category === "h_1") {
+    return "PIC perlu pastikan draft sudah siap hari ini.";
+  }
+
+  return "PIC perlu update progress rutin ke sistem.";
 }
 
 function getTaskDigestCategories(task: Task, diffDays: number | null) {

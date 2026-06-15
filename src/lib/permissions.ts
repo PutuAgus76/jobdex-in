@@ -101,6 +101,12 @@ export function canApproveTask(
 }
 
 export function canAccessAI(input: UserProfile | UserRole | null | undefined) {
+  if (!input) return false;
+  const role = typeof input === "string" ? input : input.role;
+  return !!role; // All authenticated users with a role can access AI
+}
+
+export function canAccessAIFull(input: UserProfile | UserRole | null | undefined) {
   return isKoordinator(input);
 }
 

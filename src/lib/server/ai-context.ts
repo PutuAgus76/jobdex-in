@@ -110,7 +110,8 @@ async function getVisibleTasks(profile: UserProfile, eventId?: string) {
         return task.type === "acara" && task.coordinator_id === profile.id;
       }
 
-      return false;
+      // Anggota can see tasks where they are PIC
+      return task.pic_id === profile.id;
     });
 }
 
@@ -201,6 +202,15 @@ export async function buildAIContext({ profile, eventId }: BuildAIContextInput) 
   ];
   const contextSummary = [
     JOBDEX_APP_CONTEXT,
+    "",
+    "PENGGUNA YANG BERTANYA:",
+    `Nama: ${profile.name}`,
+    `Role: ${profile.role === "super_admin" ? "Super Admin" : profile.role === "koordinator_divisi" ? "Koordinator Divisi" : profile.role === "koordinator_acara" ? "Koordinator Acara" : "Anggota (PIC)"}`,
+    profile.role === "anggota"
+      ? "Catatan: User ini adalah anggota/PIC. Fokuskan jawaban pada tugas yang ditugaskan kepadanya dan berikan panduan cara update progress, upload hasil, atau melaporkan kendala."
+      : profile.role === "koordinator_acara"
+      ? "Catatan: User ini adalah koordinator acara. Fokuskan jawaban pada progress acara yang dikoordinasinya, task yang perlu di-approve, dan PIC yang perlu di-follow-up."
+      : "Catatan: User ini adalah koordinator/admin. Berikan jawaban menyeluruh tentang semua task, progress anggota, dan rekomendasi prioritas.",
     "",
     "STATISTIK:",
     ...statistics,

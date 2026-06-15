@@ -2134,3 +2134,126 @@ export async function handleGantiPicCommand(
   }
 }
 
+export async function handleBriefingCommand(user: UserProfile): Promise<{ success: boolean; replyText: string }> {
+  if (user.role === "anggota") {
+    return { success: false, replyText: getAccessDeniedMessage(user) };
+  }
+
+  try {
+    const db = getAdminDb();
+    const tasksSnap = await db.collection("tasks").where("is_archived", "==", false).get();
+    
+    let overdueCount = 0;
+    let waitingApprovalCount = 0;
+    let stuckCount = 0;
+    let todayCount = 0;
+
+    tasksSnap.forEach((doc) => {
+      const task = doc.data() as Task;
+      if (task.status === "approved" || task.status === ("selesai" as unknown as typeof task.status)) return;
+      
+      // Filter by role scope
+      if (user.role === "koordinator_acara" && task.type === "acara" && task.coordinator_id !== user.id) return;
+      if (user.role === "koordinator_divisi" && task.type === "divisi" && task.division_id !== user.division_id) return;
+
+      const diffDays = getTaskDeadlineDiffDays(task);
+      if (diffDays !== null) {
+        if (diffDays < 0) overdueCount++;
+        if (diffDays === 0) todayCount++;
+      }
+      
+      if (task.status === "menunggu_approval") waitingApprovalCount++;
+      if (task.status === "stuck" || task.status === "butuh_bantuan") stuckCount++;
+    });
+
+    const replyText = [
+      "[JobDex.in Briefing Pagi]",
+      "",
+      `Halo ${user.name}, ini ringkasan task yang perlu diperhatikan hari ini:`,
+      "",
+      `🔴 ${overdueCount} task overdue`,
+      `⏳ ${waitingApprovalCount} task menunggu approval`,
+      `⚠️ ${stuckCount} task stuck / butuh bantuan`,
+      `📅 ${todayCount} task deadline hari ini`,
+      "",
+      "Ketik !jobdex tugas overdue atau !jobdex menunggu approval untuk detailnya."
+    ].join("\n");
+
+    return { success: true, replyText };
+  } catch (error) {
+    console.error("[Briefing] Error:", error);
+    return { success: false, replyText: "[JobDex.in Briefing]\nGagal mengambil data briefing." };
+  }
+}
+
+export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<{ success: boolean; replyText: string }> {
+  if (user.role === "anggota") {
+    return { success: false, replyText: getAccessDeniedMessage(user) };
+  }
+
+  try {
+    const db = getAdminDb();
+    const tasksSnap = await db.collection("tasks").where("is_archived", "==", false).get();
+    const usersSnap = await db.collection("users").get();
+    
+    const usersMap = new Map<string, string>();
+    usersSnap.forEach((d) => usersMap.set(d.id, d.data().name || "-"));
+
+    const picDelays = new Map<string, number>();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    tasksSnap.forEach((doc) => {
+      const task = doc.data() as Task;
+      if (task.status === "approved" || task.status === "belum_dimulai" || !task.pic_id) return;
+      
+      // Filter by role scope
+      if (user.role === "koordinator_acara" && task.type === "acara" && task.coordinator_id !== user.id) return;
+      if (user.role === "koordinator_divisi" && task.type === "divisi" && task.division_id !== user.division_id) return;
+
+      const updatedAt = task.updated_at && typeof task.updated_at === "object" && "toDate" in task.updated_at
+          ? (task.updated_at as { toDate: () => Date }).toDate()
+          : task.updated_at instanceof Date
+          ? task.updated_at
+          : null;
+
+      if (updatedAt) {
+        const updated = new Date(updatedAt);
+        updated.setHours(0, 0, 0, 0);
+        const diffDays = Math.floor((today.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays >= 2) { // Consider "belum update" if >= 2 days
+          const currentCount = picDelays.get(task.pic_id) || 0;
+          picDelays.set(task.pic_id, currentCount + 1);
+        }
+      }
+    });
+
+    if (picDelays.size === 0) {
+      return { success: true, replyText: "[JobDex.in PIC Report]\n\nSemua PIC aktif mengupdate progress dalam 2 hari terakhir." };
+    }
+
+    const lines = [
+      "[JobDex.in PIC Report]",
+      "",
+      "Daftar PIC yang belum update progress task (>= 2 hari):",
+      ""
+    ];
+
+    let idx = 1;
+    for (const [picId, count] of Array.from(picDelays.entries()).sort((a, b) => b[1] - a[1])) {
+      const name = usersMap.get(picId) || "Unknown";
+      lines.push(`${idx}. ${name}: ${count} task belum diupdate`);
+      idx++;
+    }
+
+    lines.push("");
+    lines.push("Saran: Hubungi PIC terkait untuk menanyakan progress.");
+
+    return { success: true, replyText: lines.join("\n") };
+  } catch (error) {
+    console.error("[Siapa Belum Update] Error:", error);
+    return { success: false, replyText: "[JobDex.in PIC Report]\nGagal mengambil data laporan." };
+  }
+}

@@ -46,6 +46,8 @@ import {
   handleCekChecklistCommand,
   handleTambahCatatanCommand,
   handleGantiPicCommand,
+  handleBriefingCommand,
+  handleSiapaBelumUpdateCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
 import type { UserProfile, Event } from "@/types";
 import { USER_ROLE_LABELS } from "@/lib/roles";
@@ -687,6 +689,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Tugas 8b: Cek Role Command
+    if (intent === "cek_role") {
+      const replyMessage = [
+        "[JobDex.in Cek Role]",
+        "",
+        `Halo ${senderUserProfile ? senderUserProfile.name : "Pengguna"},`,
+        `Nomor terdeteksi: ${resolvedSenderNumber || "Tidak terdeteksi"}`,
+        `Role Anda saat ini: ${senderUserProfile ? (USER_ROLE_LABELS[senderUserProfile.role] || senderUserProfile.role) : "Tidak terdaftar"}`
+      ].join("\n");
+
+      await updateDebugIntent("task_command", "cek_role");
+
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: "sent",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
     const isBantuan = intent === "bantuan_task" || intent === "template_help";
     const requiresAuth = intent !== "unknown" && !isBantuan && !isCekPengirim;
 
@@ -1059,6 +1082,34 @@ export async function POST(request: NextRequest) {
       const result = await handleTugasSayaCommand(senderUserProfile!, variation);
       
       await updateDebugIntent("task_command", "tugas_saya");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (intent === "briefing") {
+      const result = await handleBriefingCommand(senderUserProfile!);
+      await updateDebugIntent("task_command", "briefing");
+
+      const replyMessage = result.replyText;
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (intent === "siapa_belum_update") {
+      const result = await handleSiapaBelumUpdateCommand(senderUserProfile!);
+      await updateDebugIntent("task_command", "siapa_belum_update");
 
       const replyMessage = result.replyText;
       const sendResult = await sendWhatsAppMessage(replyMessage);

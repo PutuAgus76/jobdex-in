@@ -31,6 +31,9 @@ export type WhatsAppCommandIntent =
   | "cek_checklist"
   | "tambah_catatan"
   | "ganti_pic"
+  | "briefing"
+  | "siapa_belum_update"
+  | "cek_role"
   | "unknown";
 
 export interface ParsedWhatsAppCommand {
@@ -75,6 +78,9 @@ export function isTaskCommandLike(text: string): boolean {
     "revisi task",
     "cek checklist",
     "tambah catatan",
+    "briefing",
+    "siapa belum update",
+    "cek role saya",
   ];
 
   return taskPatterns.some((pattern) => clean.includes(pattern));
@@ -286,6 +292,30 @@ function parseWhatsAppCommandInternal(
   if (lowerCleaned === "cek pengirim") {
     return {
       intent: "cek_pengirim",
+      rawText,
+      fields: {},
+    };
+  }
+
+  if (lowerCleaned === "cek role saya" || lowerCleaned === "cek role") {
+    return {
+      intent: "cek_role",
+      rawText,
+      fields: {},
+    };
+  }
+
+  if (lowerCleaned === "briefing") {
+    return {
+      intent: "briefing",
+      rawText,
+      fields: {},
+    };
+  }
+
+  if (lowerCleaned === "siapa belum update") {
+    return {
+      intent: "siapa_belum_update",
       rawText,
       fields: {},
     };
