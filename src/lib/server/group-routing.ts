@@ -21,6 +21,7 @@ export async function resolveTaskReminderTarget(
   eventsCache?: Map<string, Event>
 ): Promise<GroupRouteTarget | null> {
   const defaultGroupId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+  let eventHasUnverifiedGroup = false;
 
   // 1. Check event group
   if (task.event_id) {
@@ -37,18 +38,22 @@ export async function resolveTaskReminderTarget(
     }
 
     if (event?.whatsapp_group_id) {
-      return {
-        groupId: event.whatsapp_group_id,
-        groupType: "event_group",
-        groupName: event.whatsapp_group_name || event.name,
-        linkedEventId: event.id,
-      };
+      const isStrict = process.env.STRICT_GROUP_ROUTING === "true";
+      if (!isStrict || event.whatsapp_group_verified) {
+        return {
+          groupId: event.whatsapp_group_id,
+          groupType: "event_group",
+          groupName: event.whatsapp_group_name || event.name,
+          linkedEventId: event.id,
+        };
+      } else {
+        eventHasUnverifiedGroup = true;
+      }
     }
   }
 
   // 2. Check division group (future: divisions could have whatsapp_group_id too)
   // For now, fallback directly to default group
-  // When division groups are added, this would check task.division_id
 
   // 3. Fallback to default group
   if (defaultGroupId) {
@@ -57,9 +62,9 @@ export async function resolveTaskReminderTarget(
       groupType: "default_group",
       linkedDivisionId: task.division_id,
       linkedEventId: task.event_id,
-      fallbackReason: task.event_id
-        ? "event_has_no_group"
-        : "no_event_or_division_group",
+      fallbackReason: eventHasUnverifiedGroup
+        ? "event_group_unverified"
+        : (task.event_id ? "event_has_no_group" : "no_event_or_division_group"),
     };
   }
 
@@ -158,8 +163,10 @@ export async function linkGroupToEvent(
     whatsapp_group_id: groupId,
     whatsapp_group_name: groupName || "",
     whatsapp_group_verified: true,
-    whatsapp_group_verified_at: FieldValue.serverTimestamp(),
-    whatsapp_group_verified_by: linkedBy,
+    whatsapp_group_linked_at: FieldValue.serverTimestamp(),
+    whatsapp_group_linked_by: linkedBy,
+    whatsapp_group_updated_at: FieldValue.serverTimestamp(),
+    whatsapp_group_updated_by: linkedBy,
     whatsapp_group_source: source,
     updated_at: FieldValue.serverTimestamp(),
   });

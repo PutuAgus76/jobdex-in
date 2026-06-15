@@ -42,12 +42,14 @@ export type Event = {
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
-  // Fase 19C: Event-specific WhatsApp group routing
+  // Fase 19C/20C: Event-specific WhatsApp group routing
   whatsapp_group_id?: string;
   whatsapp_group_name?: string;
   whatsapp_group_verified?: boolean;
-  whatsapp_group_verified_at?: unknown;
-  whatsapp_group_verified_by?: string;
+  whatsapp_group_linked_at?: unknown;
+  whatsapp_group_linked_by?: string;
+  whatsapp_group_updated_at?: unknown;
+  whatsapp_group_updated_by?: string;
   whatsapp_group_source?: "manual" | "webhook_detected" | "admin_input";
 };
 

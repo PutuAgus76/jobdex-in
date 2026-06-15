@@ -109,9 +109,9 @@ export function EventDetail({
             {event.whatsapp_group_id ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                    Terhubung
+                  <span className={`inline-flex h-2 w-2 rounded-full ${event.whatsapp_group_verified ? 'bg-green-500' : 'bg-amber-500'}`} />
+                  <span className={`text-sm font-medium ${event.whatsapp_group_verified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                    {event.whatsapp_group_verified ? 'Terverifikasi' : 'Belum diverifikasi'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

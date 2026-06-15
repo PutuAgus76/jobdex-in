@@ -1,7 +1,7 @@
 import "server-only";
 
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
-import type { Task, UserProfile, TaskCandidate, TaskEditPreview } from "@/types";
+import type { Task, UserProfile, TaskCandidate, TaskEditPreview, Event } from "@/types";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask, getRiskLabel } from "@/lib/task-risk";
 import { parseIndonesianDate, validateCommandPin, sanitizePinFromMessage, recalculateEventProgressAdmin } from "./whatsapp-command-executor";
 import { USER_ROLE_LABELS } from "@/lib/roles";
@@ -2257,3 +2257,84 @@ export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<
     return { success: false, replyText: "[JobDex.in PIC Report]\nGagal mengambil data laporan." };
   }
 }
+
+/**
+ * Command: !jobdex hubungkan grup acara <Nama Acara>
+ */
+export async function handleHubungkanGrupAcaraCommand(
+  parsedCmd: { fields: Record<string, string> },
+  senderPhone: string,
+  groupId: string | undefined,
+  groupName: string | undefined
+) {
+  if (!groupId) {
+    return { success: false, replyText: "[JobDex.in]\n\nCommand ini hanya bisa dijalankan dari dalam grup WhatsApp acara." };
+  }
+
+  const { user } = await findUserByNameFuzzy(senderPhone);
+  if (!user) {
+    return { success: false, replyText: "Pengirim tidak terdaftar dalam sistem." };
+  }
+
+  const eventName = parsedCmd.fields.event_name;
+  if (!eventName) {
+    return { success: false, replyText: "Format salah. Gunakan: !jobdex hubungkan grup acara <nama acara>" };
+  }
+
+  const db = getAdminDb();
+  
+  // Find event
+  const eventsSnap = await db.collection("events").get();
+  
+  let matchedEvent: Event | null = null;
+  let matchedEventId = "";
+
+  for (const doc of eventsSnap.docs) {
+    const ev = doc.data() as Event;
+    if (ev.name.toLowerCase() === eventName.toLowerCase()) {
+      matchedEvent = ev;
+      matchedEventId = doc.id;
+      break;
+    }
+  }
+
+  if (!matchedEvent) {
+    return { success: false, replyText: `[JobDex.in]\n\nAcara dengan nama "${eventName}" tidak ditemukan.` };
+  }
+
+  // Security check: super_admin OR koordinator_acara of this event
+  let isAuthorized = false;
+  if (user.role === "super_admin") {
+    isAuthorized = true;
+  } else if (user.role === "koordinator_acara" && matchedEvent.coordinator_id === user.id) {
+    isAuthorized = true;
+  }
+
+  if (!isAuthorized) {
+    return { success: false, replyText: getAccessDeniedMessage(user) };
+  }
+
+  // Link group
+  const { linkGroupToEvent } = await import("@/lib/server/group-routing");
+  await linkGroupToEvent(matchedEventId, groupId, groupName || "", user.id, "webhook_detected");
+
+  // Log activity
+  await db.collection("activity_logs").add({
+    action: "event_whatsapp_group_updated",
+    event_id: matchedEventId,
+    event_name: matchedEvent.name,
+    old_group_id: matchedEvent.whatsapp_group_id || null,
+    new_group_id: groupId,
+    actor_id: user.id,
+    actor_name: user.name,
+    actor_role: user.role,
+    source: "whatsapp_command",
+    created_at: FieldValue.serverTimestamp(),
+  });
+
+  return { 
+    success: true, 
+    replyText: `[JobDex.in Berhasil]\n\nGrup ini berhasil dihubungkan dengan acara "${matchedEvent.name}".\n\nNotifikasi dan reminder acara akan dikirim ke grup ini.` 
+  };
+}
+

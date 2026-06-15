@@ -81,6 +81,7 @@ export function isTaskCommandLike(text: string): boolean {
     "briefing",
     "siapa belum update",
     "cek role saya",
+    "hubungkan grup acara",
   ];
 
   return taskPatterns.some((pattern) => clean.includes(pattern));
@@ -116,7 +117,17 @@ function parseWhatsAppCommandInternal(
   cleaned: string,
   lowerCleaned: string
 ): ParsedWhatsAppCommand {
-  // --- New 19B Task Workflow Commands ---
+  // --- New 19B/20C Task & Event Commands ---
+
+  // 0. hubungkan grup acara
+  if (lowerCleaned.startsWith("hubungkan grup acara ")) {
+    const eventName = cleaned.substring("hubungkan grup acara ".length).trim();
+    return {
+      intent: "hubungkan_grup_acara",
+      rawText,
+      fields: { event_name: eventName },
+    };
+  }
 
   // 1. tugas saya
   if (lowerCleaned === "tugas saya" || lowerCleaned.startsWith("tugas saya ")) {

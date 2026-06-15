@@ -104,18 +104,28 @@ function getAllowedGroupIds(): string[] {
   return allowed;
 }
 
-function isAllowedGroup(groupId: string): boolean {
-  if (!groupId) return false;
-  const allowed = getAllowedGroupIds();
-  return allowed.includes(groupId);
-}
-
 function getDefaultGroupId(): string {
   return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
 }
 
-function isTargetGroup(groupId: string, sender: string) {
-  return isAllowedGroup(groupId) || isAllowedGroup(sender);
+async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
+  if (!groupId) return false;
+  const allowed = getAllowedGroupIds();
+  if (allowed.includes(groupId)) {
+    return true;
+  }
+  try {
+    const snapshot = await getAdminDb()
+      .collection("events")
+      .where("whatsapp_group_id", "==", groupId)
+      .where("whatsapp_group_verified", "==", true)
+      .limit(1)
+      .get();
+    return !snapshot.empty;
+  } catch (err) {
+    console.error("Error in isGroupAllowedForJobDex:", err);
+    return false;
+  }
 }
 
 function getBotProfile() {
@@ -339,6 +349,8 @@ export async function POST(request: NextRequest) {
 
   const payload = await parseRequestBody(request);
   const incoming = parseWablasIncomingPayload(payload);
+  const parsedCommand = parseWhatsAppCommand(incoming.message || "");
+  const intent = parsedCommand.intent;
 
   const message = incoming.message || "";
   if (!message.trim().toLowerCase().startsWith("!jobdex")) {
@@ -577,6 +589,10 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const isGroupIdAllowed = await isGroupAllowedForJobDex(incoming.groupId);
+  const isSenderAllowed = await isGroupAllowedForJobDex(incoming.sender);
+  const isGroupOrSenderAllowed = isGroupIdAllowed || isSenderAllowed;
+
   // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug" (scrub PIN!)
   let debugRefId = "";
   try {
@@ -613,7 +629,7 @@ export async function POST(request: NextRequest) {
       intent_debug: null,
       incoming_group_id: incoming.groupId || "",
       allowed_group_ids: allowedGroupIds,
-      is_allowed_group: isAllowedGroup(incoming.groupId),
+      is_allowed_group: isGroupIdAllowed,
       reply_target_group_id: incoming.groupId || defaultGroupId,
       is_jobdex_command: true,
       is_group_message: incoming.isGroup,
@@ -629,8 +645,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  if (!isTargetGroup(incoming.groupId, incoming.sender)) {
-    return NextResponse.json({ ok: true, ignored: true });
+  if (!isGroupOrSenderAllowed) {
+    // Jika tidak allowed/verified, hanya izinkan command claim terbatas:
+    // - cek_grup
+    // - hubungkan_grup_acara
+    if (intent !== "cek_grup" && intent !== "hubungkan_grup_acara") {
+      return NextResponse.json({ ok: true, ignored: true, reason: "unauthorized_group_or_sender" });
+    }
   }
 
   const senderLabel = senderUserProfile 
@@ -662,8 +683,6 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    const parsedCommand = parseWhatsAppCommand(incoming.message);
-    const intent = parsedCommand.intent;
     const isCekPengirim = intent === "cek_pengirim";
 
     // Tugas 8: Cek Pengirim Command
@@ -1753,8 +1772,7 @@ export async function POST(request: NextRequest) {
       intent === "create_reference_preview";
 
     if (isStructured) {
-      // 2. Parse command
-      const parsedCommand = parseWhatsAppCommand(incoming.message);
+      // 2. Parse command (already parsed in parent scope)
 
       // 3. Build command preview (with resolved sender profile!)
       const previewResult = await buildWhatsAppCommandPreview(parsedCommand, senderUserProfile);

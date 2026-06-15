@@ -138,7 +138,7 @@ function EventsManagement() {
 
     try {
       if (eventId) {
-        await updateEvent(eventId, input);
+        await updateEvent(eventId, input, userProfile.id);
         void showSuccess("Acara berhasil diperbarui!");
       } else {
         await createEvent(input, userProfile.id);

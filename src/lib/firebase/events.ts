@@ -68,6 +68,11 @@ export async function createEvent(input: EventInput, createdBy: string) {
     coordinator_id: input.coordinator_id,
     status: input.status,
     progress_percentage: 0,
+    whatsapp_group_id: input.whatsapp_group_id || "",
+    whatsapp_group_name: input.whatsapp_group_name || "",
+    whatsapp_group_verified: false,
+    whatsapp_group_updated_at: serverTimestamp(),
+    whatsapp_group_updated_by: createdBy,
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
@@ -76,15 +81,39 @@ export async function createEvent(input: EventInput, createdBy: string) {
   return eventRef.id;
 }
 
-export async function updateEvent(eventId: string, input: EventInput) {
-  await updateDoc(doc(db, "events", eventId), {
+export async function updateEvent(eventId: string, input: EventInput, updatedBy?: string) {
+  const eventRef = doc(db, "events", eventId);
+  const eventSnap = await getDoc(eventRef);
+  const existingData = eventSnap.exists() ? eventSnap.data() as Event : null;
+
+  const updateData: Record<string, unknown> = {
     name: input.name,
     description: input.description,
     event_date: eventDateToTimestamp(input.event_date),
     coordinator_id: input.coordinator_id,
     status: input.status,
     updated_at: serverTimestamp(),
-  });
+  };
+
+  if (input.whatsapp_group_id !== undefined) {
+    const newGroupId = input.whatsapp_group_id;
+    const newGroupName = input.whatsapp_group_name || "";
+    const oldGroupId = existingData?.whatsapp_group_id || "";
+    const isGroupIdChanged = oldGroupId !== newGroupId;
+
+    updateData.whatsapp_group_id = newGroupId;
+    updateData.whatsapp_group_name = newGroupName;
+
+    if (isGroupIdChanged) {
+      updateData.whatsapp_group_verified = false;
+      updateData.whatsapp_group_updated_at = serverTimestamp();
+      if (updatedBy) {
+        updateData.whatsapp_group_updated_by = updatedBy;
+      }
+    }
+  }
+
+  await updateDoc(eventRef, updateData);
 }
 
 export async function updateEventStatus(
@@ -102,7 +131,11 @@ export function getDateInputValue(value: unknown) {
     return "";
   }
 
-  return (value as { toDate: () => Date }).toDate().toISOString().slice(0, 10);
+  const date = (value as { toDate: () => Date }).toDate();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function formatEventDate(value: unknown) {

@@ -78,8 +78,8 @@ function EventForm({
           event_date: eventDate,
           coordinator_id: coordinatorId,
           status,
-          whatsapp_group_id: whatsappGroupId.trim() || undefined,
-          whatsapp_group_name: whatsappGroupName.trim() || undefined,
+          whatsapp_group_id: whatsappGroupId.trim(),
+          whatsapp_group_name: whatsappGroupName.trim(),
         },
         event?.id,
       );
