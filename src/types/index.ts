@@ -22,6 +22,8 @@ export type UserProfile = {
   created_at?: unknown;
   updated_at?: unknown;
   whatsapp_command_pin?: string;
+  aliases?: string[];
+  nickname?: string;
 };
 
 export type EventStatus =

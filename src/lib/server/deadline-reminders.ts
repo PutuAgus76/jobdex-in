@@ -2,7 +2,7 @@ import "server-only";
 
 import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
-import type { Task, UserProfile } from "@/types";
+import type { Task, UserProfile, Event } from "@/types";
 import { sanitizePinFromMessage } from "./whatsapp-command-executor";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 
@@ -958,4 +958,205 @@ export async function logWhatsAppDispatch(data: {
   });
 
   return logRef.id;
+}
+
+export async function processSmartFollowupReminders(
+  sendWhatsAppMessage: (message: string, phone?: string, groupId?: string) => Promise<unknown>
+) {
+  const db = getAdminDb();
+  
+  // 1. Fetch active tasks (is_archived == false)
+  const tasksSnap = await db.collection("tasks").where("is_archived", "==", false).get();
+  
+  // 2. Fetch users, events, divisions maps
+  const [usersSnap, eventsSnap, divisionsSnap] = await Promise.all([
+    db.collection("users").get(),
+    db.collection("events").get(),
+    db.collection("divisions").get(),
+  ]);
+  
+  const usersMap = new Map<string, UserProfile>();
+  usersSnap.forEach((doc) => {
+    usersMap.set(doc.id, { id: doc.id, ...doc.data() } as UserProfile);
+  });
+  
+  const eventsCache = new Map<string, Event>();
+  eventsSnap.forEach((doc) => {
+    eventsCache.set(doc.id, { id: doc.id, ...doc.data() } as Event);
+  });
+  
+  const divisionsMap = new Map<string, { name?: string; whatsapp_group_id?: string }>();
+  divisionsSnap.forEach((doc) => {
+    divisionsMap.set(doc.id, doc.data() as { name?: string; whatsapp_group_id?: string });
+  });
+
+  const now = new Date();
+  
+  for (const doc of tasksSnap.docs) {
+    const task = { id: doc.id, ...doc.data() } as Task;
+    if (task.status === "approved") continue;
+    
+    const pic = task.pic_id ? usersMap.get(task.pic_id) : null;
+    const picPhone = pic?.whatsapp_number ? pic.whatsapp_number.replace(/[^\d]/g, "").replace(/^0/, "62") : "";
+    
+    // Resolve group routing target
+    let targetGroupId = "";
+    if (task.type === "acara" && task.event_id) {
+      targetGroupId = eventsCache.get(task.event_id)?.whatsapp_group_id || "";
+    } else if (task.type === "divisi" && task.division_id) {
+      targetGroupId = divisionsMap.get(task.division_id)?.whatsapp_group_id || "";
+    }
+    
+    // Fallback default group ID if none linked
+    if (!targetGroupId) {
+      targetGroupId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+    }
+    
+    const diffDays = getTaskDeadlineDiffDays(task);
+    
+    // Compute last update elapsed time
+    const updatedAt = task.updated_at && typeof task.updated_at === "object" && "toDate" in task.updated_at
+      ? (task.updated_at as { toDate: () => Date }).toDate()
+      : task.updated_at instanceof Date
+      ? task.updated_at
+      : new Date();
+    
+    const hoursSinceUpdate = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60);
+    
+    // Evaluate rules:
+    
+    // Rule 1: H-3 but status is belum_dimulai -> Personal reminder to PIC
+    if (diffDays === 3 && task.status === "belum_dimulai" && picPhone) {
+      const type = "h_3_belum_dimulai";
+      const alreadySent = await hasReminderBeenSent(task.id, type, "personal", picPhone);
+      if (!alreadySent) {
+        const msg = [
+          `[*JobdexIn* Reminder]`,
+          ``,
+          `Halo ${pic?.name || "Rekan"}, task "${task.name}" deadline H-3.`,
+          ``,
+          `Status saat ini: Belum Dimulai`,
+          ``,
+          `Yuk mulai dikerjakan dan update progress kamu!`,
+          `Update cepat:`,
+          `!jobdex ${task.name} sudah mulai dikerjakan`
+        ].join("\n");
+        
+        try {
+          await sendWhatsAppMessage(msg, picPhone);
+          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg });
+        } catch (err) {
+          console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+        }
+      }
+    }
+    
+    // Rule 2: H-1 but status is not menunggu_approval or approved -> Personal reminder to PIC
+    if (diffDays === 1 && task.status !== "menunggu_approval" && picPhone) {
+      const type = "h_1_urgent";
+      const alreadySent = await hasReminderBeenSent(task.id, type, "personal", picPhone);
+      if (!alreadySent) {
+        const statusLabel = getFormattedStatus(task.status);
+        const msg = [
+          `[*JobdexIn* Reminder]`,
+          ``,
+          `Halo ${pic?.name || "Rekan"}, task "${task.name}" deadline H-1.`,
+          ``,
+          `Status saat ini: ${statusLabel}`,
+          ``,
+          `Update cepat:`,
+          `!jobdex ${task.name} sudah upload`,
+          `atau`,
+          `!jobdex ${task.name} stuck, catatan: [kendala]`
+        ].join("\n");
+        
+        try {
+          await sendWhatsAppMessage(msg, picPhone);
+          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg });
+        } catch (err) {
+          console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+        }
+      }
+    }
+    
+    // Rule 3: Stuck/butuh bantuan > 12 hours -> Group alert
+    if ((task.status === "stuck" || task.status === "butuh_bantuan") && hoursSinceUpdate >= 12 && targetGroupId) {
+      const type = "stuck_12h";
+      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      if (!alreadySent) {
+        const durationStr = Math.round(hoursSinceUpdate) + " jam";
+        const constraint = task.stuck_notes ? `Kendala: ${task.stuck_notes}` : "Kendala: Tidak disebutkan";
+        const msg = [
+          `[*JobdexIn* Koor Alert]`,
+          ``,
+          `Ada tugas butuh perhatian:`,
+          `1. ${task.name} — stuck ${durationStr}`,
+          `   PIC: ${pic?.name || "-"}`,
+          `   ${constraint}`,
+          ``,
+          `Aksi cepat koordinator:`,
+          `- Tanya PIC langsung`,
+          `- Bantu carikan solusi atau alihkan tugas jika berat`
+        ].join("\n");
+        
+        try {
+          await sendWhatsAppMessage(msg, undefined, targetGroupId);
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+        } catch (err) {
+          console.error(`Failed to send group stuck alert:`, err);
+        }
+      }
+    }
+    
+    // Rule 4: Menunggu materi > 24 hours -> Group alert
+    if (task.status === "menunggu_materi" && hoursSinceUpdate >= 24 && targetGroupId) {
+      const type = "waiting_material_24h";
+      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      if (!alreadySent) {
+        const msg = [
+          `[*JobdexIn* Koor Alert]`,
+          ``,
+          `Ada tugas butuh perhatian:`,
+          `1. ${task.name} — menunggu materi 1 hari`,
+          `   PIC: ${pic?.name || "-"}`,
+          `   Catatan kendala: ${task.stuck_notes || "-"}`,
+          ``,
+          `Harap koordinator atau pembuat task segera mengirimkan materi agar tugas dapat mulai dikerjakan.`
+        ].join("\n");
+        
+        try {
+          await sendWhatsAppMessage(msg, undefined, targetGroupId);
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+        } catch (err) {
+          console.error(`Failed to send group waiting material alert:`, err);
+        }
+      }
+    }
+    
+    // Rule 5: Menunggu approval > 24 hours -> Group alert to coordinators
+    if (task.status === "menunggu_approval" && hoursSinceUpdate >= 24 && targetGroupId) {
+      const type = "waiting_approval_24h";
+      const alreadySent = await hasReminderBeenSent(task.id, type, "group", targetGroupId);
+      if (!alreadySent) {
+        const msg = [
+          `[*JobdexIn* Koor Alert]`,
+          ``,
+          `Ada tugas butuh perhatian:`,
+          `1. ${task.name} — menunggu approval 1 hari`,
+          `   PIC: ${pic?.name || "-"}`,
+          ``,
+          `Koordinator harap segera mengecek hasil dan memberikan persetujuan (approve) atau revisi:`,
+          `- !jobdex acc ${task.name}`,
+          `- !jobdex revisi ${task.name}, catatan: [catatan]`
+        ].join("\n");
+        
+        try {
+          await sendWhatsAppMessage(msg, undefined, targetGroupId);
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+        } catch (err) {
+          console.error(`Failed to send group waiting approval alert:`, err);
+        }
+      }
+    }
+  }
 }

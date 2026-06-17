@@ -1,9 +1,9 @@
-﻿import "server-only";
+import "server-only";
 
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import type { UserProfile } from "@/types";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
-import { findUserByName, findEventByName } from "./whatsapp-command-preview";
+import { findUserByName, findEventByName, resolvePIC, getChecklistByTaskName } from "./whatsapp-command-preview";
 
 const MONTH_MAP: Record<string, string> = {
   januari: "01", jan: "01",
@@ -144,6 +144,21 @@ export async function cancelPreviewCommand(
     };
   }
 
+  // === FIX C: Validasi ownership preview ===
+  const requestedBy = previewData.requested_by || previewData.user_id || "";
+  if (requestedBy && requestedBy !== user.id && user.role !== "super_admin") {
+    return {
+      success: false,
+      replyText: [
+        WA_LABEL.accessDenied,
+        "",
+        "Preview ID ini dibuat oleh pengguna lain, sehingga tidak bisa kamu batalkan.",
+        "",
+        "Minta pembuat preview untuk membatalkan sendiri, atau hubungi super admin."
+      ].join("\n")
+    };
+  }
+
   // Perform cancellation
   await previewDoc.ref.update({
     status: "cancelled",
@@ -196,6 +211,21 @@ export async function confirmPreviewCommand(
     return {
       success: false,
       replyText: `${WA_LABEL.ai}\n\nPreview ID "${cleanCode}" sudah tidak pending (Status saat ini: ${previewData.status}).`,
+    };
+  }
+
+  // === FIX C: Validasi ownership preview ===
+  const confirmRequestedBy = previewData.requested_by || previewData.user_id || "";
+  if (confirmRequestedBy && confirmRequestedBy !== user.id && user.role !== "super_admin") {
+    return {
+      success: false,
+      replyText: [
+        WA_LABEL.accessDenied,
+        "",
+        "Preview ID ini dibuat oleh pengguna lain, sehingga tidak bisa kamu konfirmasi.",
+        "",
+        "Minta pembuat preview untuk mengonfirmasi sendiri, atau hubungi super admin."
+      ].join("\n")
     };
   }
 
@@ -253,11 +283,12 @@ export async function confirmPreviewCommand(
         const acaraRaw = fields.acara || "";
 
         // Resolve PIC
-        const picUser = findUserByName(picRaw, allUsers);
+        const picResult = resolvePIC(picRaw, allUsers);
+        const picUser = picResult.success ? picResult.user : null;
         if (!picUser) {
           return {
             success: false,
-            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: PIC "${picRaw}" tidak ditemukan dalam database JobdexIn.`,
+            replyText: `${WA_LABEL.ai}\n\nGagal mengeksekusi: PIC "${picRaw}" tidak ditemukan atau ambigu dalam database JobdexIn.`,
           };
         }
 
@@ -334,6 +365,7 @@ export async function confirmPreviewCommand(
           created_by: user.id,
           created_at: FieldValue.serverTimestamp(),
           updated_at: FieldValue.serverTimestamp(),
+          checklist_items: getChecklistByTaskName(judul),
         });
 
         // Add initial status log
@@ -452,9 +484,10 @@ export async function confirmPreviewCommand(
             return;
           }
 
-          const picUser = findUserByName(picRaw, allUsers);
+          const picResult = resolvePIC(picRaw, allUsers);
+          const picUser = picResult.success ? picResult.user : null;
           if (!picUser) {
-            errors.push(`- Baris ${idx + 1}: PIC "${picRaw}" tidak ditemukan.`);
+            errors.push(`- Baris ${idx + 1}: PIC "${picRaw}" tidak ditemukan atau ambigu.`);
             return;
           }
 
@@ -514,6 +547,7 @@ export async function confirmPreviewCommand(
             created_by: user.id,
             created_at: FieldValue.serverTimestamp(),
             updated_at: FieldValue.serverTimestamp(),
+            checklist_items: getChecklistByTaskName(item.judul),
           });
 
           // Initial status log

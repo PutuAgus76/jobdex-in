@@ -12,6 +12,7 @@ import {
   getDigestDateKey,
   getTaskIdsAlreadyInDigestToday,
   logWhatsAppDigestDispatch,
+  processSmartFollowupReminders,
 } from "@/lib/server/deadline-reminders";
 import { groupTasksByTarget } from "@/lib/server/group-routing";
 import type { GroupRouteTarget } from "@/lib/server/group-routing";
@@ -121,6 +122,14 @@ async function handleCron(request: Request) {
 
     // Group tasks using the new routing helper
     const taskGroups = await groupTasksByTarget(activeTasks, eventsCache);
+
+    // Process smart individual and escalation reminders
+    try {
+      await processSmartFollowupReminders(sendWhatsAppMessage);
+    } catch (err) {
+      console.error("Failed to process smart follow-up reminders:", err);
+      errors.push(`Smart Reminders: ${err instanceof Error ? err.message : "unknown error"}`);
+    }
 
     const digestDateKey = getDigestDateKey();
     let digestSent = false;

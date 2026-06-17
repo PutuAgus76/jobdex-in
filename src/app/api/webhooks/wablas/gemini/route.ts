@@ -350,9 +350,6 @@ export async function POST(request: NextRequest) {
 
   const payload = await parseRequestBody(request);
   const incoming = parseWablasIncomingPayload(payload);
-  const parsedCommand = parseWhatsAppCommand(incoming.message || "");
-  const intent = parsedCommand.intent;
-
   const message = incoming.message || "";
   if (!message.trim().toLowerCase().startsWith("!jobdex")) {
     return NextResponse.json({
@@ -361,6 +358,16 @@ export async function POST(request: NextRequest) {
       reason: "non_jobdex_message",
     });
   }
+
+  let parsedCommand = parseWhatsAppCommand(incoming.message || "");
+  if (parsedCommand.intent === "unknown") {
+    const { parseWhatsAppCommandNatural } = await import("@/lib/server/whatsapp-command-parser");
+    const naturalParsed = await parseWhatsAppCommandNatural(incoming.message || "");
+    if (naturalParsed.intent !== "unknown") {
+      parsedCommand = naturalParsed;
+    }
+  }
+  const intent = parsedCommand.intent;
 
   const question = extractJobDexQuestion(incoming.message);
 
@@ -779,36 +786,74 @@ export async function POST(request: NextRequest) {
     let targetTaskId = "";
     let targetTaskName = "";
 
-    // 1. Bantuan Task Command
+    // 1. Bantuan Task Command — Role-aware (Fix E)
     if (intent === "bantuan_task") {
-      const replyMessage = [
-        WA_LABEL.bantuan,
-        "",
-        "Command utama:",
+      const userRole = senderUserProfile?.role || "anggota";
+      const isAdmin = userRole === "super_admin";
+      const isKoordinator = userRole === "koordinator_divisi" || userRole === "koordinator_acara";
+
+      const linesAnggota = [
+        "📋 Command untuk Anggota:",
         "- !jobdex tugas saya",
         "- !jobdex detail task [nama task]",
         "- !jobdex update status [nama task] menjadi [status]",
         "- !jobdex upload hasil [nama task]",
-        "  link: ...",
-        "  catatan: ...",
-        "- !jobdex minta revisi [nama task]",
-        "  catatan: ...",
+        "  link: [URL]",
+        "  catatan: [CATATAN]",
         "- !jobdex cek checklist [nama task]",
         "- !jobdex checklist [nama task] redaksi selesai",
         "- !jobdex tambah catatan [nama task]",
-        "  catatan: ...",
-        "- !jobdex ganti pic [nama task] ke [nama anggota]",
-        "- !jobdex cari referensi desain [keyword]",
+        "  catatan: [CATATAN]",
+        "- !jobdex cari [keyword]",
+        "- !jobdex cek role saya",
+      ];
+
+      const linesKoordinator = [
+        "",
+        "👤 Tambahan untuk Koordinator:",
+        "- !jobdex briefing",
+        "- !jobdex siapa belum update",
+        "- !jobdex deadline dekat",
+        "- !jobdex minta revisi [nama task]",
+        "  catatan: [CATATAN]",
+        "- !jobdex approve task [nama task]",
+        "- !jobdex ganti pic [nama task] ke [nama]",
+        "- !jobdex tambah jobdesk",
+        "- !jobdex tambah banyak jobdesk",
         "- !jobdex tambah referensi",
-        "  nama: ...",
-        "  jenis: ...",
-        "  acara: ...",
-        "  tahun: ...",
-        "  link: ...",
+        "- !jobdex edit task [nama task]",
+        "- !jobdex archive task [nama task]",
+        "- !jobdex hubungkan grup acara [nama acara]",
+      ];
+
+      const linesAdmin = [
+        "",
+        "🔑 Tambahan untuk Super Admin:",
+        "- !jobdex tambah acara",
+        "- !jobdex siapa yang stuck",
+        "- !jobdex siapa yang menunggu approval",
+        "- !jobdex cek pengirim",
         "- !jobdex cek grup",
         "- !jobdex event grup",
-        "- !jobdex hubungkan grup acara [nama acara]"
-      ].join("\n");
+      ];
+
+      const footer = [
+        "",
+        "Format lengkap: !jobdex format jobdesk",
+        "Referensi: !jobdex format referensi",
+      ];
+
+      const lines = [
+        WA_LABEL.bantuan,
+        "",
+        `Halo ${senderUserProfile?.name || "Pengguna"},`,
+        ...linesAnggota,
+        ...(isKoordinator || isAdmin ? linesKoordinator : []),
+        ...(isAdmin ? linesAdmin : []),
+        ...footer,
+      ];
+
+      const replyMessage = lines.join("\n");
 
       await updateDebugIntent("task_command", "bantuan_task");
 
@@ -1083,8 +1128,9 @@ export async function POST(request: NextRequest) {
     // 2. Read-only Deadline & Risk Queries
     if (intent === "deadline_query") {
       const queryType = String(parsedCommand.fields.query_type || "dekat");
-      const replyMessage = await handleDeadlineQuery(queryType);
-      
+      // Fix A: teruskan user ke handler untuk scope filter berdasarkan role
+      const replyMessage = await handleDeadlineQuery(queryType, senderUserProfile!);
+
       await updateDebugIntent("task_command", "deadline_query");
 
       const sendResult = await sendWhatsAppMessage(replyMessage);
@@ -1093,6 +1139,91 @@ export async function POST(request: NextRequest) {
         status: "sent",
         response: sendResult.responseText,
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2b. Template Help — static response tanpa AI (Fix F)
+    if (intent === "template_help") {
+      const rawQuestion = parsedCommand.rawText.toLowerCase();
+      let helpContent: string;
+
+      if (rawQuestion.includes("referensi")) {
+        helpContent = [
+          "Format tambah referensi:",
+          "",
+          "!jobdex tambah referensi",
+          "judul: [Nama referensi]",
+          "jenis: [poster/feed/story/banner/dll]",
+          "acara: [Nama acara] (jika scope acara)",
+          "tahun: [2025]",
+          "link drive: [URL Drive]",
+          "link canva: [URL Canva] (opsional)",
+          "catatan: [Catatan tambahan]",
+        ].join("\n");
+      } else if (rawQuestion.includes("acara")) {
+        helpContent = [
+          "Format tambah acara:",
+          "",
+          "!jobdex tambah acara",
+          "nama: [Nama acara]",
+          "tanggal: [dd Bulan yyyy]",
+          "koordinator: [Nama koordinator]",
+          "deskripsi: [Deskripsi singkat]",
+        ].join("\n");
+      } else {
+        // Default: format jobdesk
+        helpContent = [
+          "Format tambah jobdesk:",
+          "",
+          "!jobdex tambah jobdesk",
+          "judul: [Nama task]",
+          "tipe: divisi / acara",
+          "pic: [Nama pelaksana]",
+          "deadline: [dd Bulan yyyy]",
+          "prioritas: rendah / sedang / tinggi / kritis",
+          "acara: [Nama acara] (jika tipe acara)",
+          "deskripsi: [Deskripsi singkat]",
+          "redaksi: [Teks redaksi/copywriting]",
+          "referensi: [URL referensi]",
+          "warna: [Warna palette]",
+          "arahan visual: [Arahan desain]",
+          "",
+          "Contoh bulk: !jobdex bantuan koordinator",
+        ].join("\n");
+      }
+
+      const replyMessage = [WA_LABEL.bantuan, "", helpContent].join("\n");
+      await updateDebugIntent("task_help", "template_help");
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({ message: replyMessage, status: "sent", response: sendResult.responseText });
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2c. Progress Question — arahkan ke structured handler atau saran command (Fix F)
+    if (intent === "progress_question") {
+      const replyMessage = [
+        WA_LABEL.bantuan,
+        "",
+        "Untuk informasi progress, gunakan salah satu command berikut:",
+        "",
+        "📊 Deadline & Risk:",
+        "- !jobdex deadline dekat",
+        "- !jobdex tugas overdue",
+        "- !jobdex siapa yang stuck",
+        "- !jobdex siapa yang menunggu approval",
+        "",
+        "📋 Progress Ringkas:",
+        "- !jobdex briefing",
+        "- !jobdex siapa belum update",
+        "",
+        "📌 Detail Task:",
+        "- !jobdex tugas saya",
+        "- !jobdex detail task [nama task]",
+      ].join("\n");
+
+      await updateDebugIntent("task_help", "progress_question");
+      const sendResult = await sendWhatsAppMessage(replyMessage);
+      await createWhatsAppLog({ message: replyMessage, status: "sent", response: sendResult.responseText });
       return NextResponse.json({ ok: true });
     }
 
@@ -1114,7 +1245,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (intent === "briefing") {
-      const result = await handleBriefingCommand(senderUserProfile!);
+      const result = await handleBriefingCommand(senderUserProfile!, incoming.groupId);
       await updateDebugIntent("task_command", "briefing");
 
       const replyMessage = result.replyText;
@@ -1769,24 +1900,24 @@ export async function POST(request: NextRequest) {
       intent === "create_task_preview" ||
       intent === "create_event_preview" ||
       intent === "bulk_create_task_preview" ||
-      intent === "approve_task_preview" ||
+      // NOTE: "approve_task_preview" dihapus dari sini (dead code)
       intent === "create_reference_preview";
 
     if (isStructured) {
       // 2. Parse command (already parsed in parent scope)
 
       // 3. Build command preview (with resolved sender profile!)
-      const previewResult = await buildWhatsAppCommandPreview(parsedCommand, senderUserProfile);
+      const previewResult = await buildWhatsAppCommandPreview(parsedCommand, senderUserProfile, incoming.groupId);
 
-      // Generate Preview ID & instruction ONLY if preview is valid and is not approve task (approve task remains preview only)
+      // Generate Preview ID & instruction if preview is valid
       let confirmationCode = "";
       let status = "failed";
       let expiresAt: Date | null = null;
       let replyMessage = previewResult.previewText;
 
-      const isApprove = parsedCommand.intent === "approve_task_preview";
+      // NOTE: isApprove removed — approve_task_preview intent no longer exists
 
-      if (previewResult.isValid && !isApprove) {
+      if (previewResult.isValid) {
         confirmationCode = generateConfirmationCode();
         status = "pending";
         expiresAt = new Date(Date.now() + 30 * 60 * 1000);

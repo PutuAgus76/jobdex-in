@@ -7,8 +7,9 @@ import { getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import {
   isReferenceSearchQuestion,
-  searchDesignReferencesFromQuestion,
+  searchDesignReferencesDetailed,
 } from "@/lib/server/reference-search";
+import { getCachedResponse, setCachedResponse } from "@/lib/server/ai-cache";
 
 export const runtime = "nodejs";
 
@@ -98,7 +99,35 @@ export async function POST(request: NextRequest) {
 
     // --- Reference Search Intent Detection ---
     if (isReferenceSearchQuestion(question)) {
-      const searchResult = await searchDesignReferencesFromQuestion(question);
+      // Check cache first
+      const cached = await getCachedResponse(question, "reference_search");
+      if (cached) {
+        const logRef = getAdminDb().collection("ai_logs").doc();
+        await logRef.set({
+          id: logRef.id,
+          organization_id: profile.organization_id || "main_org",
+          asked_by: profile.id,
+          question,
+          context_summary: "Reference search query - Cache Hit",
+          answer: cached,
+          model_used: "cache-reference-search",
+          source: "web",
+          created_at: FieldValue.serverTimestamp(),
+          detected_intent: "reference_search",
+          fallback_used: false,
+        });
+
+        return NextResponse.json({
+          answer: cached,
+          context_summary: "Reference search query - Cache Hit",
+        });
+      }
+
+      // Perform detailed search
+      const detailedResult = await searchDesignReferencesDetailed(question);
+
+      // Save to cache (10 mins TTL)
+      await setCachedResponse(question, "reference_search", detailedResult.answer, 10);
 
       const logRef = getAdminDb().collection("ai_logs").doc();
       await logRef.set({
@@ -106,16 +135,23 @@ export async function POST(request: NextRequest) {
         organization_id: profile.organization_id || "main_org",
         asked_by: profile.id,
         question,
-        context_summary: "Reference search query - Firestore collection matched directly.",
-        answer: searchResult,
-        model_used: "firestore-reference-search",
+        context_summary: `Reference search query - Intent: ${detailedResult.intent.intent}, Subtype: ${detailedResult.intent.subtype || "-"}`,
+        answer: detailedResult.answer,
+        model_used: detailedResult.rerankerProvider,
         source: "web",
         created_at: FieldValue.serverTimestamp(),
+        // Rich metadata logging
+        detected_intent: detailedResult.intent.intent,
+        selected_asset_type: detailedResult.intent.assetType || "desain",
+        candidate_count: detailedResult.candidateCount,
+        reranker_provider: detailedResult.rerankerProvider,
+        final_result_count: detailedResult.finalResultCount,
+        fallback_used: detailedResult.fallbackUsed,
       });
 
       return NextResponse.json({
-        answer: searchResult,
-        context_summary: "Reference search query - Firestore collection matched directly.",
+        answer: detailedResult.answer,
+        context_summary: `Reference search query - Intent: ${detailedResult.intent.intent}, Subtype: ${detailedResult.intent.subtype || "-"}`,
       });
     }
 

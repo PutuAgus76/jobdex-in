@@ -1,9 +1,11 @@
-﻿import "server-only";
+import "server-only";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { ParsedWhatsAppCommand } from "./whatsapp-command-parser";
-import type { UserProfile } from "@/types";
+import type { UserProfile, Event, DesignReference } from "@/types";
+import { findEventByGroupId } from "./group-routing";
+import { detectSearchIntent, calculateReferenceScore } from "./reference-search";
 
 const CASE_1_TEMPLATE = `${WA_LABEL.ai}
 
@@ -132,11 +134,6 @@ export const TASK_STATUS_LABELS: Record<string, string> = {
   done: "Selesai",
 };
 
-interface PreviewResult {
-  isValid: boolean;
-  previewText: string;
-}
-
 export function findUserByName(picName: string, allUsers: UserProfile[]): UserProfile | null {
   const normPic = picName.toLowerCase().trim();
   if (!normPic || normPic === "-") return null;
@@ -168,19 +165,169 @@ export function findEventByName(eventName: string, allEvents: Array<{ id: string
   return found || null;
 }
 
-function findTasksByTitle(
+export function resolvePIC(
   query: string,
-  allTasks: Array<{ id: string; name: string; pic_id: string; status: string; approval_status: string }>
-) {
-  const normQuery = query.toLowerCase().trim();
-  if (!normQuery) return [];
-  
-  return allTasks.filter((t) => t.name?.toLowerCase().includes(normQuery));
+  allUsers: UserProfile[]
+): { success: boolean; user?: UserProfile; candidates: UserProfile[] } {
+  const cleanQuery = query.toLowerCase().trim();
+  if (!cleanQuery) return { success: false, candidates: [] };
+
+  // 1. Phone number resolution (Prioritas Tertinggi)
+  const queryPhoneDigits = cleanQuery.replace(/[^\d]/g, "");
+  if (queryPhoneDigits.length >= 8) {
+    const normalizedQueryPhone = queryPhoneDigits.replace(/^0/, "62");
+    
+    const phoneMatches = allUsers.filter(u => {
+      const userPhoneDigits = (u.whatsapp_number || "").replace(/[^\d]/g, "");
+      const normalizedUserPhone = userPhoneDigits.replace(/^0/, "62");
+      return normalizedQueryPhone === normalizedUserPhone;
+    });
+
+    if (phoneMatches.length === 1) {
+      return { success: true, user: phoneMatches[0], candidates: [] };
+    } else if (phoneMatches.length > 1) {
+      return { success: false, candidates: phoneMatches };
+    }
+  }
+
+  // 2. Exact match on nickname
+  const nicknameMatches = allUsers.filter(
+    u => u.nickname?.toLowerCase().trim() === cleanQuery
+  );
+  if (nicknameMatches.length === 1) {
+    return { success: true, user: nicknameMatches[0], candidates: [] };
+  } else if (nicknameMatches.length > 1) {
+    return { success: false, candidates: nicknameMatches };
+  }
+
+  // 3. Exact match on aliases
+  const aliasMatches = allUsers.filter(
+    u => u.aliases && Array.isArray(u.aliases) && u.aliases.some(a => a.toLowerCase().trim() === cleanQuery)
+  );
+  if (aliasMatches.length === 1) {
+    return { success: true, user: aliasMatches[0], candidates: [] };
+  } else if (aliasMatches.length > 1) {
+    return { success: false, candidates: aliasMatches };
+  }
+
+  // 4. Exact match on full name
+  const exactNameMatches = allUsers.filter(
+    u => u.name.toLowerCase().trim() === cleanQuery
+  );
+  if (exactNameMatches.length === 1) {
+    return { success: true, user: exactNameMatches[0], candidates: [] };
+  } else if (exactNameMatches.length > 1) {
+    return { success: false, candidates: exactNameMatches };
+  }
+
+  // 5. Fuzzy match on name (substring check)
+  const fuzzyNameMatches = allUsers.filter(
+    u => u.name.toLowerCase().includes(cleanQuery)
+  );
+  if (fuzzyNameMatches.length === 1) {
+    return { success: true, user: fuzzyNameMatches[0], candidates: [] };
+  } else if (fuzzyNameMatches.length > 1) {
+    return { success: false, candidates: fuzzyNameMatches };
+  }
+
+  // 6. Fuzzy match on nickname/aliases
+  const fuzzyOtherMatches = allUsers.filter(
+    u => (u.nickname && u.nickname.toLowerCase().includes(cleanQuery)) ||
+         (u.aliases && Array.isArray(u.aliases) && u.aliases.some(a => a.toLowerCase().includes(cleanQuery)))
+  );
+  if (fuzzyOtherMatches.length === 1) {
+    return { success: true, user: fuzzyOtherMatches[0], candidates: [] };
+  } else if (fuzzyOtherMatches.length > 1) {
+    return { success: false, candidates: fuzzyOtherMatches };
+  }
+
+  return { success: false, candidates: [] };
+}
+
+export function getChecklistByTaskName(
+  taskName: string
+): Array<{ id: string; label: string; is_done: boolean }> {
+  const clean = taskName.toLowerCase().trim();
+
+  // A. Desain publikasi
+  const isDesain = ["pamflet", "poster", "flyer", "feed", "story", "banner", "spanduk", "publikasi", "desain"].some(
+    kw => clean.includes(kw)
+  );
+  if (isDesain) {
+    return [
+      { id: "checklist_1", label: "Redaksi/materi tersedia", is_done: false },
+      { id: "checklist_2", label: "Referensi desain tersedia", is_done: false },
+      { id: "checklist_3", label: "Draft desain", is_done: false },
+      { id: "checklist_4", label: "Revisi internal", is_done: false },
+      { id: "checklist_5", label: "Finalisasi ukuran", is_done: false },
+      { id: "checklist_6", label: "Upload hasil", is_done: false },
+    ];
+  }
+
+  // B. Dokumentasi
+  const isDokumentasi = ["dokumentasi", "foto", "video", "highlight", "recap", "aftermovie"].some(
+    kw => clean.includes(kw)
+  );
+  if (isDokumentasi) {
+    return [
+      { id: "checklist_1", label: "Brief dokumentasi dibaca", is_done: false },
+      { id: "checklist_2", label: "Ambil footage/foto", is_done: false },
+      { id: "checklist_3", label: "Seleksi file", is_done: false },
+      { id: "checklist_4", label: "Editing", is_done: false },
+      { id: "checklist_5", label: "Review internal", is_done: false },
+      { id: "checklist_6", label: "Upload final", is_done: false },
+    ];
+  }
+
+  // C. Copywriting
+  const isCopywriting = ["caption", "copywriting", "narasi", "teks publikasi", "press release"].some(
+    kw => clean.includes(kw)
+  );
+  if (isCopywriting) {
+    return [
+      { id: "checklist_1", label: "Pahami brief", is_done: false },
+      { id: "checklist_2", label: "Draft tulisan", is_done: false },
+      { id: "checklist_3", label: "Review bahasa", is_done: false },
+      { id: "checklist_4", label: "Finalisasi", is_done: false },
+      { id: "checklist_5", label: "Kirim ke desainer/admin", is_done: false },
+    ];
+  }
+
+  // D. Administrasi
+  const isAdministrasi = ["surat", "undangan", "proposal", "lpj", "rab", "daftar hadir"].some(
+    kw => clean.includes(kw)
+  );
+  if (isAdministrasi) {
+    return [
+      { id: "checklist_1", label: "Data kebutuhan lengkap", is_done: false },
+      { id: "checklist_2", label: "Draft dokumen", is_done: false },
+      { id: "checklist_3", label: "Review koordinator", is_done: false },
+      { id: "checklist_4", label: "Revisi dokumen", is_done: false },
+      { id: "checklist_5", label: "Finalisasi", is_done: false },
+      { id: "checklist_6", label: "Upload/arsipkan", is_done: false },
+    ];
+  }
+
+  // E. Umum (Default)
+  return [
+    { id: "checklist_1", label: "Redaksi/materi tersedia", is_done: false },
+    { id: "checklist_2", label: "Referensi desain tersedia", is_done: false },
+    { id: "checklist_3", label: "Mulai desain/draft awal", is_done: false },
+    { id: "checklist_4", label: "Revisi internal", is_done: false },
+    { id: "checklist_5", label: "Finalisasi desain", is_done: false },
+    { id: "checklist_6", label: "Upload hasil ke Drive", is_done: false },
+  ];
+}
+
+interface PreviewResult {
+  isValid: boolean;
+  previewText: string;
 }
 
 export async function buildWhatsAppCommandPreview(
   parsed: ParsedWhatsAppCommand,
-  senderProfile: UserProfile | null
+  senderProfile: UserProfile | null,
+  groupId?: string
 ): Promise<PreviewResult> {
   const db = getAdminDb();
 
@@ -201,9 +348,14 @@ export async function buildWhatsAppCommandPreview(
     name: (doc.data().name as string) || "Acara Tanpa Nama",
   }));
 
+  // Resolve linked event from WhatsApp Group
+  let linkedEvent: Event | null = null;
+  if (groupId) {
+    linkedEvent = await findEventByGroupId(groupId);
+  }
+
   const { intent, fields, items = [] } = parsed;
 
-  // Append a success or warning message based on sender registration in JobDex.in
   const getSenderWarning = () => {
     if (!senderProfile) {
       return `\n⚠️ Catatan: Nomor WhatsApp Anda belum terhubung ke akun JobdexIn, sehingga command eksekusi nantinya tidak dapat dijalankan.`;
@@ -228,67 +380,65 @@ export async function buildWhatsAppCommandPreview(
         };
       }
 
-      // Check missing required fields
-      const tipe = fields.tipe || "";
+      // Auto group routing event resolution
+      if (linkedEvent) {
+        fields.tipe = "acara";
+        fields.acara = linkedEvent.name;
+      } else if (fields.acara) {
+        fields.tipe = "acara";
+      } else if (!fields.tipe) {
+        fields.tipe = "divisi";
+      }
+
+      const tipe = fields.tipe || "divisi";
       const isAcara = tipe.toLowerCase() === "acara";
 
+      // Auto priority upgrade safety check
+      if (!fields.prioritas) {
+        fields.prioritas = "sedang";
+      }
+      const rawLower = parsed.rawText.toLowerCase();
+      const hasUrgentWords = ["urgent", "hari ini", "besok", "segera", "penting", "kritis", "cepat", "darurat"].some(
+        w => rawLower.includes(w)
+      );
+      if (hasUrgentWords && (fields.prioritas === "sedang" || fields.prioritas === "rendah")) {
+        fields.prioritas = "tinggi";
+      }
+
       const missingFields: string[] = [];
-      if (!fields.tipe) missingFields.push("tipe");
       if (!fields.judul) missingFields.push("judul");
       if (!fields.pic) missingFields.push("pic");
       if (!fields.deadline) missingFields.push("deadline");
-      
-      let priorityInvalid = false;
-      if (!fields.prioritas) {
-        missingFields.push("prioritas");
-      } else {
-        const validPriorities = ["rendah", "sedang", "tinggi", "kritis"];
-        if (!validPriorities.includes(fields.prioritas.toLowerCase().trim())) {
-          missingFields.push("prioritas");
-          priorityInvalid = true;
-        }
-      }
       if (isAcara && !fields.acara) missingFields.push("acara");
 
       if (missingFields.length > 0) {
-        // Build Case 3 incomplete guidance
+        // Build incomplete guidance
         const readFields: string[] = [];
-        if (fields.tipe) {
-          const tLabel = tipe.toLowerCase() === "divisi" ? "Divisi" : tipe.toLowerCase() === "acara" ? "Acara" : tipe;
-          readFields.push(`- Tipe: ${tLabel}`);
-        }
+        readFields.push(`- Tipe: ${tipe.toLowerCase() === "divisi" ? "Divisi" : "Acara"}`);
         if (isAcara && fields.acara) readFields.push(`- Acara: ${fields.acara}`);
         if (fields.judul) readFields.push(`- Judul: ${fields.judul}`);
         if (fields.pic) readFields.push(`- PIC: ${fields.pic}`);
         if (fields.deadline) readFields.push(`- Deadline: ${fields.deadline}`);
-        if (fields.prioritas && !priorityInvalid) {
-          const pLabel = fields.prioritas.charAt(0).toUpperCase() + fields.prioritas.slice(1).toLowerCase();
-          readFields.push(`- Prioritas: ${pLabel}`);
-        }
+        readFields.push(`- Prioritas: ${fields.prioritas.charAt(0).toUpperCase() + fields.prioritas.slice(1).toLowerCase()}`);
 
-        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
-        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+        const readSection = `Sudah terbaca:\\n${readFields.join("\\n")}`;
+        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah jobdesk`,
-          `tipe: ${fields.tipe || "divisi/acara"}`,
-          isAcara || tipe.toLowerCase() === "acara" ? `acara: ${fields.acara || "..."}` : null,
+          `tipe: ${tipe}`,
+          isAcara ? `acara: ${fields.acara || "..."}` : null,
           `judul: ${fields.judul || "..."}`,
           `pic: ${fields.pic || "..."}`,
           `deadline: ${fields.deadline || "..."}`,
-          `prioritas: ${fields.prioritas && !priorityInvalid ? fields.prioritas.toLowerCase() : "rendah/sedang/tinggi/kritis"}`,
+          `prioritas: ${fields.prioritas.toLowerCase()}`,
           `deskripsi: ${fields.deskripsi || "..."}`,
-          fields.redaksi ? `redaksi: ${fields.redaksi}` : null,
-          fields.referensi ? `referensi: ${fields.referensi}` : null,
-          fields.drive ? `drive: ${fields.drive}` : null,
-          fields.warna ? `warna: ${fields.warna}` : null,
-          fields["arahan visual"] || fields.arahan_visual ? `arahan visual: ${fields["arahan visual"] || fields.arahan_visual}` : null,
-        ].filter(Boolean).join("\n");
+        ].filter(Boolean).join("\\n");
 
         const previewText = [
-          `${WA_LABEL.ai}`,
+          `[*JobdexIn* Format Belum Lengkap]`,
           ``,
-          `Data job desk sudah mulai terbaca, tetapi masih kurang:`,
+          `Saya sudah membaca judul task dan PIC, tetapi deadline belum terdeteksi.`,
           ``,
           readSection,
           ``,
@@ -297,7 +447,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\n");
+        ].join("\\n");
 
         return {
           isValid: false,
@@ -305,82 +455,120 @@ export async function buildWhatsAppCommandPreview(
         };
       }
 
-      const judul = fields.judul || "-";
-      const picRaw = fields.pic || "-";
-      const deadlineRaw = fields.deadline || "-";
-      const prioritas = fields.prioritas || "sedang";
-      const deskripsi = fields.deskripsi || "-";
-      const redaksi = fields.redaksi || "-";
-      const referensi = fields.referensi || "-";
-      const warna = fields.warna || "-";
-      const arahanVisual = fields["arahan visual"] || fields.arahan_visual || "-";
-      const acaraRaw = fields.acara || "";
+      const judul = fields.judul;
+      const picRaw = fields.pic;
+      const deadlineRaw = fields.deadline;
+      const prioritas = fields.prioritas;
+            const acaraRaw = fields.acara || "";
 
-      const picUser = findUserByName(picRaw, users);
-      const hasAcara = tipe.toLowerCase() === "acara";
-      const event = hasAcara && acaraRaw ? findEventByName(acaraRaw, events) : null;
+      // Smart PIC Resolution
+      const picResult = resolvePIC(picRaw, users);
+      let picUser: UserProfile | null = null;
 
+      if (picResult.success && picResult.user) {
+        picUser = picResult.user;
+      } else if (picResult.candidates.length > 1) {
+        const listText = picResult.candidates.map((c, i) => {
+          const ph = c.whatsapp_number || "";
+          const masked = ph ? ph.slice(0, 5) + "xxxx" + ph.slice(-2) : "-";
+          return `${i + 1}. ${c.name} — ${masked}`;
+        }).join("\\n");
+
+        return {
+          isValid: false,
+          previewText: [
+            `[*JobdexIn* PIC Ambigu]`,
+            ``,
+            `Saya menemukan beberapa anggota yang mirip dengan "${picRaw}":`,
+            ``,
+            listText,
+            ``,
+            `Ulangi command dengan nama yang lebih lengkap atau nomor WhatsApp PIC.`
+          ].join("\\n")
+        };
+      } else {
+        return {
+          isValid: false,
+          previewText: [
+            `[*JobdexIn* PIC Tidak Ditemukan]`,
+            ``,
+            `PIC "${picRaw}" tidak ditemukan dalam database JobdexIn.`,
+            ``,
+            `Pastikan nama, nickname, alias, atau nomor WhatsApp PIC sudah benar, atau hubungi admin.`
+          ].join("\\n")
+        };
+      }
+
+      const event = isAcara ? findEventByName(acaraRaw, events) : null;
       const validations: string[] = [];
       let isValid = true;
 
-      // Validate PIC
-      if (picUser) {
-        validations.push(`- PIC ditemukan: ${picUser.name} (${picUser.role.replace("_", " ")})`);
-      } else {
-        validations.push(`- PIC tidak ditemukan ("${picRaw}")`);
-        isValid = false;
-      }
+      validations.push(`- PIC ditemukan: ${picUser.name}`);
+      validations.push(`- Deadline terbaca: ${deadlineRaw}`);
 
-      // Validate Deadline
-      if (deadlineRaw && deadlineRaw !== "-") {
-        validations.push(`- Deadline terbaca: ${deadlineRaw}`);
-      } else {
-        validations.push(`- Deadline tidak terbaca/tidak lengkap`);
-        isValid = false;
-      }
-
-      // Validate Event if type is acara
-      if (hasAcara) {
-        if (!acaraRaw) {
-          validations.push(`- Field 'acara' wajib diisi jika tipe adalah 'acara'`);
-          isValid = false;
-        } else if (event) {
+      if (isAcara) {
+        if (event) {
           validations.push(`- Acara ditemukan: ${event.name}`);
         } else {
           validations.push(
-            `- Acara belum ditemukan ("${acaraRaw}"). Harap buat acara terlebih dahulu menggunakan "!jobdex tambah acara" agar dapat mengunggah job desk ini.`
+            `- Acara belum ditemukan ("${acaraRaw}"). Harap buat acara terlebih dahulu agar dapat mengunggah job desk ini.`
           );
           isValid = false;
         }
       }
 
-      // Validate other fields
-      const missing = [];
-      if (!judul || judul === "-") missing.push("judul");
-      if (!prioritas || prioritas === "-") missing.push("prioritas");
-      if (missing.length > 0) {
-        validations.push(`- Field wajib tidak lengkap (Harap lengkapi: ${missing.join(", ")})`);
-        isValid = false;
-      } else {
-        validations.push(`- Field wajib lengkap`);
+      // Auto Checklist based on Task Type
+      const checklist = getChecklistByTaskName(judul);
+      const checklistText = checklist.map((item, i) => `${i + 1}. ${item.label}`).join("\\n");
+
+      // Auto Cari Referensi untuk task desain
+      let referenceSection = "";
+      const cleanTitle = judul.toLowerCase().trim();
+      const isDesignTask = ["pamflet", "poster", "flyer", "feed", "story", "banner", "spanduk", "publikasi", "desain"].some(
+        kw => cleanTitle.includes(kw)
+      );
+
+      if (isDesignTask) {
+        try {
+          const refIntent = detectSearchIntent(judul + " " + (event ? event.name : acaraRaw));
+          const snapshot = await db.collection("design_references").where("is_archived", "==", false).get();
+          const refs: DesignReference[] = [];
+          snapshot.forEach((doc) => {
+            refs.push({ id: doc.id, ...doc.data() } as DesignReference);
+          });
+          const scored = refs.map((ref) => ({ ref, score: calculateReferenceScore(ref, refIntent) }));
+          scored.sort((a, b) => b.score - a.score);
+          const topRefs = scored.filter(item => item.score > 0).slice(0, 3);
+          
+          if (topRefs.length > 0) {
+            const lines = [
+              "",
+              "Referensi terdekat yang saya temukan:",
+              ...topRefs.map((item, i) => `${i + 1}. ${item.ref.title} (${item.ref.year})`)
+            ];
+            referenceSection = lines.join("\\n");
+          }
+        } catch (err) {
+          console.error("[Auto Reference Suggestion] Failed:", err);
+        }
       }
 
       const previewText = [
-        `${WA_LABEL.ai} Preview`,
+        `[*JobdexIn* Preview Jobdesk]`,
         ``,
         `Saya membaca rencana tambah job desk:`,
         ``,
-        `Tipe: ${tipe.charAt(0).toUpperCase() + tipe.slice(1)}`,
-        hasAcara ? `Acara: ${event ? event.name : acaraRaw}` : null,
+        `Acara: ${isAcara ? (event ? event.name : acaraRaw) : "Divisi (Non-Acara)"}`,
         `Judul: ${judul}`,
-        `PIC: ${picUser ? picUser.name : picRaw}`,
+        `PIC: ${picUser.name}`,
         `Deadline: ${deadlineRaw}`,
-        `Prioritas: ${prioritas}`,
-        `Deskripsi: ${deskripsi}`,
-        redaksi !== "-" ? `Redaksi: ${redaksi}` : null,
-        referensi !== "-" ? `Referensi: ${referensi}` : null,
-        warna !== "-" ? `Warna: ${warna}` : null,
-        arahanVisual !== "-" ? `Arahan visual: ${arahanVisual}` : null,
+        `Prioritas: ${prioritas.charAt(0).toUpperCase() + prioritas.slice(1).toLowerCase()}`,
+        `Status awal: Belum Dimulai`,
+        ``,
+        `Checklist otomatis:`,
+        checklistText,
+        referenceSection,
+        referenceSection ? `\\nCatatan:\\nReferensi hanya saran. Task tetap bisa dibuat tanpa memilih referensi.` : null,
         ``,
         `Status validasi:`,
         ...validations,
@@ -389,7 +577,7 @@ export async function buildWhatsAppCommandPreview(
         `Preview ini belum disimpan ke database.`
       ]
         .filter((line) => line !== null)
-        .join("\n");
+        .join("\\n");
 
       return { isValid, previewText };
     }
@@ -408,7 +596,6 @@ export async function buildWhatsAppCommandPreview(
       const koordinatorRaw = fields.koordinator || "";
       const deskripsi = fields.deskripsi || fields.description || "";
 
-      // Check missing required fields for event
       const missingFields: string[] = [];
       if (!name) missingFields.push("nama");
       if (!tanggal) missingFields.push("tanggal");
@@ -420,8 +607,8 @@ export async function buildWhatsAppCommandPreview(
         if (tanggal) readFields.push(`- Tanggal: ${tanggal}`);
         if (koordinatorRaw) readFields.push(`- Koordinator: ${koordinatorRaw}`);
 
-        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
-        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\\n${readFields.join("\\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah acara`,
@@ -429,10 +616,10 @@ export async function buildWhatsAppCommandPreview(
           `tanggal: ${tanggal || "..."}`,
           `koordinator: ${koordinatorRaw || "..."}`,
           `deskripsi: ${deskripsi || "..."}`
-        ].join("\n");
+        ].join("\\n");
 
         const previewText = [
-          `${WA_LABEL.ai}`,
+          `[*JobdexIn* Format Belum Lengkap]`,
           ``,
           `Data acara sudah mulai terbaca, tetapi masih kurang:`,
           ``,
@@ -443,7 +630,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\n");
+        ].join("\\n");
 
         return {
           isValid: false,
@@ -453,43 +640,40 @@ export async function buildWhatsAppCommandPreview(
 
       const nameVal = name || "-";
       const tanggalVal = tanggal || "-";
-      const koorUser = findUserByName(koordinatorRaw, users);
 
-      const validations: string[] = [];
-      let isValid = true;
+      // Smart PIC/Koordinator resolution
+      const koorResult = resolvePIC(koordinatorRaw, users);
+      let koorUser: UserProfile | null = null;
 
-      // Validate Koordinator
-      if (koorUser) {
-        validations.push(`- Koordinator ditemukan: ${koorUser.name} (${koorUser.role.replace("_", " ")})`);
+      if (koorResult.success && koorResult.user) {
+        koorUser = koorResult.user;
+      } else if (koorResult.candidates.length > 1) {
+        const listText = koorResult.candidates.map((c, i) => `${i + 1}. ${c.name}`).join("\\n");
+        return {
+          isValid: false,
+          previewText: `[*JobdexIn* PIC Ambigu]\\n\\nSaya menemukan beberapa anggota yang mirip dengan "${koordinatorRaw}":\\n\\n${listText}\\n\\nUlangi command dengan nama yang lebih lengkap.`
+        };
       } else {
-        validations.push(`- Koordinator tidak ditemukan ("${koordinatorRaw}")`);
-        isValid = false;
+        return {
+          isValid: false,
+          previewText: `[*JobdexIn* PIC Tidak Ditemukan]\\n\\nKoordinator "${koordinatorRaw}" tidak ditemukan dalam database.`
+        };
       }
 
-      // Validate Tanggal
-      if (tanggalVal && tanggalVal !== "-") {
-        validations.push(`- Tanggal terbaca: ${tanggalVal}`);
-      } else {
-        validations.push(`- Tanggal tidak terbaca/tidak lengkap`);
-        isValid = false;
-      }
-
-      // Validate required name
-      if (!nameVal || nameVal === "-") {
-        validations.push(`- Field wajib tidak lengkap (Harap lengkapi: nama)`);
-        isValid = false;
-      } else {
-        validations.push(`- Field wajib lengkap`);
-      }
+      const validations: string[] = [
+        `- Koordinator ditemukan: ${koorUser.name}`,
+        `- Tanggal terbaca: ${tanggalVal}`,
+        `- Field wajib lengkap`
+      ];
 
       const previewText = [
-        `${WA_LABEL.ai} Preview`,
+        `[*JobdexIn* Preview Acara]`,
         ``,
         `Saya membaca rencana tambah acara:`,
         ``,
         `Nama: ${nameVal}`,
         `Tanggal: ${tanggalVal}`,
-        `Koordinator: ${koorUser ? koorUser.name : koordinatorRaw}`,
+        `Koordinator: ${koorUser.name}`,
         `Deskripsi: ${deskripsi || "-"}`,
         ``,
         `Status validasi:`,
@@ -497,39 +681,75 @@ export async function buildWhatsAppCommandPreview(
         getSenderWarning(),
         ``,
         `Preview ini belum disimpan ke database.`
-      ]
-        .filter((line) => line !== null)
-        .join("\n");
+      ].join("\\n");
 
-      return { isValid, previewText };
+      return { isValid: true, previewText };
     }
 
     case "bulk_create_task_preview": {
-      const globalTipe = fields.tipe || "Divisi";
+      // Auto group routing event resolution
+      if (linkedEvent) {
+        fields.tipe = "acara";
+        fields.acara = linkedEvent.name;
+      } else if (fields.acara) {
+        fields.tipe = "acara";
+      } else if (!fields.tipe) {
+        fields.tipe = "divisi";
+      }
+
+      const globalTipe = fields.tipe || "divisi";
+      const isAcara = globalTipe.toLowerCase() === "acara";
       const previewLines: string[] = [];
       const totalItems = items.length;
       let picsFoundCount = 0;
       let deadlinesProblemCount = 0;
+      const problemTasks: string[] = [];
 
       items.forEach((item, index) => {
         const judul = item.judul || "-";
         const picRaw = item.pic || "-";
         const deadline = item.deadline || "-";
-        const prioritas = item.prioritas || "-";
-
-        const picUser = findUserByName(picRaw, users);
-        if (picUser) {
-          picsFoundCount++;
+        
+        // Auto default priority for bulk
+        if (!item.prioritas) {
+          item.prioritas = "sedang";
         }
-        if (!deadline || deadline === "-" || deadline.toLowerCase() === "t/d") {
+        const itemRawText = `${judul} ke ${picRaw} ${deadline}`;
+        const hasItemUrgent = ["urgent", "hari ini", "besok", "segera", "penting", "kritis", "cepat", "darurat"].some(
+          w => itemRawText.toLowerCase().includes(w)
+        );
+        if (hasItemUrgent && (item.prioritas === "sedang" || item.prioritas === "rendah")) {
+          item.prioritas = "tinggi";
+        }
+
+        const prioritas = item.prioritas;
+
+        // Resolve PIC
+        const picResult = resolvePIC(picRaw, users);
+        let resolvedPicName = picRaw;
+
+        if (picResult.success && picResult.user) {
+          resolvedPicName = picResult.user.name;
+          picsFoundCount++;
+        } else if (picResult.candidates.length > 1) {
+          resolvedPicName = `${picRaw} (Ambigu)`;
+          problemTasks.push(`Task #${index + 1}: PIC "${picRaw}" ambigu (ada beberapa kecocokan).`);
+        } else {
+          resolvedPicName = `${picRaw} (Tidak ditemukan)`;
+          problemTasks.push(`Task #${index + 1}: PIC "${picRaw}" tidak ditemukan.`);
+        }
+
+        const isDeadlineMissing = !deadline || deadline === "-" || deadline.toLowerCase() === "t/d" || deadline.toLowerCase() === "belum terdeteksi";
+        if (isDeadlineMissing) {
           deadlinesProblemCount++;
+          problemTasks.push(`Task #${index + 1}: Deadline belum ditentukan atau tidak terbaca.`);
         }
 
         previewLines.push(
           `${index + 1}. ${judul}`,
-          `   PIC: ${picUser ? picUser.name : picRaw}${picUser ? ` (${picUser.role.replace("_", " ")})` : " (Tidak ditemukan)"}`,
-          `   Deadline: ${deadline}`,
-          `   Prioritas: ${prioritas}`
+          `   PIC: ${resolvedPicName}`,
+          `   Deadline: ${isDeadlineMissing ? "Belum terdeteksi" : deadline}`,
+          `   Prioritas: ${prioritas.charAt(0).toUpperCase() + prioritas.slice(1).toLowerCase()}`
         );
       });
 
@@ -539,92 +759,36 @@ export async function buildWhatsAppCommandPreview(
         `- ${deadlinesProblemCount}/${totalItems} deadline bermasalah`
       ];
 
-      const previewText = [
-        `${WA_LABEL.ai} Preview Bulk`,
+      const isValid = picsFoundCount === totalItems && deadlinesProblemCount === 0 && totalItems > 0;
+
+      const previewTextLines = [
+        `[*JobdexIn* Preview Bulk Jobdesk]`,
         ``,
-        `Saya membaca ${totalItems} rencana job desk (${globalTipe.charAt(0).toUpperCase() + globalTipe.slice(1)}):`,
+        `Saya membaca ${totalItems} job desk untuk ${isAcara ? `acara ${fields.acara || "Acara"}` : "Divisi (Non-Acara)"}.`,
         ``,
         ...previewLines,
         ``,
         `Validasi:`,
         ...validations,
-        getSenderWarning(),
-        ``,
-        `Preview ini belum disimpan ke database.`
-      ].join("\n");
+      ];
 
-      const isValid = picsFoundCount === totalItems && deadlinesProblemCount === 0 && totalItems > 0;
-      return { isValid, previewText };
-    }
-
-    case "approve_task_preview": {
-      const query = fields.query || "";
-      if (!query) {
-        return {
-          isValid: false,
-          previewText: `${WA_LABEL.ai} Preview\n\nFormat salah. Harap tentukan nama task yang ingin diapprove.\nContoh: !jobdex approve task Desain feed`,
-        };
-      }
-
-      // Load active tasks from database
-      const tasksSnapshot = await db.collection("tasks").where("is_archived", "==", false).get();
-      const tasks = tasksSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        name: (doc.data().name as string) || "Task Tanpa Nama",
-        pic_id: (doc.data().pic_id as string) || "",
-        status: (doc.data().status as string) || "",
-        approval_status: (doc.data().approval_status as string) || "",
-      }));
-
-      const matched = findTasksByTitle(query, tasks);
-
-      if (matched.length === 0) {
-        return {
-          isValid: false,
-          previewText: `${WA_LABEL.ai} Preview\n\nTask dengan judul mirip "${query}" tidak ditemukan.\nHarap periksa kembali judul task yang Anda masukkan.`,
-        };
-      }
-
-      if (matched.length === 1) {
-        const task = matched[0];
-        const picUser = users.find((u) => u.id === task.pic_id);
-        const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
-
-        const previewText = [
-          `${WA_LABEL.ai} Preview`,
+      if (problemTasks.length > 0) {
+        previewTextLines.push(
           ``,
-          `Saya menemukan task:`,
-          `Judul: ${task.name}`,
-          `PIC: ${picUser ? picUser.name : "Tidak ditemukan"}`,
-          `Status: ${statusLabel}`,
-          `Approval Status: ${task.approval_status || "pending"}`,
+          `⚠️ Masalah Ditemukan:`,
+          ...problemTasks,
           ``,
-          `Rencana aksi:`,
-          `Approve task ini.`,
+          `Preview belum bisa dikonfirmasi sampai semua field wajib lengkap.`
+        );
+      } else {
+        previewTextLines.push(
           getSenderWarning(),
           ``,
-          `Preview ini belum dijalankan.`
-        ]
-          .filter((line) => line !== null)
-          .join("\n");
-
-        return { isValid: true, previewText };
+          `Preview ini belum disimpan ke database.`
+        );
       }
 
-      // Multiple candidates found
-      const candidates = matched.map((t, idx) => {
-        const picUser = users.find((u) => u.id === t.pic_id);
-        return `${idx + 1}. ${t.name} (PIC: ${picUser ? picUser.name : "Tidak ditemukan"})`;
-      });
-
-      const previewText = [
-        `Saya menemukan beberapa task mirip:`,
-        ...candidates,
-        ``,
-        `Tolong gunakan nama yang lebih spesifik.`
-      ].join("\n");
-
-      return { isValid: false, previewText };
+      return { isValid, previewText: previewTextLines.join("\\n") };
     }
 
     case "create_reference_preview": {
@@ -687,8 +851,8 @@ export async function buildWhatsAppCommandPreview(
         if (linkDocs) readFields.push(`- Link Docs: ${linkDocs}`);
         if (linkLain) readFields.push(`- Link Lain: ${linkLain}`);
 
-        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
-        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\\n${readFields.join("\\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah referensi`,
@@ -705,7 +869,7 @@ export async function buildWhatsAppCommandPreview(
           fields.warna ? `warna: ${fields.warna}` : null,
           fields["arahan visual"] || fields.arahan_visual ? `arahan visual: ${fields["arahan visual"] || fields.arahan_visual}` : null,
           fields.catatan || fields.notes ? `catatan: ${fields.catatan || fields.notes}` : null,
-        ].filter(Boolean).join("\n");
+        ].filter(Boolean).join("\\n");
 
         const previewText = [
           `${WA_LABEL.ai}`,
@@ -719,7 +883,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\n");
+        ].join("\\n");
 
         return {
           isValid: false,
@@ -738,7 +902,7 @@ export async function buildWhatsAppCommandPreview(
           validations.push(`- Acara ditemukan: ${eventObj.name}`);
         } else {
           validations.push(
-            `- Acara belum ditemukan ("${fields.acara}"). Harap buat acara terlebih dahulu menggunakan "!jobdex tambah acara" agar dapat menambahkan referensi ini.`
+            `- Acara belum ditemukan ("${fields.acara}"). Harap buat acara terlebih dahulu agar dapat menambahkan referensi ini.`
           );
           isValid = false;
         }
@@ -787,10 +951,10 @@ export async function buildWhatsAppCommandPreview(
       }
 
       // Link auto-classification & multi-link parsing
-      const driveLinks = linkDrive ? linkDrive.split(/,\s*/).filter(Boolean) : [];
-      const canvaLinks = linkCanva ? linkCanva.split(/,\s*/).filter(Boolean) : [];
-      const docLinks = linkDocs ? linkDocs.split(/,\s*/).filter(Boolean) : [];
-      let otherLinks = linkLain ? linkLain.split(/,\s*/).filter(Boolean) : [];
+      const driveLinks = linkDrive ? linkDrive.split(/,\\s*/).filter(Boolean) : [];
+      const canvaLinks = linkCanva ? linkCanva.split(/,\\s*/).filter(Boolean) : [];
+      const docLinks = linkDocs ? linkDocs.split(/,\\s*/).filter(Boolean) : [];
+      let otherLinks = linkLain ? linkLain.split(/,\\s*/).filter(Boolean) : [];
 
       const classifiedOther: string[] = [];
       for (const link of otherLinks) {
@@ -844,7 +1008,7 @@ export async function buildWhatsAppCommandPreview(
         `Preview ini belum disimpan ke database.`
       ]
         .filter((line) => line !== null)
-        .join("\n");
+        .join("\\n");
 
       return { isValid, previewText };
     }
@@ -852,7 +1016,7 @@ export async function buildWhatsAppCommandPreview(
     default: {
       return {
         isValid: false,
-        previewText: `${WA_LABEL.ai} Preview\n\nCommand tidak dikenal atau gagal diproses.`,
+        previewText: `${WA_LABEL.ai} Preview\\n\\nCommand tidak dikenal atau gagal diproses.`,
       };
     }
   }

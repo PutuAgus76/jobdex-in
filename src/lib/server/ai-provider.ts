@@ -16,6 +16,8 @@ export interface AIProviderParams {
   feature: string; // for logging and cache key
   useCache?: boolean;
   modelTier?: "fast" | "pro";
+  provider?: AIProviderName;
+  responseFormat?: { type: "json_object" };
 }
 
 export interface AIProviderResult {
@@ -116,6 +118,7 @@ async function callDeepSeek(params: AIProviderParams): Promise<AIProviderResult>
       max_tokens: maxTokens,
       temperature,
       stream: false,
+      response_format: params.responseFormat,
     }),
   });
 
@@ -208,6 +211,7 @@ async function logAIUsage(result: AIProviderResult, feature: string, status: "su
  */
 export async function generateText(params: AIProviderParams): Promise<AIProviderResult> {
   const useCache = params.useCache !== false;
+  const resolvedProvider = params.provider ?? getProvider();
 
   // Check cache first
   if (useCache) {
@@ -215,7 +219,7 @@ export async function generateText(params: AIProviderParams): Promise<AIProvider
     if (cached) {
       const result: AIProviderResult = {
         text: cached,
-        provider: getProvider(),
+        provider: resolvedProvider,
         model: "cache",
         inputChars: params.prompt.length,
         outputChars: cached.length,
@@ -227,7 +231,7 @@ export async function generateText(params: AIProviderParams): Promise<AIProvider
     }
   }
 
-  const provider = getProvider();
+  const provider = resolvedProvider;
   let result: AIProviderResult;
 
   try {

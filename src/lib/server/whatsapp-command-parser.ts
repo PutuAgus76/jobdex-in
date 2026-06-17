@@ -1,11 +1,13 @@
 import "server-only";
+import { generateText } from "./ai-provider";
+
 
 export type WhatsAppCommandIntent =
   | "template_help"
   | "create_task_preview"
   | "create_event_preview"
   | "bulk_create_task_preview"
-  | "approve_task_preview"
+  // NOTE: "approve_task_preview" dihapus — dead code, sudah digantikan oleh "approve_task"
   | "progress_question"
   | "confirm_command"
   | "cancel_command"
@@ -700,7 +702,13 @@ function parseWhatsAppCommandInternal(
   } else if (lowerCleaned.startsWith("tambah acara")) {
     return parseEventCommand(rawText, cleaned);
   } else if (lowerCleaned.startsWith("approve task")) {
-    return parseApproveTaskCommand(rawText, cleaned);
+    // NOTE: "approve task" sudah ditangani lebih awal di parseWhatsAppCommandInternal
+    // (section 10, line ~656). Cabang ini tidak akan pernah tercapai.
+    // Tetap dipertahankan sebagai safety fallback dengan intent "approve_task".
+    const prefixMatch = cleaned.match(/^approve\s+task\s+(.+)$/i);
+    if (prefixMatch) {
+      return { intent: "approve_task", rawText, fields: { task_name: prefixMatch[1].trim(), is_code: "false", pin: "" } };
+    }
   } else if (lowerCleaned.startsWith("format") || lowerCleaned.startsWith("contoh")) {
     return {
       intent: "template_help",
@@ -832,19 +840,9 @@ function parseBulkTaskCommand(rawText: string, cleaned: string): ParsedWhatsAppC
   };
 }
 
-function parseApproveTaskCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
-  const fields: Record<string, string> = {};
-  const match = cleaned.match(/^approve\s+task\s+(.+)$/i);
-  if (match) {
-    fields["query"] = match[1].trim();
-  }
-
-  return {
-    intent: "approve_task_preview",
-    rawText,
-    fields,
-  };
-}
+// NOTE: parseApproveTaskCommand dihapus (dead code).
+// Intent "approve_task_preview" tidak lagi digunakan.
+// Handler approve task sudah diproses sebelumnya di section 10 dengan intent "approve_task".
 
 function parseConfirmCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
   const fields: Record<string, string> = {};
@@ -944,4 +942,96 @@ function parseReferenceCommand(rawText: string, cleaned: string): ParsedWhatsApp
     rawText,
     fields,
   };
+}
+
+export async function parseWhatsAppCommandNatural(rawText: string): Promise<ParsedWhatsAppCommand> {
+  const clean = rawText.trim();
+  if (!clean.toLowerCase().startsWith("!jobdex")) {
+    return { intent: "unknown", rawText, fields: {} };
+  }
+
+  const systemPrompt = `You are a WhatsApp natural command parser for JobDex.in, a task management system.
+Analyze the user's natural language command and parse it into a structured JSON block.
+
+Supported Intents:
+1. create_task_preview: Create a new single task/jobdesk.
+   Keywords: "tambah jobdesk", "buat tugas", "tugaskan", "tambah task"
+   Required fields in "fields":
+   - judul: task title (e.g., "desain pamflet opening")
+   - pic: PIC name, alias, nickname, or phone number (e.g., "Agus", "08123456789")
+   - deadline: deadline date or date string (e.g., "20 Juni", "besok", "Jumat")
+   - prioritas: inferred priority ("rendah", "sedang", "tinggi", "kritis"). Default is "sedang". If words like "urgent", "segera", "penting", "hari ini", "kritis" are used, prioritize "tinggi" or "kritis".
+   - deskripsi: task description (optional, default to "-")
+   - acara: event name (optional, if mentioned, e.g., "RAKER")
+2. bulk_create_task_preview: Create multiple tasks in bulk.
+   Keywords: "tambah banyak jobdesk", "buat banyak jobdesk", "buat jobdesk RAKER:" followed by a list.
+   Required fields in "fields":
+   - tipe: "divisi" or "acara". Default is "divisi" (unless event is mentioned).
+   - acara: event name (if applicable).
+   Required items in "items": list of tasks, each task is an object with fields: "judul", "pic", "deadline", "prioritas" (optional), "deskripsi" (optional).
+3. update_status: Update status of a task.
+   Keywords: "[task] sudah mulai...", "[task] stuck...", "[task] nunggu...", "[task] sudah upload..."
+   Required fields in "fields":
+   - task_name: task title or task code.
+   - status: map to one of: "sedang_dikerjakan" (mulai, gas, on progress, proses), "stuck" (stuck, macet, terkendala), "menunggu_materi" (nunggu materi, bahan), "draft_selesai" (draft jadi/selesai), "menunggu_approval" (sudah upload/kirim link), "revisi_dikerjakan" (revisi selesai), "ditunda" (ditunda, pending).
+   - notes: explanation/notes (required if status is "stuck", "butuh_bantuan", or "menunggu_materi").
+4. minta_revisi: Request a revision.
+   Keywords: "revisi [task]...", "[task] revisi ya...", "minta revisi [task]..."
+   Required fields in "fields":
+   - task_name: task title or code.
+   - catatan: revision notes (e.g., "logo terlalu kecil").
+5. approve_task: Approve/ACC a task.
+   Keywords: "acc [task]", "approve [task]", "[task] oke/aman"
+   Required fields in "fields":
+   - task_name: task title or code.
+6. reference_search: Search design references.
+   Keywords: "cari referensi...", "cari poster..."
+   Required fields in "fields":
+   - keyword: search keyword.
+
+If the message does not match any of these intents, return:
+{
+  "intent": "unknown",
+  "fields": {}
+}
+
+Return ONLY a valid JSON object in this format (no markdown formatting, no code block backticks):
+{
+  "intent": "<intent_name>",
+  "fields": { ... },
+  "items": [ ... ] (only for bulk_create_task_preview)
+}`;
+
+  try {
+    const response = await generateText({
+      prompt: `Command: "${clean}"`,
+      systemPrompt,
+      feature: "natural_command_parsing",
+      useCache: false,
+      temperature: 0.1,
+    });
+
+    const text = response.text.trim();
+    let parsedJson;
+    try {
+      parsedJson = JSON.parse(text);
+    } catch {
+      const match = text.match(/\`\`\`json\s*([\s\S]*?)\s*\`\`\`/) || text.match(/\`\`\`\s*([\s\S]*?)\s*\`\`\`/);
+      if (match?.[1]) {
+        parsedJson = JSON.parse(match[1].trim());
+      } else {
+        throw new Error("Invalid JSON format");
+      }
+    }
+
+    return {
+      intent: parsedJson.intent || "unknown",
+      rawText,
+      fields: parsedJson.fields || {},
+      items: parsedJson.items || undefined,
+    };
+  } catch (err) {
+    console.error("[Natural Command Parser] Failed:", err);
+    return { intent: "unknown", rawText, fields: {} };
+  }
 }

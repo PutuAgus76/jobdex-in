@@ -55,6 +55,9 @@ export const WA_LABEL = {
   /** [*JobdexIn* Deadline] – Hasil pencarian deadline */
   deadline: `[${WA_BOT_LABEL} Deadline]`,
 
+  /** [*JobdexIn* Referensi] – Hasil pencarian referensi */
+  referensi: `[${WA_BOT_LABEL} Referensi]`,
+
   /** [*JobdexIn* Task] – Info/operasi task */
   task: `[${WA_BOT_LABEL} Task]`,
 

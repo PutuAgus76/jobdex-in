@@ -7,6 +7,7 @@ import { parseIndonesianDate, validateCommandPin, sanitizePinFromMessage, recalc
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { WA_LABEL, WA_BOT_LABEL } from "@/lib/server/whatsapp-labels";
 
+
 export { validateCommandPin, sanitizePinFromMessage };
 
 /**
@@ -81,12 +82,15 @@ async function findUserByNameFuzzy(
 }
 
 
+
+
+
 /**
  * Programmatic Deadline and Task Risk queries
  */
-export async function handleDeadlineQuery(queryType: string): Promise<string> {
+export async function handleDeadlineQuery(queryType: string, user: UserProfile): Promise<string> {
   const db = getAdminDb();
-  
+
   try {
     const tasksSnap = await db
       .collection("tasks")
@@ -114,8 +118,21 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
       }
     });
 
+    // === FIX A: Scope filter berdasarkan role user ===
+    const scopedTasks = activeTasks.filter((task) => {
+      if (user.role === "super_admin") return true;
+      if (user.role === "koordinator_divisi") {
+        return task.type === "divisi" && task.division_id === user.division_id;
+      }
+      if (user.role === "koordinator_acara") {
+        return task.type === "acara" && task.coordinator_id === user.id;
+      }
+      // anggota: hanya task yang ia jadi PIC
+      return task.pic_id === user.id;
+    });
+
     // Filter tasks based on queryType
-    const filtered = activeTasks.filter((task) => {
+    const filtered = scopedTasks.filter((task) => {
       const diffDays = getTaskDeadlineDiffDays(task);
       const risk = getRiskLevelFromTask(task);
 
@@ -156,11 +173,12 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
     });
 
     if (filtered.length === 0) {
-      return [
-        WA_LABEL.deadline,
-        "",
-        "Tidak ada tugas berisiko untuk kategori ini."
-      ].join("\n");
+      // Pesan ramah sesuai role
+      const emptyMsg =
+        user.role === "anggota"
+          ? "Saya hanya menampilkan tugas yang menjadi tanggung jawab kamu.\n\nBelum ada tugas kamu yang masuk kategori ini."
+          : "Tidak ada tugas berisiko untuk kategori ini dalam cakupan kamu.";
+      return [WA_LABEL.deadline, "", emptyMsg].join("\n");
     }
 
     // Sort by severity (red first, orange, yellow, then none)
@@ -171,14 +189,18 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
       return severityWeight[riskB] - severityWeight[riskA];
     });
 
+    // Batasi output panjang ke 10 task teratas
+    const displayedTasks = filtered.slice(0, 10);
+    const totalCount = filtered.length;
+
     const lines = [
       WA_LABEL.deadline,
       "",
-      `Ditemukan ${filtered.length} tugas berisiko:`,
+      `Ditemukan ${totalCount} tugas${totalCount > 10 ? " (menampilkan 10 teratas)" : ""}:`,
       ""
     ];
 
-    filtered.forEach((task, index) => {
+    displayedTasks.forEach((task, index) => {
       const picName = usersMap.get(task.pic_id) || "Tidak ada";
       const divisionOrEvent =
         task.type === "acara" && task.event_id
@@ -217,10 +239,14 @@ export async function handleDeadlineQuery(queryType: string): Promise<string> {
       lines.push("");
     });
 
+    if (totalCount > 10) {
+      lines.push(`...dan ${totalCount - 10} tugas lainnya. Buka dashboard JobdexIn untuk detail lengkap.`);
+    }
+
     return lines.join("\n").trim();
   } catch (error) {
     console.error("[Deadline Query] Failed:", error);
-    return "${WA_LABEL.deadline}\n\nGagal memproses pencarian deadline.";
+    return `${WA_LABEL.deadline}\n\nGagal memproses pencarian deadline.`;
   }
 }
 
@@ -405,7 +431,7 @@ export async function handleApproveTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.approval}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.approval}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -469,7 +495,7 @@ export async function handleApproveTaskCommand(
     };
   } catch (error) {
     console.error("[Approve Command] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.approval}\nGagal memproses persetujuan tugas." };
+    return { success: false, replyText: `${WA_LABEL.approval}\n\nGagal memproses persetujuan tugas.` };
   }
 }
 
@@ -531,7 +557,7 @@ export async function handleUpdateTaskStatusCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.status}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.status}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -598,7 +624,7 @@ export async function handleUpdateTaskStatusCommand(
     };
   } catch (error) {
     console.error("[Update Status] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.status}\n\nGagal memperbarui status tugas." };
+    return { success: false, replyText: `${WA_LABEL.status}\n\nGagal memperbarui status tugas.` };
   }
 }
 
@@ -626,7 +652,7 @@ export async function handleEditTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.editTask}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.editTask}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -814,7 +840,7 @@ export async function handleEditTaskCommand(
     };
   } catch (error) {
     console.error("[Edit Task Command] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.editTask}\n\nGagal memproses draf perubahan detail tugas." };
+    return { success: false, replyText: `${WA_LABEL.editTask}\n\nGagal memproses draf perubahan detail tugas.` };
   }
 }
 
@@ -835,7 +861,7 @@ export async function handleConfirmEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nKode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: `${WA_LABEL.confirmEdit}\n\nKode edit tidak ditemukan atau sudah diproses.` };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -848,15 +874,29 @@ export async function handleConfirmEditTaskCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nKode edit telah kadaluwarsa (batas 30 menit)." };
+      return { success: false, replyText: `${WA_LABEL.confirmEdit}\n\nKode edit telah kadaluwarsa (batas 30 menit).` };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "${WA_LABEL.confirmEdit}\nTugas asli tidak ditemukan di database." };
+      return { success: false, replyText: `${WA_LABEL.confirmEdit}\n\nTugas asli tidak ditemukan di database.` };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
+
+    // === FIX C: Validasi ownership preview ===
+    if (previewData.requested_by && previewData.requested_by !== user.id && user.role !== "super_admin") {
+      return {
+        success: false,
+        replyText: [
+          WA_LABEL.accessDenied,
+          "",
+          "Preview ID ini dibuat oleh pengguna lain, sehingga tidak bisa kamu konfirmasi.",
+          "",
+          "Minta pembuat preview untuk mengonfirmasi sendiri, atau hubungi super admin."
+        ].join("\n")
+      };
+    }
 
     // Permissions check
     const allowed = validateTaskPermission(user, task, "edit");
@@ -902,7 +942,7 @@ export async function handleConfirmEditTaskCommand(
     };
   } catch (error) {
     console.error("[Confirm Edit] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.confirmEdit}\nGagal menyelesaikan konfirmasi perubahan tugas." };
+    return { success: false, replyText: `${WA_LABEL.confirmEdit}\n\nGagal menyelesaikan konfirmasi perubahan tugas.` };
   }
 }
 
@@ -924,7 +964,7 @@ export async function handleCancelEditTaskCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "${WA_LABEL.cancelEdit}\nKode edit tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: `${WA_LABEL.cancelEdit}\n\nKode edit tidak ditemukan atau sudah diproses.` };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -939,7 +979,7 @@ export async function handleCancelEditTaskCommand(
     };
   } catch (error) {
     console.error("[Cancel Edit] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.cancelEdit}\nGagal membatalkan draf perubahan tugas." };
+    return { success: false, replyText: `${WA_LABEL.cancelEdit}\n\nGagal membatalkan draf perubahan tugas.` };
   }
 }
 
@@ -965,7 +1005,7 @@ export async function handleArchiveTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.archive}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.archive}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1017,7 +1057,7 @@ export async function handleArchiveTaskCommand(
     };
   } catch (error) {
     console.error("[Archive Command] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.archive}\nGagal memproses draf pengarsipan tugas." };
+    return { success: false, replyText: `${WA_LABEL.archive}\n\nGagal memproses draf pengarsipan tugas.` };
   }
 }
 
@@ -1038,7 +1078,7 @@ export async function handleConfirmArchiveCommand(
       .get();
 
     if (previewSnap.empty) {
-      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nKode archive tidak ditemukan atau sudah diproses." };
+      return { success: false, replyText: `${WA_LABEL.confirmArchive}\n\nKode archive tidak ditemukan atau sudah diproses.` };
     }
 
     const previewDoc = previewSnap.docs[0];
@@ -1051,15 +1091,29 @@ export async function handleConfirmArchiveCommand(
 
     if (expiresAt.getTime() < Date.now()) {
       await previewDoc.ref.update({ status: "expired" });
-      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nKode archive telah kadaluwarsa (30 menit)." };
+      return { success: false, replyText: `${WA_LABEL.confirmArchive}\n\nKode archive telah kadaluwarsa (30 menit).` };
     }
 
     const taskDoc = await db.collection("tasks").doc(previewData.task_id).get();
     if (!taskDoc.exists) {
-      return { success: false, replyText: "${WA_LABEL.confirmArchive}\nTugas asli tidak ditemukan di database." };
+      return { success: false, replyText: `${WA_LABEL.confirmArchive}\n\nTugas asli tidak ditemukan di database.` };
     }
 
     const task = { ...taskDoc.data(), id: taskDoc.id } as Task;
+
+    // === FIX C: Validasi ownership preview ===
+    if (previewData.requested_by && previewData.requested_by !== user.id && user.role !== "super_admin") {
+      return {
+        success: false,
+        replyText: [
+          WA_LABEL.accessDenied,
+          "",
+          "Preview ID ini dibuat oleh pengguna lain, sehingga tidak bisa kamu konfirmasi.",
+          "",
+          "Minta pembuat preview untuk mengonfirmasi sendiri, atau hubungi super admin."
+        ].join("\n")
+      };
+    }
 
     // Permissions check
     const allowed = validateTaskPermission(user, task, "archive");
@@ -1105,7 +1159,7 @@ export async function handleConfirmArchiveCommand(
     };
   } catch (error) {
     console.error("[Confirm Archive] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.confirmArchive}\nGagal menyelesaikan konfirmasi pengarsipan." };
+    return { success: false, replyText: `${WA_LABEL.confirmArchive}\n\nGagal menyelesaikan konfirmasi pengarsipan.` };
   }
 }
 
@@ -1147,7 +1201,7 @@ export async function handleChecklistCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.checklist}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.checklist}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1239,7 +1293,7 @@ export async function handleChecklistCommand(
     };
   } catch (error) {
     console.error("[Checklist Command] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.checklist}\nGagal menandai checklist tugas." };
+    return { success: false, replyText: `${WA_LABEL.checklist}\n\nGagal menandai checklist tugas.` };
   }
 }
 
@@ -1250,14 +1304,61 @@ function normalizeStatusFromText(text: string): import("@/types").TaskStatus | n
   const clean = text.toLowerCase().replace(/[\s\-_]+/g, " ").trim();
   
   if (clean.includes("belum mulai") || clean.includes("belum dimulai")) return "belum_dimulai";
-  if (clean.includes("sedang dikerjakan") || clean.includes("dikerjakan") || clean.includes("kerja")) return "sedang_dikerjakan";
+  if (
+    clean.includes("sedang dikerjakan") || 
+    clean.includes("dikerjakan") || 
+    clean.includes("kerja") ||
+    clean.includes("mulai") ||
+    clean.includes("on progress") ||
+    clean.includes("proses") ||
+    clean.includes("gas")
+  ) {
+    return "sedang_dikerjakan";
+  }
   if (clean.includes("butuh bantuan") || clean.includes("bantuan")) return "butuh_bantuan";
-  if (clean.includes("stuck") || clean.includes("macet")) return "stuck";
-  if (clean.includes("menunggu materi") || clean.includes("materi")) return "menunggu_materi";
-  if (clean.includes("draft selesai") || clean.includes("draft")) return "draft_selesai";
-  if (clean.includes("perlu revisi") || clean.includes("revisi")) return "perlu_revisi";
-  if (clean.includes("revisi dikerjakan")) return "revisi_dikerjakan";
-  if (clean.includes("menunggu approval") || clean.includes("approval")) return "menunggu_approval";
+  if (
+    clean.includes("stuck") || 
+    clean.includes("macet") ||
+    clean.includes("terkendala") ||
+    clean.includes("kendala")
+  ) {
+    return "stuck";
+  }
+  if (
+    clean.includes("menunggu materi") || 
+    clean.includes("materi") ||
+    clean.includes("nunggu") ||
+    clean.includes("belum ada redaksi") ||
+    clean.includes("menunggu bahan") ||
+    clean.includes("bahan")
+  ) {
+    return "menunggu_materi";
+  }
+  if (
+    clean.includes("draft selesai") || 
+    clean.includes("draft") ||
+    clean.includes("draft jadi") ||
+    clean.includes("draft sudah ada")
+  ) {
+    return "draft_selesai";
+  }
+  if (clean.includes("perlu revisi")) return "perlu_revisi";
+  if (
+    clean.includes("revisi dikerjakan") ||
+    clean.includes("revisi sudah dikerjakan") ||
+    clean.includes("revisi selesai")
+  ) {
+    return "revisi_dikerjakan";
+  }
+  if (
+    clean.includes("menunggu approval") || 
+    clean.includes("approval") ||
+    clean.includes("sudah upload") ||
+    clean.includes("sudah kirim link") ||
+    clean.includes("hasil sudah dikirim")
+  ) {
+    return "menunggu_approval";
+  }
 
   // Alias List for Approved
   const approvedKeywords = [
@@ -1275,12 +1376,21 @@ function normalizeStatusFromText(text: string): import("@/types").TaskStatus | n
   if (
     approvedKeywords.some(kw => clean === kw || clean.includes(kw)) ||
     clean.includes("selesai") ||
-    clean === "approved"
+    clean === "approved" ||
+    clean === "oke" ||
+    clean === "aman" ||
+    clean === "acc"
   ) {
     return "approved";
   }
 
-  if (clean.includes("ditunda") || clean.includes("tunda")) return "ditunda";
+  if (
+    clean.includes("ditunda") || 
+    clean.includes("tunda") ||
+    clean.includes("pending")
+  ) {
+    return "ditunda";
+  }
 
   return null;
 }
@@ -1488,7 +1598,7 @@ export async function handleTugasSayaCommand(
     console.error("[Tugas Saya] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.tugasSaya}\nGagal mengambil daftar tugas kamu.",
+      replyText: `${WA_LABEL.tugasSaya}\n\nGagal mengambil daftar tugas kamu.`,
     };
   }
 }
@@ -1511,7 +1621,7 @@ export async function handleDetailTaskCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.detailTask}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.detailTask}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1635,7 +1745,7 @@ export async function handleDetailTaskCommand(
     console.error("[Detail Task] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.detailTask}\nGagal mengambil detail tugas.",
+      replyText: `${WA_LABEL.detailTask}\n\nGagal mengambil detail tugas.`,
     };
   }
 }
@@ -1661,7 +1771,7 @@ export async function handleUploadHasilCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.uploadHasil}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.uploadHasil}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1673,7 +1783,7 @@ export async function handleUploadHasilCommand(
     }
 
     if (!link) {
-      return { success: false, replyText: "${WA_LABEL.uploadHasil}\nGagal mengirim hasil: Link URL wajib disertakan." };
+      return { success: false, replyText: `${WA_LABEL.uploadHasil}\n\nGagal mengirim hasil: Link URL wajib disertakan.` };
     }
 
     const db = getAdminDb();
@@ -1763,7 +1873,7 @@ export async function handleUploadHasilCommand(
     console.error("[Upload Hasil] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.uploadHasil}\nGagal mengirim hasil task.",
+      replyText: `${WA_LABEL.uploadHasil}\n\nGagal mengirim hasil task.`,
     };
   }
 }
@@ -1788,7 +1898,7 @@ export async function handleMintaRevisiCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.mintaRevisi}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.mintaRevisi}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1800,7 +1910,7 @@ export async function handleMintaRevisiCommand(
     }
 
     if (!catatan) {
-      return { success: false, replyText: "${WA_LABEL.mintaRevisi}\nGagal meminta revisi: Catatan revisi wajib disertakan." };
+      return { success: false, replyText: `${WA_LABEL.mintaRevisi}\n\nGagal meminta revisi: Catatan revisi wajib disertakan.` };
     }
 
     const db = getAdminDb();
@@ -1861,7 +1971,7 @@ export async function handleMintaRevisiCommand(
     console.error("[Minta Revisi] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.mintaRevisi}\nGagal meminta revisi tugas.",
+      replyText: `${WA_LABEL.mintaRevisi}\n\nGagal meminta revisi tugas.`,
     };
   }
 }
@@ -1884,7 +1994,7 @@ export async function handleCekChecklistCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.cekChecklist}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.cekChecklist}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1933,7 +2043,7 @@ export async function handleCekChecklistCommand(
     console.error("[Cek Checklist] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.cekChecklist}\nGagal mengambil checklist tugas.",
+      replyText: `${WA_LABEL.cekChecklist}\n\nGagal mengambil checklist tugas.`,
     };
   }
 }
@@ -1958,7 +2068,7 @@ export async function handleTambahCatatanCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.tambahCatatan}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.tambahCatatan}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -1970,7 +2080,7 @@ export async function handleTambahCatatanCommand(
     }
 
     if (!catatan) {
-      return { success: false, replyText: "${WA_LABEL.tambahCatatan}\nGagal menambahkan catatan: Catatan wajib disertakan." };
+      return { success: false, replyText: `${WA_LABEL.tambahCatatan}\n\nGagal menambahkan catatan: Catatan wajib disertakan.` };
     }
 
     const db = getAdminDb();
@@ -2019,7 +2129,7 @@ export async function handleTambahCatatanCommand(
     console.error("[Tambah Catatan] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.tambahCatatan}\nGagal menambahkan catatan ke tugas.",
+      replyText: `${WA_LABEL.tambahCatatan}\n\nGagal menambahkan catatan ke tugas.`,
     };
   }
 }
@@ -2044,7 +2154,7 @@ export async function handleGantiPicCommand(
     }
 
     if (tasks.length === 0) {
-      return { success: false, replyText: "${WA_LABEL.gantiPic}\nTugas tidak ditemukan atau kode kandidat kadaluwarsa." };
+      return { success: false, replyText: `${WA_LABEL.gantiPic}\n\nTugas tidak ditemukan atau kode kandidat kadaluwarsa.` };
     }
 
     const task = tasks[0];
@@ -2056,7 +2166,7 @@ export async function handleGantiPicCommand(
     }
 
     if (!picName) {
-      return { success: false, replyText: "${WA_LABEL.gantiPic}\nGagal mengganti PIC: Nama PIC target wajib disertakan." };
+      return { success: false, replyText: `${WA_LABEL.gantiPic}\n\nGagal mengganti PIC: Nama PIC target wajib disertakan.` };
     }
 
     // Resolve target user fuzzy
@@ -2130,60 +2240,115 @@ export async function handleGantiPicCommand(
     console.error("[Ganti PIC] Error:", error);
     return {
       success: false,
-      replyText: "${WA_LABEL.gantiPic}\nGagal mengganti PIC tugas.",
+      replyText: `${WA_LABEL.gantiPic}\n\nGagal mengganti PIC tugas.`,
     };
   }
 }
 
-export async function handleBriefingCommand(user: UserProfile): Promise<{ success: boolean; replyText: string }> {
+export async function handleBriefingCommand(
+  user: UserProfile,
+  groupId?: string
+): Promise<{ success: boolean; replyText: string }> {
   if (user.role === "anggota") {
-    return { success: false, replyText: getAccessDeniedMessage(user) };
+    return {
+      success: false,
+      replyText: `${WA_LABEL.briefing}\n\nOtorisasi ditolak: Anggota biasa tidak diperbolehkan melihat briefing. Silakan gunakan command:\n!jobdex tugas saya`
+    };
   }
 
   try {
     const db = getAdminDb();
+    
+    // Resolve group event if from group
+    let linkedEvent: Event | null = null;
+    if (groupId) {
+      const { findEventByGroupId } = await import("./group-routing");
+      linkedEvent = await findEventByGroupId(groupId);
+    }
+
     const tasksSnap = await db.collection("tasks").where("is_archived", "==", false).get();
     
     let overdueCount = 0;
-    let waitingApprovalCount = 0;
+    let nearDeadlineCount = 0; // H-1 or H-2
     let stuckCount = 0;
-    let todayCount = 0;
+    let waitingApprovalCount = 0;
+    let noUpdateCount = 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     tasksSnap.forEach((doc) => {
       const task = doc.data() as Task;
-      if (task.status === "approved" || task.status === ("selesai" as unknown as typeof task.status)) return;
-      
-      // Filter by role scope
-      if (user.role === "koordinator_acara" && task.type === "acara" && task.coordinator_id !== user.id) return;
-      if (user.role === "koordinator_divisi" && task.type === "divisi" && task.division_id !== user.division_id) return;
+      if (task.status === "approved") return;
+
+      // Filter by group routing (if in group)
+      if (linkedEvent) {
+        if (task.event_id !== linkedEvent.id) return;
+      } else {
+        // Filter by role scope (if personal chat)
+        if (user.role === "koordinator_acara" && task.type === "acara" && task.coordinator_id !== user.id) return;
+        if (user.role === "koordinator_divisi" && task.type === "divisi" && task.division_id !== user.division_id) return;
+      }
 
       const diffDays = getTaskDeadlineDiffDays(task);
       if (diffDays !== null) {
         if (diffDays < 0) overdueCount++;
-        if (diffDays === 0) todayCount++;
+        if (diffDays === 1 || diffDays === 2) nearDeadlineCount++;
       }
-      
+
       if (task.status === "menunggu_approval") waitingApprovalCount++;
       if (task.status === "stuck" || task.status === "butuh_bantuan") stuckCount++;
+
+      // Check last update delay
+      if (task.pic_id) {
+        const updatedAt = task.updated_at && typeof task.updated_at === "object" && "toDate" in task.updated_at
+          ? (task.updated_at as { toDate: () => Date }).toDate()
+          : task.updated_at instanceof Date
+          ? task.updated_at
+          : null;
+
+        if (updatedAt) {
+          const updated = new Date(updatedAt);
+          updated.setHours(0, 0, 0, 0);
+          const diffUpdate = Math.floor((today.getTime() - updated.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffUpdate >= 2) {
+            noUpdateCount++;
+          }
+        }
+      }
     });
 
+    const scopeName = linkedEvent 
+      ? linkedEvent.name 
+      : user.role === "super_admin" 
+      ? "JobDex.in" 
+      : user.role === "koordinator_divisi" 
+      ? "Divisi Humas & Media Kreatif" 
+      : "Acara Saya";
+
     const replyText = [
-      WA_LABEL.briefing,
-      "",
-      `Halo ${user.name}, ini ringkasan task yang perlu diperhatikan hari ini:`,
-      "",
-      `🔴 ${overdueCount} task overdue`,
-      `⏳ ${waitingApprovalCount} task menunggu approval`,
-      `⚠️ ${stuckCount} task stuck / butuh bantuan`,
-      `📅 ${todayCount} task deadline hari ini`,
-      "",
-      "Ketik !jobdex tugas overdue atau !jobdex menunggu approval untuk detailnya."
+      `[*JobdexIn* Briefing Koor]`,
+      ``,
+      `${scopeName} — Ringkasan Hari Ini`,
+      ``,
+      `Perlu dicek:`,
+      `🔴 ${overdueCount} overdue`,
+      `🟡 ${nearDeadlineCount} deadline H-1/H-2`,
+      `⚠️ ${stuckCount} stuck`,
+      `⏳ ${waitingApprovalCount} menunggu approval`,
+      `📝 ${noUpdateCount} belum update 2 hari`,
+      ``,
+      `Aksi cepat:`,
+      `- !jobdex siapa belum update`,
+      `- !jobdex deadline dekat`,
+      `- !jobdex siapa yang stuck`,
+      `- !jobdex siapa yang menunggu approval`
     ].join("\n");
 
     return { success: true, replyText };
   } catch (error) {
     console.error("[Briefing] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.briefing}\nGagal mengambil data briefing." };
+    return { success: false, replyText: `${WA_LABEL.briefing}\n\nGagal mengambil data briefing.` };
   }
 }
 
@@ -2232,7 +2397,7 @@ export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<
     });
 
     if (picDelays.size === 0) {
-      return { success: true, replyText: "${WA_LABEL.siapaBelumUpdate}\n\nSemua PIC aktif mengupdate progress dalam 2 hari terakhir." };
+      return { success: true, replyText: `${WA_LABEL.siapaBelumUpdate}\n\nSemua PIC aktif mengupdate progress dalam 2 hari terakhir.` };
     }
 
     const lines = [
@@ -2255,7 +2420,7 @@ export async function handleSiapaBelumUpdateCommand(user: UserProfile): Promise<
     return { success: true, replyText: lines.join("\n") };
   } catch (error) {
     console.error("[Siapa Belum Update] Error:", error);
-    return { success: false, replyText: "${WA_LABEL.siapaBelumUpdate}\nGagal mengambil data laporan." };
+    return { success: false, replyText: `${WA_LABEL.siapaBelumUpdate}\n\nGagal mengambil data laporan.` };
   }
 }
 

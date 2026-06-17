@@ -53,6 +53,13 @@ export async function sendWhatsAppMessage(
     recipient = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
     sendToGroup = isWhatsAppGroupRecipient();
   }
+  
+  // Safeguard: Redirect group messages to test group in development or testing environment
+  if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
+    if (sendToGroup) {
+      recipient = "120363406824082148";
+    }
+  }
 
   if (!recipient) {
     throw new Error("Penerima WhatsApp belum diatur (groupId, customPhone, dan customGroupId kosong).");
