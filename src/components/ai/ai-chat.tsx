@@ -7,6 +7,7 @@ import { AILoadingMessage } from "@/components/ai/ai-loading-message";
 import { AIMessage } from "@/components/ai/ai-message";
 import { AIQuickPrompts } from "@/components/ai/ai-quick-prompts";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getRecentAILogs } from "@/lib/firebase/ai-logs";
 import { getMembers } from "@/lib/firebase/members";
@@ -22,17 +23,70 @@ type SendWhatsAppResponse = {
   error?: string;
 };
 
+// ─── Toast notification ───────────────────────────────────────────────────────
+type ToastEntry = {
+  id: string;
+  type: "success" | "error";
+  title: string;
+  message: string;
+};
+
+function ToastList({ toasts, onDismiss }: { toasts: ToastEntry[]; onDismiss: (id: string) => void }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="fixed bottom-6 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          onClick={() => onDismiss(t.id)}
+          className={`
+            pointer-events-auto flex items-start gap-3 rounded-xl shadow-lg border px-4 py-3 min-w-[260px] max-w-xs
+            animate-in slide-in-from-right-5 fade-in duration-200 cursor-pointer
+            ${t.type === "success"
+              ? "bg-white border-emerald-200 text-slate-800"
+              : "bg-white border-red-200 text-slate-800"}
+          `}
+        >
+          {t.type === "success"
+            ? <CheckCircle2 className="size-5 text-emerald-500 mt-0.5 shrink-0" />
+            : <XCircle className="size-5 text-red-500 mt-0.5 shrink-0" />}
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight">{t.title}</p>
+            <p className="text-xs text-slate-500 mt-0.5 leading-snug">{t.message}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AIChat() {
   const { user, userProfile } = useAuth();
   const [logs, setLogs] = useState<AILog[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [error, setError] = useState("");
-  const [copyMessage, setCopyMessage] = useState("");
-  const [whatsAppMessage, setWhatsAppMessage] = useState("");
+  const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [sendingWhatsApp, setSendingWhatsApp] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  const showToast = useCallback((type: ToastEntry["type"], title: string, message: string) => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3500);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Scroll to bottom instantly (no long smooth animation)
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
+    chatEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -73,9 +127,10 @@ export function AIChat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, historyLoading, loading]);
 
+  // Scroll when new messages arrive — instant so user doesn't see long animation from top
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [logs, loading]);
+    scrollToBottom("instant");
+  }, [logs, loading, scrollToBottom]);
 
   const usersById = useMemo(
     () => new Map(users.map((item) => [item.id, item])),
@@ -104,9 +159,9 @@ export function AIChat() {
     }
 
     setError("");
-    setCopyMessage("");
-    setWhatsAppMessage("");
     setLoading(true);
+    // Immediately jump to bottom so loading bubble is visible
+    setTimeout(() => scrollToBottom("instant"), 30);
 
     try {
       const token = await user.getIdToken();
@@ -152,7 +207,7 @@ export function AIChat() {
 
   async function copyAnswer(answer: string) {
     await navigator.clipboard.writeText(answer);
-    setCopyMessage("Jawaban disalin ke clipboard.");
+    showToast("success", "Jawaban disalin", "Teks jawaban AI berhasil disalin ke clipboard.");
   }
 
   async function sendAnswerToWhatsApp(answer: string) {
@@ -161,7 +216,6 @@ export function AIChat() {
     }
 
     setError("");
-    setWhatsAppMessage("");
     setSendingWhatsApp(true);
 
     try {
@@ -180,13 +234,11 @@ export function AIChat() {
         throw new Error(result.error ?? "Jawaban gagal dikirim ke WhatsApp.");
       }
 
-      setWhatsAppMessage("Jawaban AI berhasil dikirim ke WhatsApp.");
+      showToast("success", "Terkirim ke WhatsApp", "Jawaban AI berhasil dikirim ke grup/nomor tujuan.");
     } catch (sendError) {
-      setError(
-        sendError instanceof Error
-          ? sendError.message
-          : "Jawaban gagal dikirim ke WhatsApp.",
-      );
+      const msg = sendError instanceof Error ? sendError.message : "Jawaban gagal dikirim ke WhatsApp.";
+      showToast("error", "Gagal mengirim", msg);
+      setError(msg);
     } finally {
       setSendingWhatsApp(false);
     }
@@ -194,6 +246,9 @@ export function AIChat() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
+      {/* Toast notifications (fixed position, outside scroll) */}
+      <ToastList toasts={toasts} onDismiss={dismissToast} />
+
       {/* Scrollable Chat Area */}
       <section className="flex-1 min-h-0 overflow-y-auto space-y-4 jd-neo-card bg-[var(--secondary-background)] p-4 dark:bg-neutral-900/30 mb-4">
         {historyLoading ? (
@@ -238,21 +293,12 @@ export function AIChat() {
         <div ref={chatEndRef} />
       </section>
 
-      {/* Sticky Bottom Composer and Alerts Container */}
+      {/* Sticky Bottom Composer */}
       <div className="bg-[var(--background)] border-t border-border pt-3 space-y-3 shrink-0 sticky bottom-0 z-10 pb-2">
-        {/* Copy / Action Alerts */}
-        {copyMessage ? (
-          <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
-            {copyMessage}
-          </div>
-        ) : null}
-        {whatsAppMessage ? (
-          <div className="jd-neo-badge jd-neo-badge-green text-xs font-bold w-full py-2 flex items-center justify-center">
-            {whatsAppMessage}
-          </div>
-        ) : null}
+        {/* Error alert (inline, above input) */}
         {error ? (
-          <div className="jd-neo-badge jd-neo-badge-red text-xs font-bold w-full py-2 flex items-center justify-center">
+          <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs font-medium text-red-700">
+            <XCircle className="size-3.5 shrink-0" />
             {error}
           </div>
         ) : null}

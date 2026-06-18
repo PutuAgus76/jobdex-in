@@ -965,12 +965,13 @@ export default function Home() {
                   Bot & AI Assistant.
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <Button asChild variant="light" size="lg" className="h-12 px-6">
-                    <Link href="/dashboard">
-                      <LayoutDashboard size={18} />
-                      <span>Masuk Dashboard</span>
-                    </Link>
-                  </Button>
+                  <Link
+                    href="/dashboard"
+                    className="inline-flex h-12 items-center justify-center gap-1.5 rounded-lg bg-white px-6 text-sm font-medium text-sky-700 shadow-sm transition-colors hover:bg-sky-50 [&_svg]:text-sky-700 [&_svg]:shrink-0"
+                  >
+                    <LayoutDashboard size={18} />
+                    <span>Masuk Dashboard</span>
+                  </Link>
                   <Link
                     href="/login"
                     className="inline-flex h-12 items-center justify-center gap-1.5 rounded-lg border border-white/70 bg-transparent px-6 text-sm font-medium text-[#ffffff] transition-colors hover:border-white hover:bg-white/10 [&_svg]:text-[#ffffff] [&_svg]:shrink-0"
