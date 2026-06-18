@@ -10,6 +10,7 @@ import {
   findEventByGroupId,
   getEventsWithGroupId,
   linkGroupToEvent,
+  resolveTaskNotificationTarget,
 } from "@/lib/server/group-routing";
 import {
   getWhatsAppRecipient,
@@ -49,7 +50,7 @@ import {
   handleBriefingCommand,
   handleSiapaBelumUpdateCommand,
 } from "@/lib/server/whatsapp-task-command-executor";
-import type { UserProfile, Event } from "@/types";
+import type { UserProfile, Event, Task } from "@/types";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
 import {
@@ -380,10 +381,46 @@ export async function POST(request: NextRequest) {
     status: "sent" | "failed";
     response?: string;
     errorMessage?: string;
+    recipient?: string;
+    isGroup?: boolean;
   }) => {
     return baseCreateWhatsAppLog({
       ...args,
-      recipient: incoming.groupId || getDefaultGroupId(),
+      recipient: args.recipient || incoming.groupId || getDefaultGroupId(),
+      isGroup: args.isGroup ?? true,
+    });
+  };
+
+  const resolveTaskCommandReplyRecipient = async (taskId?: string) => {
+    if (!taskId) {
+      return incoming.groupId || getDefaultGroupId();
+    }
+
+    const taskDoc = await getAdminDb().collection("tasks").doc(taskId).get();
+    if (!taskDoc.exists) {
+      return incoming.groupId || getDefaultGroupId();
+    }
+
+    const task = { id: taskDoc.id, ...taskDoc.data() } as Task;
+    const target = await resolveTaskNotificationTarget(task);
+
+    return target?.recipient || incoming.groupId || getDefaultGroupId();
+  };
+
+  const sendTaskCommandReply = async (
+    replyMessage: string,
+    result: { success: boolean; taskId?: string },
+  ) => {
+    const recipient = result.success
+      ? await resolveTaskCommandReplyRecipient(result.taskId)
+      : incoming.groupId || getDefaultGroupId();
+    const sendResult = await baseSendWhatsAppMessage(replyMessage, undefined, recipient);
+
+    await createWhatsAppLog({
+      message: replyMessage,
+      status: result.success ? "sent" : "failed",
+      response: sendResult.responseText,
+      recipient,
       isGroup: true,
     });
   };
@@ -1328,12 +1365,7 @@ export async function POST(request: NextRequest) {
       await updateDebugIntent("task_command", "upload_hasil");
 
       const replyMessage = result.replyText;
-      const sendResult = await sendWhatsAppMessage(replyMessage);
-      await createWhatsAppLog({
-        message: replyMessage,
-        status: result.success ? "sent" : "failed",
-        response: sendResult.responseText,
-      });
+      await sendTaskCommandReply(replyMessage, result);
 
       // Update deep debug metadata
       if (debugRefId) {
@@ -1368,12 +1400,7 @@ export async function POST(request: NextRequest) {
       await updateDebugIntent("task_command", "minta_revisi");
 
       const replyMessage = result.replyText;
-      const sendResult = await sendWhatsAppMessage(replyMessage);
-      await createWhatsAppLog({
-        message: replyMessage,
-        status: result.success ? "sent" : "failed",
-        response: sendResult.responseText,
-      });
+      await sendTaskCommandReply(replyMessage, result);
 
       // Update deep debug metadata
       if (debugRefId) {
@@ -1597,12 +1624,7 @@ export async function POST(request: NextRequest) {
       await updateDebugIntent("task_command", "approve_task");
 
       const replyMessage = result.replyText;
-      const sendResult = await sendWhatsAppMessage(replyMessage);
-      await createWhatsAppLog({
-        message: replyMessage,
-        status: result.success ? "sent" : "failed",
-        response: sendResult.responseText,
-      });
+      await sendTaskCommandReply(replyMessage, result);
 
       // Update deep debug metadata
       if (debugRefId) {

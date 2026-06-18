@@ -34,7 +34,7 @@ export function TaskCard({
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
   const riskLevel = getRiskLevelFromTask(task);
-  const riskLabel = getRiskLabel(riskLevel);
+  const riskLabel = getRiskLabel(riskLevel, task);
   const eventName =
     task.type === "acara"
       ? eventsById.get(task.event_id || "")?.name ?? "Acara tidak ditemukan"

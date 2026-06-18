@@ -211,7 +211,7 @@ export async function handleDeadlineQuery(queryType: string, user: UserProfile):
 
       const diffDays = getTaskDeadlineDiffDays(task);
       const risk = getRiskLevelFromTask(task);
-      const riskLabel = getRiskLabel(risk);
+      const riskLabel = getRiskLabel(risk, task);
 
       let deadlineStr = "-";
       if (task.deadline) {

@@ -58,7 +58,7 @@ export function TasksTable({
                   : task.division_id || "Humas & Media Kreatif";
 
               const riskLevel = getRiskLevelFromTask(task);
-              const riskLabel = getRiskLabel(riskLevel);
+              const riskLabel = getRiskLabel(riskLevel, task);
               const riskVariant =
                 riskLevel === "red"
                   ? "error"

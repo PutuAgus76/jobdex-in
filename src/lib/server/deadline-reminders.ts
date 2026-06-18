@@ -5,6 +5,7 @@ import { getTaskDeadlineDiffDays, getRiskLevelFromTask } from "@/lib/task-risk";
 import type { Task, UserProfile, Event } from "@/types";
 import { sanitizePinFromMessage } from "./whatsapp-command-executor";
 import { WA_LABEL } from "@/lib/server/whatsapp-labels";
+import { resolveTaskNotificationTarget } from "@/lib/server/group-routing";
 
 export { getTaskDeadlineDiffDays };
 
@@ -985,9 +986,9 @@ export async function processSmartFollowupReminders(
     eventsCache.set(doc.id, { id: doc.id, ...doc.data() } as Event);
   });
   
-  const divisionsMap = new Map<string, { name?: string; whatsapp_group_id?: string }>();
+  const divisionsMap = new Map<string, { name?: string; whatsapp_group_id?: string; whatsapp_group_name?: string; whatsapp_group_verified?: boolean }>();
   divisionsSnap.forEach((doc) => {
-    divisionsMap.set(doc.id, doc.data() as { name?: string; whatsapp_group_id?: string });
+    divisionsMap.set(doc.id, doc.data() as { name?: string; whatsapp_group_id?: string; whatsapp_group_name?: string; whatsapp_group_verified?: boolean });
   });
 
   const now = new Date();
@@ -999,18 +1000,8 @@ export async function processSmartFollowupReminders(
     const pic = task.pic_id ? usersMap.get(task.pic_id) : null;
     const picPhone = pic?.whatsapp_number ? pic.whatsapp_number.replace(/[^\d]/g, "").replace(/^0/, "62") : "";
     
-    // Resolve group routing target
-    let targetGroupId = "";
-    if (task.type === "acara" && task.event_id) {
-      targetGroupId = eventsCache.get(task.event_id)?.whatsapp_group_id || "";
-    } else if (task.type === "divisi" && task.division_id) {
-      targetGroupId = divisionsMap.get(task.division_id)?.whatsapp_group_id || "";
-    }
-    
-    // Fallback default group ID if none linked
-    if (!targetGroupId) {
-      targetGroupId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-    }
+    const target = await resolveTaskNotificationTarget(task, eventsCache, divisionsMap);
+    const targetGroupId = target?.targetType === "personal" ? "" : target?.recipient || "";
     
     const diffDays = getTaskDeadlineDiffDays(task);
     

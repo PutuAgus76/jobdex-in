@@ -110,10 +110,32 @@ export function getRiskColor(level: "none" | "yellow" | "orange" | "red"): strin
   }
 }
 
-export function getRiskLabel(level: "none" | "yellow" | "orange" | "red"): string {
+export function getRiskLabel(level: "none" | "yellow" | "orange" | "red", task?: Task): string {
+  const diffDays = task ? getTaskDeadlineDiffDays(task) : null;
+
+  if (task?.status === "stuck" || task?.status === "butuh_bantuan") {
+    return level === "red" ? "Sangat Kritis / Stuck" : "Stuck";
+  }
+
+  if (task?.status === "menunggu_approval") {
+    if (typeof diffDays === "number" && diffDays < 0) {
+      return "Overdue / Menunggu Approval";
+    }
+
+    if (typeof diffDays === "number" && diffDays <= 1) {
+      return "H-1 / Menunggu Approval";
+    }
+
+    return "Perlu Review";
+  }
+
+  if (level === "red" && typeof diffDays === "number" && diffDays < 0) {
+    return "Overdue";
+  }
+
   switch (level) {
     case "red":
-      return "Sangat Kritis / Stuck";
+      return "Sangat Kritis";
     case "orange":
       return "Mendekati Deadline";
     case "yellow":

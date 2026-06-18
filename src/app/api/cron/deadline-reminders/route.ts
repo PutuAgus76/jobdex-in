@@ -109,9 +109,19 @@ async function handleCron(request: Request) {
       eventsMap.set(doc.id, doc.data() as { name?: string });
     });
 
-    const divisionsMap = new Map<string, { name?: string }>();
+    const divisionsMap = new Map<string, {
+      name?: string;
+      whatsapp_group_id?: string;
+      whatsapp_group_name?: string;
+      whatsapp_group_verified?: boolean;
+    }>();
     divisionsSnapshot.forEach((doc) => {
-      divisionsMap.set(doc.id, doc.data() as { name?: string });
+      divisionsMap.set(doc.id, doc.data() as {
+        name?: string;
+        whatsapp_group_id?: string;
+        whatsapp_group_name?: string;
+        whatsapp_group_verified?: boolean;
+      });
     });
 
     // Populate eventsCache for group routing
@@ -121,7 +131,7 @@ async function handleCron(request: Request) {
     });
 
     // Group tasks using the new routing helper
-    const taskGroups = await groupTasksByTarget(activeTasks, eventsCache);
+    const taskGroups = await groupTasksByTarget(activeTasks, eventsCache, divisionsMap);
 
     // Process smart individual and escalation reminders
     try {

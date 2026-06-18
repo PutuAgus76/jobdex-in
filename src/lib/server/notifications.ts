@@ -3,9 +3,10 @@ import "server-only";
 import { buildWhatsAppMessage, type WhatsAppEventType } from "@/lib/notification-templates";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import {
-  getWhatsAppRecipient,
-  getWhatsAppRecipientType,
-  isWhatsAppGroupRecipient,
+  resolveTaskNotificationTarget,
+  type TaskNotificationTarget,
+} from "@/lib/server/group-routing";
+import {
   sendWhatsAppMessage,
 } from "@/lib/server/whatsapp";
 import type { Task, TaskStatus, UserProfile, WhatsAppLogStatus } from "@/types";
@@ -44,6 +45,7 @@ async function createWhatsAppLog({
   eventType,
   message,
   status,
+  target,
   wablasResponse,
   errorMessage,
 }: {
@@ -51,6 +53,7 @@ async function createWhatsAppLog({
   eventType: WhatsAppEventType;
   message: string;
   status: WhatsAppLogStatus;
+  target?: TaskNotificationTarget | null;
   wablasResponse?: string;
   errorMessage?: string;
 }) {
@@ -62,9 +65,14 @@ async function createWhatsAppLog({
     task_id: task.id,
     event_type: eventType,
     message_content: message,
-    recipient: getWhatsAppRecipient(),
-    recipient_type: getWhatsAppRecipientType(),
-    is_group: isWhatsAppGroupRecipient(),
+    recipient: target?.recipient || "",
+    recipient_group_id: target?.recipient || "",
+    recipient_type: target?.targetType === "personal" ? "personal" : "group",
+    is_group: target?.targetType !== "personal",
+    target_group_type: target?.targetType || null,
+    target_reason: target?.reason || null,
+    linked_event_id: target?.eventId || null,
+    linked_division_id: target?.divisionId || null,
     status,
     ...(wablasResponse ? { wablas_response: wablasResponse } : {}),
     ...(errorMessage ? { error_message: errorMessage } : {}),
@@ -104,30 +112,42 @@ export async function notifyTaskEvent(input: NotifyTaskEventInput) {
     uploadUrl: input.uploadUrl,
     thumbnailUrl: input.thumbnailUrl,
   });
+  const target = await resolveTaskNotificationTarget(task);
 
   try {
-    const result = await sendWhatsAppMessage(message);
+    if (!target) {
+      throw new Error("Target WhatsApp untuk notifikasi task tidak ditemukan.");
+    }
+
+    const result = await sendWhatsAppMessage(
+      message,
+      target.targetType === "personal" ? target.recipient : undefined,
+      target.targetType === "personal" ? undefined : target.recipient,
+    );
+
     await createWhatsAppLog({
       task,
       eventType: input.eventType,
       message,
       status: "sent",
+      target,
       wablasResponse: result.responseText,
     });
 
-    return { sent: true };
+    return { sent: true, target };
   } catch (error) {
     await createWhatsAppLog({
       task,
       eventType: input.eventType,
       message,
       status: "failed",
+      target,
       errorMessage:
         error instanceof Error
           ? error.message
           : "Notifikasi WhatsApp gagal dikirim.",
     });
 
-    return { sent: false };
+    return { sent: false, target };
   }
 }

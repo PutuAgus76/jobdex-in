@@ -19,7 +19,7 @@ type TaskRiskCardProps = {
 
 export function TaskRiskCard({ task, picUser, divisionOrEventName }: TaskRiskCardProps) {
   const riskLevel = getRiskLevelFromTask(task);
-  const riskLabel = getRiskLabel(riskLevel);
+  const riskLabel = getRiskLabel(riskLevel, task);
   const diffDays = getTaskDeadlineDiffDays(task);
 
   const formattedDeadline =

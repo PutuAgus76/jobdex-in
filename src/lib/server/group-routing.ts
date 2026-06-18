@@ -3,6 +3,23 @@ import "server-only";
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { Task, Event } from "@/types";
 
+type DivisionWithWhatsApp = {
+  id?: string;
+  name?: string;
+  whatsapp_group_id?: string;
+  whatsapp_group_name?: string;
+  whatsapp_group_verified?: boolean;
+};
+
+export type TaskNotificationTarget = {
+  targetType: "event_group" | "division_group" | "default_group" | "personal";
+  recipient: string;
+  reason: string;
+  eventId?: string;
+  divisionId?: string;
+  groupName?: string;
+};
+
 export type GroupRouteTarget = {
   groupId: string;
   groupType: "event_group" | "division_group" | "default_group";
@@ -12,64 +29,154 @@ export type GroupRouteTarget = {
   fallbackReason?: string;
 };
 
+function getDefaultGroupId() {
+  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+}
+
+async function getEventForTask(task: Task, eventsCache?: Map<string, Event>) {
+  if (!task.event_id) {
+    return undefined;
+  }
+
+  if (eventsCache) {
+    return eventsCache.get(task.event_id);
+  }
+
+  const db = getAdminDb();
+  const eventDoc = await db.collection("events").doc(task.event_id).get();
+
+  if (!eventDoc.exists) {
+    return undefined;
+  }
+
+  return { id: eventDoc.id, ...eventDoc.data() } as Event;
+}
+
+async function getDivisionForTask(
+  task: Task,
+  divisionsCache?: Map<string, DivisionWithWhatsApp>,
+) {
+  if (!task.division_id) {
+    return undefined;
+  }
+
+  if (divisionsCache) {
+    return divisionsCache.get(task.division_id);
+  }
+
+  const db = getAdminDb();
+  const divisionDoc = await db.collection("divisions").doc(task.division_id).get();
+
+  if (!divisionDoc.exists) {
+    return undefined;
+  }
+
+  return { id: divisionDoc.id, ...divisionDoc.data() } as DivisionWithWhatsApp;
+}
+
+function logNotificationRouting(task: Task, event: Event | undefined, target: TaskNotificationTarget) {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  console.info("[Notification routing]", {
+    task: task.id,
+    task_name: task.name,
+    type: task.type,
+    event: event?.name || task.event_id || null,
+    target: target.targetType,
+    group_id: target.recipient,
+    reason: target.reason,
+  });
+}
+
+/**
+ * Resolves the WhatsApp target for task-level group notifications.
+ * Priority: verified event group > division group > default group.
+ */
+export async function resolveTaskNotificationTarget(
+  task: Task,
+  eventsCache?: Map<string, Event>,
+  divisionsCache?: Map<string, DivisionWithWhatsApp>,
+): Promise<TaskNotificationTarget | null> {
+  const defaultGroupId = getDefaultGroupId();
+  const isEventTask = Boolean(task.event_id || task.type === "acara");
+  const event = await getEventForTask(task, eventsCache);
+
+  if (isEventTask && event?.whatsapp_group_id && event.whatsapp_group_verified === true) {
+    const target = {
+      targetType: "event_group",
+      recipient: event.whatsapp_group_id,
+      reason: "event whatsapp group verified",
+      eventId: event.id,
+      divisionId: task.division_id,
+      groupName: event.whatsapp_group_name || event.name,
+    } satisfies TaskNotificationTarget;
+    logNotificationRouting(task, event, target);
+    return target;
+  }
+
+  const division = await getDivisionForTask(task, divisionsCache);
+
+  if (division?.whatsapp_group_id && division.whatsapp_group_verified !== false) {
+    const target = {
+      targetType: "division_group",
+      recipient: division.whatsapp_group_id,
+      reason: isEventTask
+        ? event?.whatsapp_group_id
+          ? "event whatsapp group not verified"
+          : "event whatsapp group missing"
+        : "division whatsapp group available",
+      eventId: task.event_id,
+      divisionId: task.division_id,
+      groupName: division.whatsapp_group_name || division.name,
+    } satisfies TaskNotificationTarget;
+    logNotificationRouting(task, event, target);
+    return target;
+  }
+
+  if (defaultGroupId) {
+    const target = {
+      targetType: "default_group",
+      recipient: defaultGroupId,
+      reason: isEventTask
+        ? event?.whatsapp_group_id
+          ? "event whatsapp group not verified and division group missing"
+          : "event whatsapp group missing and division group missing"
+        : "division group missing",
+      eventId: task.event_id,
+      divisionId: task.division_id,
+    } satisfies TaskNotificationTarget;
+    logNotificationRouting(task, event, target);
+    return target;
+  }
+
+  return null;
+}
+
 /**
  * Resolves the WhatsApp group target for a task's reminder.
  * Priority: event group > division group > default group
  */
 export async function resolveTaskReminderTarget(
   task: Task,
-  eventsCache?: Map<string, Event>
+  eventsCache?: Map<string, Event>,
+  divisionsCache?: Map<string, DivisionWithWhatsApp>,
 ): Promise<GroupRouteTarget | null> {
-  const defaultGroupId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-  let eventHasUnverifiedGroup = false;
+  const target = await resolveTaskNotificationTarget(task, eventsCache, divisionsCache);
 
-  // 1. Check event group
-  if (task.event_id) {
-    let event: Event | undefined;
-
-    if (eventsCache) {
-      event = eventsCache.get(task.event_id);
-    } else {
-      const db = getAdminDb();
-      const eventDoc = await db.collection("events").doc(task.event_id).get();
-      if (eventDoc.exists) {
-        event = { id: eventDoc.id, ...eventDoc.data() } as Event;
-      }
-    }
-
-    if (event?.whatsapp_group_id) {
-      const isStrict = process.env.STRICT_GROUP_ROUTING === "true";
-      if (!isStrict || event.whatsapp_group_verified) {
-        return {
-          groupId: event.whatsapp_group_id,
-          groupType: "event_group",
-          groupName: event.whatsapp_group_name || event.name,
-          linkedEventId: event.id,
-        };
-      } else {
-        eventHasUnverifiedGroup = true;
-      }
-    }
+  if (!target || target.targetType === "personal") {
+    return null;
   }
 
-  // 2. Check division group (future: divisions could have whatsapp_group_id too)
-  // For now, fallback directly to default group
-
-  // 3. Fallback to default group
-  if (defaultGroupId) {
-    return {
-      groupId: defaultGroupId,
-      groupType: "default_group",
-      linkedDivisionId: task.division_id,
-      linkedEventId: task.event_id,
-      fallbackReason: eventHasUnverifiedGroup
-        ? "event_group_unverified"
-        : (task.event_id ? "event_has_no_group" : "no_event_or_division_group"),
-    };
-  }
-
-  // 4. No target available
-  return null;
+  return {
+    groupId: target.recipient,
+    groupType: target.targetType,
+    groupName: target.groupName,
+    linkedEventId: target.eventId,
+    linkedDivisionId: target.divisionId,
+    fallbackReason: target.targetType === "default_group" ? target.reason : undefined,
+  };
 }
 
 /**
@@ -78,13 +185,14 @@ export async function resolveTaskReminderTarget(
  */
 export async function groupTasksByTarget(
   tasks: Task[],
-  eventsCache?: Map<string, Event>
+  eventsCache?: Map<string, Event>,
+  divisionsCache?: Map<string, DivisionWithWhatsApp>,
 ): Promise<Map<string, { target: GroupRouteTarget; tasks: Task[] }>> {
   const groups = new Map<string, { target: GroupRouteTarget; tasks: Task[] }>();
   const skipped: { task: Task; reason: string }[] = [];
 
   for (const task of tasks) {
-    const target = await resolveTaskReminderTarget(task, eventsCache);
+    const target = await resolveTaskReminderTarget(task, eventsCache, divisionsCache);
 
     if (!target) {
       skipped.push({ task, reason: "missing_group_target" });
