@@ -10,6 +10,7 @@ import { ArrowLeft, Copy } from "lucide-react";
 import { formatEventDate } from "@/lib/firebase/events";
 import { getTaskProgressWeight } from "@/lib/firebase/tasks";
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
+import { useAuth } from "@/hooks/use-auth";
 
 type EventDetailProps = {
   event: Event;
@@ -32,6 +33,7 @@ export function EventDetail({
   onRemoveMember,
   onCreateTask,
 }: EventDetailProps) {
+  const { userProfile } = useAuth();
   const usersById = new Map(users.map((user) => [user.id, user]));
   const coordinator = usersById.get(event.coordinator_id);
 
@@ -104,65 +106,67 @@ export function EventDetail({
         </Card>
       </section>
 
-      <section>
-        <Card>
-          <CardHeader>
-            <CardTitle>WhatsApp Group Acara</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {event.whatsapp_group_id ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex h-2 w-2 rounded-full ${event.whatsapp_group_verified ? 'bg-green-500' : 'bg-amber-500'}`} />
-                  <span className={`text-sm font-medium ${event.whatsapp_group_verified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
-                    {event.whatsapp_group_verified ? 'Terverifikasi' : 'Belum diverifikasi'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                    {event.whatsapp_group_id}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-[10px]"
-                    onClick={() => {
-                      navigator.clipboard.writeText(event.whatsapp_group_id || "");
-                    }}
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </Button>
-                </div>
-                {event.whatsapp_group_name && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Nama grup: {event.whatsapp_group_name}
+      {userProfile && userProfile.role !== "anggota" && (
+        <section>
+          <Card>
+            <CardHeader>
+              <CardTitle>WhatsApp Group Acara</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {event.whatsapp_group_id ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex h-2 w-2 rounded-full ${event.whatsapp_group_verified ? 'bg-green-500' : 'bg-amber-500'}`} />
+                    <span className={`text-sm font-medium ${event.whatsapp_group_verified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                      {event.whatsapp_group_verified ? 'Terverifikasi' : 'Belum diverifikasi'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      {event.whatsapp_group_id}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-[10px]"
+                      onClick={() => {
+                        navigator.clipboard.writeText(event.whatsapp_group_id || "");
+                      }}
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy
+                    </Button>
+                  </div>
+                  {event.whatsapp_group_name && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Nama grup: {event.whatsapp_group_name}
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    Reminder task acara ini akan dikirim ke grup ini.
                   </p>
-                )}
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Reminder task acara ini akan dikirim ke grup ini.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600" />
-                  <span className="text-sm text-slate-500 dark:text-slate-400">
-                    Belum diatur
-                  </span>
                 </div>
-                <p className="text-xs text-slate-400 dark:text-slate-500">
-                  Edit acara untuk menambahkan ID grup WhatsApp, atau kirim command dari dalam grup:
-                  <code className="ml-1 rounded bg-slate-100 px-1 text-[10px] dark:bg-slate-800">
-                    !jobdex hubungkan grup acara {event.name}
-                  </code>
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-600" />
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
+                      Belum diatur
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    Edit acara untuk menambahkan ID grup WhatsApp, atau kirim command dari dalam grup:
+                    <code className="ml-1 rounded bg-slate-100 px-1 text-[10px] dark:bg-slate-800">
+                      !jobdex hubungkan grup acara {event.name}
+                    </code>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       <EventMembersManager
         eventId={event.id}

@@ -40,9 +40,9 @@ export async function getEventsForProfile(profile: UserProfile) {
   })) as Event[];
 
   return events.sort((a, b) => {
-    const aDate = getDateMillis(a.event_date);
-    const bDate = getDateMillis(b.event_date);
-    return aDate - bDate;
+    const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
+    const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
+    return bDate - aDate;
   });
 }
 

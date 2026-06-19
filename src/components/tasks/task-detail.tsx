@@ -23,6 +23,7 @@ type TaskDetailProps = {
   uploads: TaskUpload[];
   currentUser: UserProfile;
   onChanged: () => Promise<void>;
+  returnTo?: string;
 };
 
 function formatDateTime(value: unknown) {
@@ -44,6 +45,7 @@ export function TaskDetail({
   uploads,
   currentUser,
   onChanged,
+  returnTo = "/dashboard/tasks",
 }: TaskDetailProps) {
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
@@ -77,7 +79,7 @@ export function TaskDetail({
           </p>
         </section>
         <Button asChild variant="secondary">
-          <Link href="/dashboard/tasks">Kembali</Link>
+          <Link href={returnTo}>Kembali</Link>
         </Button>
       </div>
 

@@ -23,8 +23,15 @@ function dateToTimestamp(value: string) {
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
 }
 
+function getTaskTimestampMillis(task: Task) {
+  if (task.created_at) return getMillis(task.created_at);
+  if (task.updated_at) return getMillis(task.updated_at);
+  if (task.deadline) return getMillis(task.deadline);
+  return 0;
+}
+
 function sortTasks(tasks: Task[]) {
-  return tasks.sort((a, b) => getMillis(a.deadline) - getMillis(b.deadline));
+  return tasks.sort((a, b) => getTaskTimestampMillis(b) - getTaskTimestampMillis(a));
 }
 
 export async function getTasksForProfile(profile: UserProfile) {

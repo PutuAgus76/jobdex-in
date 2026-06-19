@@ -53,43 +53,78 @@ export function EventTasksSection({
           description="Tambahkan job desk acara untuk mulai membagi pekerjaan publikasi, dokumentasi, dan desain."
         />
       ) : (
-        <div className="overflow-hidden jd-neo-table">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm border-collapse">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Task</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">PIC</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Prioritas</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Deadline</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {tasks.map((task) => (
-                  <tr key={task.id}>
-                    <td className="px-4 py-3 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                      {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
-                    </td>
-                    <td className="px-4 py-3"><TaskStatusBadge status={task.status} /></td>
-                    <td className="px-4 py-3"><TaskPriorityBadge priority={task.priority} /></td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
-                    <td className="px-4 py-3">
-                      <Button asChild size="sm" variant="info">
-                        <Link href={`/dashboard/tasks/${task.id}`} className="flex items-center gap-1.5">
-                          <Eye className="size-3.5" />
-                          <span>Detail</span>
-                        </Link>
-                      </Button>
-                    </td>
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-hidden jd-neo-table">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50">
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Nama Task</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">PIC</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Prioritas</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Deadline</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">Aksi</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {tasks.map((task) => (
+                    <tr key={task.id}>
+                      <td className="px-4 py-3 font-semibold text-slate-950 dark:text-slate-50">{task.name}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                        {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
+                      </td>
+                      <td className="px-4 py-3"><TaskStatusBadge status={task.status} /></td>
+                      <td className="px-4 py-3"><TaskPriorityBadge priority={task.priority} /></td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatTaskDate(task.deadline)}</td>
+                      <td className="px-4 py-3">
+                        <Button asChild size="sm" variant="info">
+                          <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/events/${event.id}`} className="flex items-center gap-1.5">
+                            <Eye className="size-3.5" />
+                            <span>Detail</span>
+                          </Link>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Card List View */}
+          <div className="block md:hidden space-y-3">
+            {tasks.map((task) => (
+              <div key={task.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-3 m-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-base text-slate-900 dark:text-white">{task.name}</p>
+                    <p className="text-xs opacity-75 mt-0.5 font-semibold">Deadline: {formatTaskDate(task.deadline)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700 text-xs">
+                  <span className="opacity-60">PIC:</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    {usersById.get(task.pic_id)?.name ?? "User tidak ditemukan"}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700">
+                  <TaskStatusBadge status={task.status} />
+                  <TaskPriorityBadge priority={task.priority} />
+                </div>
+                <div className="pt-3 border-t border-dashed border-neutral-300 dark:border-neutral-700">
+                  <Button asChild size="sm" variant="info" className="w-full">
+                    <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/events/${event.id}`} className="flex items-center justify-center gap-1.5">
+                      <Eye className="size-3.5" />
+                      <span>Detail</span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <TaskFormDialog

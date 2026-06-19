@@ -8,7 +8,7 @@ import { logoutUser } from "@/lib/firebase/auth";
 import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
-import { Sun, Moon, LogOut, User, Home, ChevronDown } from "lucide-react";
+import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu } from "lucide-react";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
@@ -31,10 +31,10 @@ function getInitials(name?: string | null): string {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function NeoTopbar(props: {
   isCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  onToggleMobileMenu?: () => void;
 } = {}) {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,6 +66,16 @@ export function NeoTopbar(props: {
         
         {/* Title and Badge Info */}
         <div className="flex items-center gap-3">
+          {props.onToggleMobileMenu && (
+            <button
+              type="button"
+              onClick={props.onToggleMobileMenu}
+              className="lg:hidden p-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer shrink-0 transition-all shadow-xs"
+              title="Buka Menu"
+            >
+              <Menu size={16} />
+            </button>
+          )}
           <span className="jd-neo-badge bg-main text-main-foreground">
             {getPageTitle(pathname)}
           </span>

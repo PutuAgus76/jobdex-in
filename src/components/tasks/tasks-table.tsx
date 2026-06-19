@@ -104,7 +104,7 @@ export function TasksTable({
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button asChild size="sm" variant="info">
-                        <Link href={`/dashboard/tasks/${task.id}`} className="flex items-center gap-1.5">
+                        <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/tasks`} className="flex items-center gap-1.5">
                           <Eye className="size-3.5" />
                           <span>Detail</span>
                         </Link>

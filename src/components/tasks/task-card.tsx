@@ -94,7 +94,7 @@ export function TaskCard({
       <CardContent className="pt-0">
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="info">
-            <Link href={`/dashboard/tasks/${task.id}`} className="flex items-center gap-1.5">
+            <Link href={`/dashboard/tasks/${task.id}?returnTo=/dashboard/tasks`} className="flex items-center gap-1.5">
               <Eye className="size-3.5" />
               <span>Detail</span>
             </Link>

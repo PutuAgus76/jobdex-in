@@ -35,22 +35,25 @@ const sidebarIconMap: Record<string, React.ComponentType<{ className?: string }>
 type NeoSidebarProps = {
   isCollapsed?: boolean;
   onToggle?: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 };
 
-export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
+export function NeoSidebar({ 
+  isCollapsed = false, 
+  onToggle, 
+  isMobileOpen = false, 
+  onCloseMobile 
+}: NeoSidebarProps) {
   const pathname = usePathname();
   const { userProfile } = useAuth();
   const navItems = getDashboardNavigation(userProfile);
 
-  return (
-    <aside
-      className={`hidden shrink-0 flex-col jd-neo-sidebar lg:flex h-screen sticky top-0 overflow-hidden transition-all duration-200 ${
-        isCollapsed ? "w-20" : "w-64"
-      }`}
-    >
+  const sidebarContent = (isMobile: boolean) => (
+    <>
       {/* Brand Header */}
       <div className="border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-5 flex items-center justify-between gap-1">
-        {!isCollapsed ? (
+        {(!isCollapsed || isMobile) ? (
           <div className="min-w-0 flex-1">
             <Link href="/" className="text-2xl font-extrabold tracking-wider text-foreground hover:opacity-90 block">
               JobDex<span className="text-sky-600 dark:text-sky-400">.in</span>
@@ -67,8 +70,8 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
           </div>
         )}
 
-        {/* Toggle Collapse Button */}
-        {onToggle && (
+        {/* Toggle Collapse Button (Desktop) */}
+        {!isMobile && onToggle && (
           <button
             type="button"
             onClick={onToggle}
@@ -76,6 +79,18 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        )}
+
+        {/* Close Button (Mobile) */}
+        {isMobile && onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="p-1.5 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer shrink-0 transition-all shadow-xs"
+            title="Tutup Menu"
+          >
+            <ChevronLeft size={14} />
           </button>
         )}
       </div>
@@ -95,19 +110,24 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
               key={item.href}
               href={item.href}
               title={item.label}
+              onClick={() => {
+                if (isMobile && onCloseMobile) {
+                  onCloseMobile();
+                }
+              }}
               className={`relative flex items-center rounded-md font-medium text-sm transition-all ${
-                isCollapsed ? "justify-center p-2.5" : "justify-between px-4 py-2.5"
+                (isCollapsed && !isMobile) ? "justify-center p-2.5" : "justify-between px-4 py-2.5"
               } ${
                 isActive
                   ? "bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 font-semibold"
                   : "bg-transparent text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-50 hover:bg-slate-50 dark:hover:bg-slate-800/30"
               }`}
             >
-              <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-2.5"}`}>
+              <div className={`flex items-center ${(isCollapsed && !isMobile) ? "justify-center" : "gap-2.5"}`}>
                 {IconComponent && <IconComponent className="size-4 shrink-0" />}
-                {!isCollapsed && <span>{item.label}</span>}
+                {(!isCollapsed || isMobile) && <span>{item.label}</span>}
               </div>
-              {!isCollapsed && isActive && (
+              {(!isCollapsed || isMobile) && isActive && (
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-600 dark:bg-sky-400 shrink-0" />
               )}
             </Link>
@@ -116,14 +136,41 @@ export function NeoSidebar({ isCollapsed = false, onToggle }: NeoSidebarProps) {
       </nav>
 
       {/* Footer Area */}
-      {!isCollapsed && (
+      {(!isCollapsed || isMobile) && (
         <div className="border-t border-slate-200 dark:border-slate-800 p-4 text-center bg-white dark:bg-slate-950">
           <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
             JobDex.in Workspace
           </span>
         </div>
       )}
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`hidden shrink-0 flex-col jd-neo-sidebar lg:flex h-screen sticky top-0 overflow-hidden transition-all duration-200 ${
+          isCollapsed ? "w-20" : "w-64"
+        }`}
+      >
+        {sidebarContent(false)}
+      </aside>
+
+      {/* Mobile Drawer (Sidebar overlay) */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          {/* Backdrop overlay */}
+          <div 
+            className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xs transition-opacity"
+            onClick={onCloseMobile}
+          />
+          {/* Sidebar Drawer body */}
+          <div className="relative flex w-full max-w-[260px] flex-1 flex-col bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-850 h-full shadow-xl">
+            {sidebarContent(true)}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
-

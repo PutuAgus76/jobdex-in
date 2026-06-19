@@ -108,6 +108,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   font-weight: var(--base-font-weight);
+  overscroll-behavior-y: none;
 }
 
 h1, h2, h3, h4, h5, h6 {

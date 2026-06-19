@@ -8,6 +8,7 @@ import { NeoMobileNav } from "./neo-mobile-nav";
 
 export function NeoDashboardShell({ children }: { children: ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -31,6 +32,17 @@ export function NeoDashboardShell({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (isMobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileOpen]);
+
   const handleToggle = () => {
     const newValue = !isCollapsed;
     setIsCollapsed(newValue);
@@ -40,13 +52,22 @@ export function NeoDashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="jd-neo-shell min-h-screen w-full flex">
-      {/* Sidebar */}
-      <NeoSidebar isCollapsed={mounted ? isCollapsed : false} onToggle={handleToggle} />
+      {/* Sidebar & Mobile Drawer */}
+      <NeoSidebar 
+        isCollapsed={mounted ? isCollapsed : false} 
+        onToggle={handleToggle} 
+        isMobileOpen={isMobileOpen}
+        onCloseMobile={() => setIsMobileOpen(false)}
+      />
 
       {/* Content wrapper */}
       <div className="flex flex-1 flex-col min-w-0">
         {/* Topbar */}
-        <NeoTopbar isCollapsed={mounted ? isCollapsed : false} onToggleSidebar={handleToggle} />
+        <NeoTopbar 
+          isCollapsed={mounted ? isCollapsed : false} 
+          onToggleSidebar={handleToggle} 
+          onToggleMobileMenu={() => setIsMobileOpen(!isMobileOpen)}
+        />
 
         {/* Main page content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 jd-mobile-bottom-safe">

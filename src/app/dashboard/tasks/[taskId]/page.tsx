@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TaskDetail } from "@/components/tasks/task-detail";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -17,6 +17,7 @@ import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/type
 export default function TaskDetailPage() {
   const params = useParams<{ taskId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { userProfile } = useAuth();
   const [task, setTask] = useState<Task | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -26,6 +27,10 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const taskId = params.taskId;
+  const rawReturnTo = searchParams.get("returnTo") || "/dashboard/tasks";
+  const returnTo = (rawReturnTo.startsWith("/dashboard") && !rawReturnTo.startsWith("//") && !rawReturnTo.includes(":") && !rawReturnTo.includes("\\"))
+    ? rawReturnTo
+    : "/dashboard/tasks";
 
   const loadDetail = useCallback(async () => {
     if (!userProfile || !taskId) {
@@ -117,6 +122,7 @@ export default function TaskDetailPage() {
       uploads={uploads}
       currentUser={userProfile}
       onChanged={loadDetail}
+      returnTo={returnTo}
     />
   );
 }

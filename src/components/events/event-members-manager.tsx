@@ -54,56 +54,100 @@ export function EventMembersManager({
           description="Tambahkan anggota yang terlibat agar koordinasi acara lebih jelas."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-          <table className="w-full min-w-[720px] text-left text-sm border-collapse">
-            <thead className="bg-slate-50 dark:bg-slate-850 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="px-4 py-3 font-medium">Nama</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role akun</th>
-                <th className="px-4 py-3 font-medium">Role acara</th>
-                <th className="px-4 py-3 font-medium">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-              {eventMembers.map((member) => {
-                const user = usersById.get(member.user_id);
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full min-w-[720px] text-left text-sm border-collapse">
+              <thead className="bg-slate-50 dark:bg-slate-850 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Nama</th>
+                  <th className="px-4 py-3 font-medium">Email</th>
+                  <th className="px-4 py-3 font-medium">Role akun</th>
+                  <th className="px-4 py-3 font-medium">Role acara</th>
+                  <th className="px-4 py-3 font-medium">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                {eventMembers.map((member) => {
+                  const user = usersById.get(member.user_id);
 
-                return (
-                  <tr key={member.id}>
-                    <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">
-                      {user?.name ?? "Anggota tidak ditemukan"}
-                    </td>
-                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                      {user?.email ?? member.user_id}
-                    </td>
-                    <td className="px-4 py-4">
-                      <RoleBadge role={user?.role} />
-                    </td>
-                    <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                      {member.role_in_event || "-"}
-                    </td>
-                    <td className="px-4 py-4">
-                      {canManage ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => onRemove(member.user_id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Hapus
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  return (
+                    <tr key={member.id}>
+                      <td className="px-4 py-4 font-semibold text-slate-950 dark:text-slate-50">
+                        {user?.name ?? "Anggota tidak ditemukan"}
+                      </td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                        {user?.email ?? member.user_id}
+                      </td>
+                      <td className="px-4 py-4">
+                        <RoleBadge role={user?.role} />
+                      </td>
+                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
+                        {member.role_in_event || "-"}
+                      </td>
+                      <td className="px-4 py-4">
+                        {canManage ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => onRemove(member.user_id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Hapus
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-slate-500 dark:text-slate-400">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card List View */}
+          <div className="block md:hidden space-y-3">
+            {eventMembers.map((member) => {
+              const user = usersById.get(member.user_id);
+              return (
+                <div key={member.id} className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm space-y-3 m-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-base text-slate-900 dark:text-white">
+                        {user?.name ?? "Anggota tidak ditemukan"}
+                      </p>
+                      <p className="text-xs opacity-75 mt-0.5">{user?.email ?? member.user_id}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2 border-t border-dashed border-neutral-300 dark:border-neutral-700 text-xs">
+                    <RoleBadge role={user?.role} />
+                    <span className="mx-0.5 opacity-30">|</span>
+                    <span className="opacity-60">Role Acara:</span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{member.role_in_event || "-"}</span>
+                  </div>
+
+                  {canManage && (
+                    <div className="pt-3 border-t border-dashed border-neutral-300 dark:border-neutral-700">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        className="w-full flex items-center justify-center gap-1.5"
+                        onClick={() => onRemove(member.user_id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Hapus Anggota</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <AddEventMemberDialog
