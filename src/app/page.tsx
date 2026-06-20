@@ -38,6 +38,7 @@ import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { LandingImageSlot } from "@/components/landing/landing-image-slot";
+import { HeroTypewriterText } from "@/components/landing/hero-typewriter-text";
 
 const navigation = [
   { label: "Fitur", href: "#fitur" },
@@ -342,10 +343,9 @@ export default function Home() {
             </span>
             <div className="space-y-5">
               <h1 className="text-4xl font-semibold leading-tight tracking-normal text-slate-950 sm:text-5xl lg:text-6xl">
-                Koordinasi{" "}
-                <span className="text-sky-600">job desk</span> kreatif kampus{" "}
-                <span className="text-sky-600">tanpa tercecer</span> di{" "}
-                <span className="text-sky-600">grup chat</span>.
+                Semua job desk tim kreatifmu,{" "}
+                <br className="sm:hidden" />
+                <HeroTypewriterText />
               </h1>
               <p className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
                 Sentralisasikan checklist tugas, bagikan referensi desain,

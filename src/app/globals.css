@@ -1024,3 +1024,12 @@ html[data-neo-color="rose"].dark, :root[data-neo-color="rose"].dark {
   max-width: 100%;
 }
 
+/* Typewriter Cursor Blink */
+@keyframes typewriter-blink {
+  50% { opacity: 0; }
+}
+.animate-typewriter-blink {
+  animation: typewriter-blink 1s step-end infinite;
+}
+
+
