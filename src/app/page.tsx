@@ -1,3 +1,15 @@
+/*
+Recommended Image Dimensions for Photoshop production:
+- hero-dashboard-preview.png          1200x900 atau 1400x1000
+- feature-whatsapp-bot.png            800x600
+- feature-dashboard-jobdesk.png        800x600
+- feature-ai-assistant.png             800x600
+- feature-reference-archive.png        800x600
+- onboarding-workspace-preview.png     900x700
+- admin-jobdesk-form-preview.png       1000x800
+- member-task-preview.png              1000x800
+- cta-reminder-preview.png             700x500
+*/
 import {
   ArrowRight,
   BadgeCheck,
@@ -5,26 +17,18 @@ import {
   Bot,
   BriefcaseBusiness,
   CheckCircle2,
-  ChevronRight,
-  CircleDot,
   ClipboardList,
   Clock3,
   FileArchive,
-  FileText,
-  FolderOpen,
   LayoutDashboard,
   Link2,
-  ListChecks,
   Lock,
   MessageCircle,
-  MousePointerClick,
   PenLine,
   Rocket,
   SearchCheck,
-  Send,
   ShieldCheck,
   Sparkles,
-  TimerReset,
   UserCheck,
   Users,
   Workflow,
@@ -33,6 +37,7 @@ import Link from "next/link";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { LandingImageSlot } from "@/components/landing/landing-image-slot";
 
 const navigation = [
   { label: "Fitur", href: "#fitur" },
@@ -222,12 +227,6 @@ function SectionHeading({
 }
 
 function ProductMockup() {
-  const tasks = [
-    ["Feed IG Dies Natalis", "Ayu", "In Progress", "sky"],
-    ["Briefing Media Partner", "Raka", "Stuck", "amber"],
-    ["Template Story", "Dinda", "Review", "emerald"],
-  ];
-
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3">
@@ -241,194 +240,44 @@ function ProductMockup() {
         </span>
       </div>
 
-      <div className="grid min-h-[520px] grid-cols-[72px_minmax(0,1fr)] overflow-hidden rounded-b-xl bg-slate-50">
-        <aside className="border-r border-slate-200 bg-white px-3 py-4">
-          <div className="mb-6 h-9 w-9 rounded-xl bg-sky-600" />
-          <div className="space-y-3">
-            {[LayoutDashboard, ClipboardList, Bot, FolderOpen, Users].map(
-              (Icon, index) => (
-                <div
-                  key={index}
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                    index === 0
-                      ? "bg-sky-50 text-sky-700"
-                      : "bg-white text-slate-400"
-                  }`}
-                >
-                  <Icon size={18} />
-                </div>
-              ),
-            )}
-          </div>
-        </aside>
-
-        <div className="space-y-4 p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
-                JobDex.in
-              </p>
-              <h3 className="text-lg font-semibold text-slate-950">
-                Koordinasi Humas
-              </h3>
-            </div>
-            <div className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
-              RAKER Kampus
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              ["24", "Total task"],
-              ["8", "Due soon"],
-              ["91%", "On track"],
-            ].map(([value, label]) => (
-              <div key={label} className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xl font-semibold text-slate-950">{value}</p>
-                <p className="mt-1 text-[11px] font-medium text-slate-500">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-slate-950">Job desk aktif</p>
-              <ListChecks className="text-sky-600" size={17} />
-            </div>
-            <div className="space-y-2">
-              {tasks.map(([task, pic, status, color]) => (
-                <div
-                  key={task}
-                  className="grid grid-cols-[minmax(0,1fr)_48px_78px] items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px]"
-                >
-                  <span className="truncate font-semibold text-slate-800">{task}</span>
-                  <span className="text-slate-500">{pic}</span>
-                  <span
-                    className={`rounded-full px-2 py-1 text-center font-semibold ${
-                      color === "amber"
-                        ? "bg-amber-100 text-amber-800"
-                        : color === "emerald"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-sky-100 text-sky-700"
-                    }`}
-                  >
-                    {status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-3">
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-              <div className="mb-2 flex items-center gap-2 text-emerald-700">
-                <MessageCircle size={16} />
-                <span className="text-xs font-semibold">WhatsApp Bot</span>
-              </div>
-              <p className="text-[11px] leading-5 text-emerald-800">
-                Reminder dikirim ke grup dalam 15 menit.
-              </p>
-            </div>
-            <div className="rounded-xl border border-sky-100 bg-sky-50 p-3">
-              <div className="mb-2 flex items-center gap-2 text-sky-700">
-                <Bot size={16} />
-                <span className="text-xs font-semibold">AI Assistant</span>
-              </div>
-              <p className="text-[11px] leading-5 text-sky-800">
-                Ringkas status publikasi hari ini.
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-3">
-              <div className="mb-2 flex items-center gap-2 text-slate-700">
-                <FolderOpen size={16} />
-                <span className="text-xs font-semibold">Referensi</span>
-              </div>
-              <p className="text-[11px] leading-5 text-slate-600">
-                3 aset desain baru siap dipakai.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="overflow-hidden rounded-b-xl mt-2">
+        <LandingImageSlot
+          src="/landing/hero-dashboard-preview.png"
+          alt="Hero Dashboard Preview"
+          aspectRatio="aspect-[4/3]"
+          className="w-full"
+        />
       </div>
     </div>
   );
 }
 
 function FeatureVisual({ type }: { type: string }) {
+  let src = "";
+  let alt = "";
+
   if (type === "whatsapp") {
-    return (
-      <div className="mt-6 rounded-xl border border-sky-100 bg-sky-50 p-4">
-        <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-emerald-700">
-          <span className="h-7 w-7 rounded-full bg-emerald-600 text-center text-[10px] leading-7 text-[#ffffff]">
-            WA
-          </span>
-          JobDex Bot
-        </div>
-        <div className="space-y-2 text-xs">
-          <p className="ml-auto w-fit max-w-[82%] rounded-xl rounded-br-sm bg-sky-600 px-3 py-2 font-medium text-[#ffffff]">
-            !jobdex briefing
-          </p>
-          <p className="max-w-[86%] rounded-xl rounded-bl-sm bg-white px-3 py-2 text-slate-700 shadow-sm">
-            3 tugas prioritas, 1 PIC belum update, dan 2 deadline hari ini.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "dashboard") {
-    return (
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div className="mb-3 grid grid-cols-3 gap-2">
-          {["Todo", "Progress", "Done"].map((label) => (
-            <div key={label} className="rounded-lg bg-white px-2 py-2 text-[11px] font-semibold text-slate-600">
-              {label}
-            </div>
-          ))}
-        </div>
-        <div className="space-y-2">
-          <div className="h-9 rounded-lg bg-white shadow-sm" />
-          <div className="h-9 rounded-lg bg-white shadow-sm" />
-          <div className="h-9 rounded-lg bg-sky-100" />
-        </div>
-      </div>
-    );
-  }
-
-  if (type === "ai") {
-    return (
-      <div className="mt-6 rounded-xl border border-sky-100 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-sky-700">
-          <Bot size={16} />
-          AI Assistant
-        </div>
-        <div className="space-y-2 text-xs">
-          <div className="ml-auto rounded-xl bg-sky-50 px-3 py-2 text-slate-700">
-            Siapa yang stuck?
-          </div>
-          <div className="rounded-xl bg-slate-50 px-3 py-2 leading-5 text-slate-600">
-            Raka butuh aset final untuk briefing media partner.
-          </div>
-        </div>
-      </div>
-    );
+    src = "/landing/feature-whatsapp-bot.png";
+    alt = "WhatsApp Bot Reminder";
+  } else if (type === "dashboard") {
+    src = "/landing/feature-dashboard-jobdesk.png";
+    alt = "Dashboard Job Desk";
+  } else if (type === "ai") {
+    src = "/landing/feature-ai-assistant.png";
+    alt = "AI Assistant";
+  } else {
+    src = "/landing/feature-reference-archive.png";
+    alt = "Arsip Referensi & Aset";
   }
 
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3">
-      {["Template Feed", "Logo Event", "Drive Aset", "Brief Final"].map(
-        (item, index) => (
-          <div key={item} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <FileText
-              size={17}
-              className={index === 0 ? "text-sky-600" : "text-slate-500"}
-            />
-            <p className="mt-3 text-[11px] font-semibold text-slate-700">{item}</p>
-          </div>
-        ),
-      )}
+    <div className="mt-6 w-full rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100">
+      <LandingImageSlot
+        src={src}
+        alt={alt}
+        aspectRatio="aspect-video"
+        className="w-full"
+      />
     </div>
   );
 }
@@ -528,21 +377,21 @@ export default function Home() {
 
       <section className="bg-[#f8fbff] py-8">
         <Container>
-          <div className="grid gap-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-[#ffffff] shadow-[0_18px_40px_rgba(2,132,199,0.24)] md:grid-cols-3 md:p-5">
+          <div className="grid gap-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 p-4 text-white shadow-[0_18px_40px_rgba(2,132,199,0.24)] md:grid-cols-3 md:p-5">
             {valueItems.map((item, index) => {
               const Icon = item.icon;
               return (
                 <ScrollReveal
                   key={item.title}
                   delay={index * 90}
-                  className="flex items-start gap-4 rounded-xl bg-white/10 p-4"
+                  className="flex items-start gap-4 rounded-xl bg-white/10 border border-white/15 p-4 backdrop-blur-sm shadow-sm hover:bg-white/12 transition-all duration-300"
                 >
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-[#ffffff]">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12 border border-white/10 text-white">
                     <Icon size={21} />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-[#ffffff]">{item.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-sky-50">
+                    <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-white/90">
                       {item.description}
                     </p>
                   </div>
@@ -631,45 +480,14 @@ export default function Home() {
 
             <ScrollReveal
               delay={160}
-              className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
             >
-              <div className="rounded-xl bg-white p-5 shadow-sm">
-                <div className="mb-5 flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-                    <UserCheck size={22} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-950">
-                      Buat workspace baru
-                    </p>
-                    <p className="text-xs text-slate-500">Humas & Media Kreatif</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-lg border border-slate-200 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Nama divisi
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-800">
-                      Publikasi RAKER 2026
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-slate-200 p-3">
-                      <p className="text-[11px] text-slate-500">Anggota</p>
-                      <p className="mt-1 text-lg font-semibold text-slate-950">18</p>
-                    </div>
-                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-3">
-                      <p className="text-[11px] text-sky-700">Status</p>
-                      <p className="mt-1 text-sm font-semibold text-sky-800">Siap mulai</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-5 flex items-center justify-between rounded-xl bg-sky-600 px-4 py-3 text-[#ffffff]">
-                  <span className="text-sm font-semibold">Mulai koordinasi</span>
-                  <ArrowRight size={18} />
-                </div>
-              </div>
+              <LandingImageSlot
+                src="/landing/onboarding-workspace-preview.png"
+                alt="Buat Workspace Baru Preview"
+                aspectRatio="aspect-[4/3]"
+                className="w-full"
+              />
             </ScrollReveal>
           </div>
         </Container>
@@ -718,78 +536,14 @@ export default function Home() {
 
             <ScrollReveal
               delay={160}
-              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
             >
-              <div className="grid gap-4 lg:grid-cols-[1fr_0.85fr]">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-950">
-                      Tambah Job Desk
-                    </h3>
-                    <MousePointerClick className="text-sky-600" size={18} />
-                  </div>
-                  <div className="space-y-3">
-                    <div className="rounded-lg bg-white p-3">
-                      <p className="text-[11px] text-slate-500">Nama tugas</p>
-                      <p className="mt-1 text-sm font-semibold text-slate-800">
-                        Desain feed publikasi
-                      </p>
-                    </div>
-                    <div className="rounded-lg bg-white p-3">
-                      <p className="text-[11px] text-slate-500">PIC</p>
-                      <div className="mt-2 flex -space-x-2">
-                        {["A", "R", "D"].map((name) => (
-                          <span key={name} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-sky-100 text-xs font-semibold text-sky-700">
-                            {name}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg bg-white p-3">
-                        <p className="text-[11px] text-slate-500">Deadline</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-800">
-                          18 Jun
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-amber-50 p-3">
-                        <p className="text-[11px] text-amber-700">Prioritas</p>
-                        <p className="mt-1 text-sm font-semibold text-amber-800">
-                          Tinggi
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                      Detail task
-                    </p>
-                    <h4 className="mt-2 text-sm font-semibold text-slate-950">
-                      Feed Publikasi RAKER
-                    </h4>
-                    <p className="mt-2 text-xs leading-5 text-slate-600">
-                      Status awal tersimpan sebagai In Progress dan menunggu update PIC.
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
-                    <p className="mb-3 text-xs font-semibold text-sky-700">
-                      Approval flow
-                    </p>
-                    {["Draft", "Review", "Approved"].map((item, index) => (
-                      <div key={item} className="flex items-center gap-2 py-1.5">
-                        <CircleDot className="text-sky-600" size={14} />
-                        <span className="text-xs font-semibold text-slate-700">
-                          {item}
-                        </span>
-                        {index < 2 ? <ChevronRight className="ml-auto text-slate-400" size={14} /> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <LandingImageSlot
+                src="/landing/admin-jobdesk-form-preview.png"
+                alt="Tambah Job Desk Form Preview"
+                aspectRatio="aspect-[4/3]"
+                className="w-full"
+              />
             </ScrollReveal>
           </div>
         </Container>
@@ -798,71 +552,13 @@ export default function Home() {
       <section id="anggota" className="border-y border-slate-200 bg-white py-16 lg:py-24">
         <Container>
           <div className="grid gap-12 lg:grid-cols-[minmax(460px,1fr)_minmax(0,0.9fr)] lg:items-center">
-            <ScrollReveal className="order-2 rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:order-1">
-              <div className="rounded-xl bg-white p-5 shadow-sm">
-                <div className="mb-5 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-600">
-                      Tugas Saya
-                    </p>
-                    <h3 className="mt-1 text-lg font-semibold text-slate-950">
-                      4 tugas aktif
-                    </h3>
-                  </div>
-                  <TimerReset className="text-sky-600" size={24} />
-                </div>
-                <div className="space-y-3">
-                  <div className="rounded-xl border border-sky-100 bg-sky-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-950">
-                          Revisi caption carousel
-                        </p>
-                        <p className="mt-1 text-xs text-slate-600">
-                          Deadline hari ini, 17.00 WITA
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                        Prioritas
-                      </span>
-                    </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-200 p-4">
-                      <p className="text-xs font-semibold text-slate-500">
-                        Update status
-                      </p>
-                      <div className="mt-3 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                        <CheckCircle2 className="text-emerald-600" size={17} />
-                        <span className="text-xs font-semibold text-slate-700">
-                          Siap review
-                        </span>
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-                      <p className="text-xs font-semibold text-emerald-800">
-                        Reminder
-                      </p>
-                      <p className="mt-3 text-xs leading-5 text-emerald-800">
-                        Bot akan mengingatkan 2 jam sebelum deadline.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-slate-200 p-4">
-                    <div className="flex items-center gap-3">
-                      <FolderOpen className="text-sky-600" size={18} />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          Referensi desain tersedia
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          Template, tone visual, dan aset logo.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <ScrollReveal className="order-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:order-1">
+              <LandingImageSlot
+                src="/landing/member-task-preview.png"
+                alt="Member Task Preview"
+                aspectRatio="aspect-[4/3]"
+                className="w-full"
+              />
             </ScrollReveal>
 
             <div className="order-1 lg:order-2">
@@ -982,16 +678,13 @@ export default function Home() {
                 </div>
               </div>
               <div className="hidden lg:block">
-                <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-                  <div className="rounded-xl bg-white p-4 text-slate-900">
-                    <Send className="mb-5 text-sky-600" size={28} />
-                    <p className="text-sm font-semibold">
-                      Reminder siap dikirim
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-600">
-                      Deadline, briefing, dan status tim dalam satu alur.
-                    </p>
-                  </div>
+                <div className="rounded-2xl border border-white/20 bg-white/10 p-3">
+                  <LandingImageSlot
+                    src="/landing/cta-reminder-preview.png"
+                    alt="CTA Reminder Preview"
+                    aspectRatio="aspect-[4/3]"
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>
