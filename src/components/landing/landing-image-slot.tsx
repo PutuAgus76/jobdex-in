@@ -9,6 +9,7 @@ type LandingImageSlotProps = {
   alt: string;
   className?: string;
   aspectRatio?: string;
+  objectFit?: "cover" | "contain";
 };
 
 export function LandingImageSlot({
@@ -16,6 +17,7 @@ export function LandingImageSlot({
   alt,
   className,
   aspectRatio = "aspect-video",
+  objectFit = "cover",
 }: LandingImageSlotProps) {
   const [hasError, setHasError] = useState(false);
 
@@ -63,7 +65,7 @@ export function LandingImageSlot({
         src={src}
         alt={alt}
         fill
-        className="object-cover"
+        className={cn(objectFit === "contain" ? "object-contain" : "object-cover")}
         onError={() => setHasError(true)}
         sizes="(max-w-768px) 100vw, (max-w-1200px) 50vw, 33vw"
       />

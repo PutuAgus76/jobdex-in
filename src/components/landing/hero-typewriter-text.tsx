@@ -84,13 +84,11 @@ export function HeroTypewriterText() {
   }
 
   return (
-    <span className="inline-flex items-baseline">
-      <span
-        className="inline-block text-sky-600 text-left transition-all duration-300"
-        style={{ minWidth: "13.5ch" }}
-      >
-        {displayText}
-      </span>
+    <span
+      className="inline-block text-left"
+      style={{ minWidth: "13.5ch" }}
+    >
+      <span className="text-sky-600">{displayText}</span>
       <span className="text-sky-600 font-light animate-typewriter-blink ml-0.5 select-none">
         |
       </span>

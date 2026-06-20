@@ -229,7 +229,7 @@ function SectionHeading({
 
 function ProductMockup() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
+    <div className="rounded-2xl bg-white p-3 shadow-[0_24px_70px_rgba(15,23,42,0.12)]">
       <div className="flex items-center justify-between border-b border-slate-100 px-3 py-3">
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
@@ -245,7 +245,8 @@ function ProductMockup() {
         <LandingImageSlot
           src="/landing/hero-dashboard-preview.png"
           alt="Hero Dashboard Preview"
-          aspectRatio="aspect-[4/3]"
+          aspectRatio="aspect-[3/4]"
+          objectFit="contain"
           className="w-full"
         />
       </div>
@@ -272,7 +273,7 @@ function FeatureVisual({ type }: { type: string }) {
   }
 
   return (
-    <div className="mt-6 w-full rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100">
+    <div className="mt-6 w-full rounded-xl overflow-hidden bg-slate-50/50">
       <LandingImageSlot
         src={src}
         alt={alt}
@@ -480,7 +481,7 @@ export default function Home() {
 
             <ScrollReveal
               delay={160}
-              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              className="rounded-2xl bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
             >
               <LandingImageSlot
                 src="/landing/onboarding-workspace-preview.png"
@@ -536,7 +537,7 @@ export default function Home() {
 
             <ScrollReveal
               delay={160}
-              className="rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
+              className="rounded-2xl bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)]"
             >
               <LandingImageSlot
                 src="/landing/admin-jobdesk-form-preview.png"
@@ -552,7 +553,7 @@ export default function Home() {
       <section id="anggota" className="border-y border-slate-200 bg-white py-16 lg:py-24">
         <Container>
           <div className="grid gap-12 lg:grid-cols-[minmax(460px,1fr)_minmax(0,0.9fr)] lg:items-center">
-            <ScrollReveal className="order-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:order-1">
+            <ScrollReveal className="order-2 rounded-2xl bg-white p-3 shadow-[0_18px_50px_rgba(15,23,42,0.08)] lg:order-1">
               <LandingImageSlot
                 src="/landing/member-task-preview.png"
                 alt="Member Task Preview"
@@ -678,7 +679,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="hidden lg:block">
-                <div className="rounded-2xl border border-white/20 bg-white/10 p-3">
+                <div className="rounded-2xl bg-white/10 p-3">
                   <LandingImageSlot
                     src="/landing/cta-reminder-preview.png"
                     alt="CTA Reminder Preview"
