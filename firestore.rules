@@ -234,10 +234,7 @@ service cloud.firestore {
         request.resource.data.role == "anggota" &&
         request.resource.data.id == request.auth.uid;
 
-      allow read: if isSelf(userId) ||
-        isSuperAdmin() ||
-        isKoordinatorDivisi() ||
-        isKoordinatorAcara();
+      allow read: if isSignedIn();
 
       allow update: if isSelf(userId) && selfProfileUpdateIsSafe();
 
@@ -363,6 +360,14 @@ service cloud.firestore {
 
     match /whatsapp_task_edit_previews/{previewId} {
       allow read, write: if false;
+    }
+
+    match /{path=**}/event_members/{memberId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isKoordinatorDivisi() ||
+        request.auth.uid == resource.data.user_id
+      );
     }
 
     match /{document=**} {

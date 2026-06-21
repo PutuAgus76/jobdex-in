@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PermissionGuard } from "@/components/auth/permission-guard";
 import { EventFilters, type EventDateFilter } from "@/components/events/event-filters";
 import { EventFormDialog } from "@/components/events/event-form-dialog";
 import { EventsTable } from "@/components/events/events-table";
@@ -22,36 +21,14 @@ import {
   updateEvent,
 } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
-import { canCreateEvent, isAnggota } from "@/lib/permissions";
+import { canCreateEvent } from "@/lib/permissions";
 import type { Event, EventInput, EventStatus, UserProfile, EventMember } from "@/types";
 import { showSuccess, showError } from "@/lib/swal";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 
 export default function EventsPage() {
-  const { userProfile } = useAuth();
-
-  if (userProfile && isAnggota(userProfile)) {
-    return (
-      <div className="space-y-6">
-        <section>
-          <Badge variant="info">Acara</Badge>
-          <h1 className="mt-3 text-3xl font-bold text-slate-950 dark:text-slate-50">Acara</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            Event yang melibatkan Anda akan tersedia pada fase berikutnya.
-          </p>
-        </section>
-        <EmptyState
-          title="Belum ada tampilan acara untuk anggota"
-          description="Anggota akan melihat acara yang melibatkan mereka setelah modul task dan event membership untuk anggota dibuka."
-        />
-      </div>
-    );
-  }
-
-  return (
-    <PermissionGuard canAccess={canCreateEvent}>
-      <EventsManagement />
-    </PermissionGuard>
-  );
+  return <EventsManagement />;
 }
 
 function EventsManagement() {
@@ -59,6 +36,7 @@ function EventsManagement() {
   const [events, setEvents] = useState<Event[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [userRolesByEvent, setUserRolesByEvent] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -83,9 +61,28 @@ function EventsManagement() {
       ]);
       const counts = await getMemberCounts(eventsData);
 
+      const roles: Record<string, string> = {};
+      await Promise.all(
+        eventsData.map(async (event) => {
+          if (event.coordinator_id === userProfile.id) {
+            roles[event.id] = "koordinator_acara";
+            return;
+          }
+          try {
+            const memberSnap = await getDoc(doc(db, "events", event.id, "event_members", userProfile.id));
+            if (memberSnap.exists()) {
+              roles[event.id] = memberSnap.data().role_in_event || "anggota_acara";
+            }
+          } catch {
+            // Ignore
+          }
+        })
+      );
+
       setEvents(eventsData);
       setUsers(usersData);
       setMemberCounts(counts);
+      setUserRolesByEvent(roles);
     } catch {
       setError("Gagal mengambil data acara. Periksa Firestore Rules dan koneksi.");
     } finally {
@@ -240,6 +237,8 @@ function EventsManagement() {
     return null;
   }
 
+  const showCreateBtn = canCreateEvent(userProfile);
+
   return (
     <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -253,18 +252,20 @@ function EventsManagement() {
             acara organisasi.
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => {
-            setSelectedEvent(null);
-            setSelectedEventMembers([]);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Tambah Acara
-        </Button>
+        {showCreateBtn && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setSelectedEvent(null);
+              setSelectedEventMembers([]);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Acara
+          </Button>
+        )}
       </section>
 
       <EventFilters
@@ -289,18 +290,20 @@ function EventsManagement() {
           title="Belum ada acara"
           description="Buat acara pertama untuk mulai mengelola koordinasi publikasi, dokumentasi, dan media kreatif."
           action={
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setSelectedEvent(null);
-                setSelectedEventMembers([]);
-                setFormOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              Tambah Acara
-            </Button>
+            showCreateBtn ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setSelectedEventMembers([]);
+                  setFormOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Acara
+              </Button>
+            ) : undefined
           }
         />
       ) : filteredEvents.length === 0 ? (
@@ -313,6 +316,8 @@ function EventsManagement() {
           events={filteredEvents}
           usersById={usersById}
           memberCounts={memberCounts}
+          userProfile={userProfile}
+          userRoles={userRolesByEvent}
           onEdit={async (event) => {
             setSelectedEvent(event);
             try {

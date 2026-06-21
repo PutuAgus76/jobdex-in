@@ -2,6 +2,7 @@ import {
   Timestamp,
   addDoc,
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -13,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { DEFAULT_ORGANIZATION_ID } from "@/lib/seed-data";
-import { isKoordinatorAcara, isKoordinatorDivisi, isSuperAdmin } from "@/lib/permissions";
+import { isKoordinatorDivisi, isSuperAdmin } from "@/lib/permissions";
 import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
 
 function eventDateToTimestamp(value: string) {
@@ -22,28 +23,64 @@ function eventDateToTimestamp(value: string) {
 
 export async function getEventsForProfile(profile: UserProfile) {
   const eventsRef = collection(db, "events");
-  const eventsQuery =
-    isSuperAdmin(profile) || isKoordinatorDivisi(profile)
-      ? query(eventsRef, orderBy("event_date", "asc"))
-      : isKoordinatorAcara(profile)
-        ? query(eventsRef, where("coordinator_id", "==", profile.id))
-        : null;
 
-  if (!eventsQuery) {
-    return [];
+  // For admins and division coordinators, query all events
+  if (isSuperAdmin(profile) || isKoordinatorDivisi(profile)) {
+    const snapshot = await getDocs(query(eventsRef, orderBy("event_date", "asc")));
+    const events = snapshot.docs.map((item) => ({
+      id: item.id,
+      ...item.data(),
+    })) as Event[];
+
+    return events.sort((a, b) => {
+      const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
+      const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
+      return bDate - aDate;
+    });
   }
 
-  const snapshot = await getDocs(eventsQuery);
-  const events = snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data(),
-  })) as Event[];
+  // For members (anggota) and event-specific staff, query via collectionGroup
+  try {
+    const membershipsSnapshot = await getDocs(
+      query(
+        collectionGroup(db, "event_members"),
+        where("user_id", "==", profile.id)
+      )
+    );
+    const eventIds = [...new Set(membershipsSnapshot.docs.map((doc) => doc.data().event_id as string).filter(Boolean))];
+    
+    // Also include events where coordinator_id matches profile.id
+    const coordSnap = await getDocs(query(eventsRef, where("coordinator_id", "==", profile.id)));
+    coordSnap.docs.forEach((doc) => {
+      eventIds.push(doc.id);
+    });
 
-  return events.sort((a, b) => {
-    const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
-    const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
-    return bDate - aDate;
-  });
+    const uniqueEventIds = [...new Set(eventIds)];
+
+    if (uniqueEventIds.length === 0) {
+      return [];
+    }
+
+    const eventSnaps = await Promise.all(
+      uniqueEventIds.map((id) => getDoc(doc(db, "events", id)))
+    );
+
+    const events = eventSnaps
+      .filter((snap) => snap.exists())
+      .map((snap) => ({
+        id: snap.id,
+        ...snap.data(),
+      })) as Event[];
+
+    return events.sort((a, b) => {
+      const aDate = a.event_date ? getDateMillis(a.event_date) : (a.created_at ? getDateMillis(a.created_at) : (a.updated_at ? getDateMillis(a.updated_at) : 0));
+      const bDate = b.event_date ? getDateMillis(b.event_date) : (b.created_at ? getDateMillis(b.created_at) : (b.updated_at ? getDateMillis(b.updated_at) : 0));
+      return bDate - aDate;
+    });
+  } catch (err) {
+    console.error("[events] Failed to fetch events for profile:", err);
+    return [];
+  }
 }
 
 export async function getEventById(eventId: string) {

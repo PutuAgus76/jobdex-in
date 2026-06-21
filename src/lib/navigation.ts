@@ -1,6 +1,5 @@
 import {
   canAccessAI,
-  canCreateEvent,
   canManageMembers,
   isAnggota,
   isSuperAdmin,
@@ -32,7 +31,7 @@ export const dashboardNavigation: DashboardNavConfig[] = [
   {
     label: "Acara",
     href: "/dashboard/events",
-    visible: (profile) => canCreateEvent(profile),
+    visible: allUsers,
   },
   {
     label: "Anggota",

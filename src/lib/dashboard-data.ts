@@ -1,5 +1,8 @@
 import {
   collection,
+  collectionGroup,
+  doc,
+  getDoc,
   getDocs,
   query,
   where,
@@ -7,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { Task, TaskStatus, UserProfile, Event } from "@/types";
+import { getUsersByIds } from "@/lib/firebase/members";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,27 +121,121 @@ const DONUT_STATUSES: TaskStatus[] = [
 
 export async function getDashboardData(profile: UserProfile): Promise<DashboardData> {
   const role = profile.role;
+  const isStaff = role === "super_admin" || role === "koordinator_divisi";
 
-  // Fetch raw data in parallel
-  const [tasksSnap, eventsSnap, usersSnap] = await Promise.all([
-    getDocs(query(collection(db, "tasks"), where("is_archived", "==", false))),
-    getDocs(collection(db, "events")),
-    getDocs(collection(db, "users")),
-  ]);
-
-  const allTasks: Task[] = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
-  const allEvents: Event[] = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Event));
+  let allEvents: Event[] = [];
+  let tasks: Task[] = [];
   const usersMap = new Map<string, UserProfile>();
-  usersSnap.docs.forEach((d) => usersMap.set(d.id, { id: d.id, ...d.data() } as UserProfile));
 
-  // Role-filter tasks
-  let tasks = allTasks;
-  if (role === "koordinator_divisi" && profile.division_id) {
-    tasks = allTasks.filter((t) => t.division_id === profile.division_id);
-  } else if (role === "koordinator_acara") {
-    tasks = allTasks.filter((t) => t.coordinator_id === profile.id);
-  } else if (role === "anggota") {
-    tasks = allTasks.filter((t) => t.pic_id === profile.id);
+  if (isStaff) {
+    const [tasksSnap, eventsSnap, usersSnap] = await Promise.all([
+      getDocs(query(collection(db, "tasks"), where("is_archived", "==", false))),
+      getDocs(collection(db, "events")),
+      getDocs(collection(db, "users")),
+    ]);
+
+    tasks = tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+    allEvents = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Event));
+    usersSnap.docs.forEach((d) => usersMap.set(d.id, { id: d.id, ...d.data() } as UserProfile));
+
+    if (role === "koordinator_divisi" && profile.division_id) {
+      tasks = tasks.filter((t) => t.division_id === profile.division_id);
+    }
+  } else {
+    // Non-staff (anggota)
+    // 1. Fetch memberships via Collection Group Query
+    try {
+      const membershipsSnapshot = await getDocs(
+        query(
+          collectionGroup(db, "event_members"),
+          where("user_id", "==", profile.id)
+        )
+      );
+      const eventIds = [...new Set(membershipsSnapshot.docs.map((doc) => doc.data().event_id as string).filter(Boolean))];
+
+      // Include events where coordinator_id is this user
+      const coordEventsSnap = await getDocs(
+        query(collection(db, "events"), where("coordinator_id", "==", profile.id))
+      );
+      coordEventsSnap.docs.forEach((doc) => {
+        eventIds.push(doc.id);
+      });
+
+      const uniqueEventIds = [...new Set(eventIds)];
+
+      if (uniqueEventIds.length > 0) {
+        const eventSnaps = await Promise.all(
+          uniqueEventIds.map((id) => getDoc(doc(db, "events", id)))
+        );
+        allEvents = eventSnaps
+          .filter((snap) => snap.exists())
+          .map((snap) => ({ id: snap.id, ...snap.data() } as Event));
+      }
+    } catch (err) {
+      console.error("[dashboard-data] Failed to load events for non-staff:", err);
+    }
+
+    // 2. Fetch PIC tasks
+    try {
+      const picTasksSnap = await getDocs(
+        query(
+          collection(db, "tasks"),
+          where("pic_id", "==", profile.id),
+          where("is_archived", "==", false)
+        )
+      );
+      tasks = picTasksSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Task));
+    } catch (err) {
+      console.error("[dashboard-data] Failed to load PIC tasks:", err);
+    }
+
+    // 3. Fetch event tasks
+    const uniqueEventIds = allEvents.map((e) => e.id);
+    if (uniqueEventIds.length > 0) {
+      try {
+        const eventTasksSnaps = await Promise.all(
+          uniqueEventIds.map((eventId) =>
+            getDocs(
+              query(
+                collection(db, "tasks"),
+                where("event_id", "==", eventId),
+                where("is_archived", "==", false)
+              )
+            )
+          )
+        );
+        const eventTasks = eventTasksSnaps.flatMap((snap) =>
+          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Task))
+        );
+
+        // Merge and deduplicate
+        const taskMap = new Map<string, Task>();
+        tasks.forEach((t) => taskMap.set(t.id, t));
+        eventTasks.forEach((t) => taskMap.set(t.id, t));
+        tasks = Array.from(taskMap.values());
+      } catch (err) {
+        console.error("[dashboard-data] Failed to load event tasks:", err);
+      }
+    }
+
+    // 4. Resolve name profiles
+    try {
+      const userIds = new Set<string>();
+      userIds.add(profile.id);
+      tasks.forEach((t) => {
+        if (t.pic_id) userIds.add(t.pic_id);
+        if (t.coordinator_id) userIds.add(t.coordinator_id);
+        if (t.created_by) userIds.add(t.created_by);
+      });
+      allEvents.forEach((e) => {
+        if (e.coordinator_id) userIds.add(e.coordinator_id);
+        if (e.created_by) userIds.add(e.created_by);
+      });
+      const usersData = await getUsersByIds(Array.from(userIds));
+      usersData.forEach((u) => usersMap.set(u.id, u));
+    } catch (err) {
+      console.error("[dashboard-data] Failed to resolve member names:", err);
+    }
   }
 
   // ── Summary cards ─────────────────────────────────────────────────────────
@@ -167,7 +265,7 @@ export async function getDashboardData(profile: UserProfile): Promise<DashboardD
     return updatedAt !== null && updatedAt >= weekStart;
   }).length;
 
-  const totalMembers = role === "super_admin" ? usersSnap.size : 0;
+  const totalMembers = role === "super_admin" ? usersMap.size : 0;
 
   // ── Status distribution (donut) ────────────────────────────────────────────
   const statusCountMap: Partial<Record<TaskStatus, number>> = {};

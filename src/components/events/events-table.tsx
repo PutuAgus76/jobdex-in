@@ -6,11 +6,14 @@ import { EventStatusBadge } from "@/components/events/event-status-badge";
 import { Eye, Pencil } from "lucide-react";
 import type { Event, UserProfile } from "@/types";
 import { formatEventDate } from "@/lib/firebase/events";
+import { canManageEvent } from "@/lib/permissions";
 
 type EventsTableProps = {
   events: Event[];
   usersById: Map<string, UserProfile>;
   memberCounts: Record<string, number>;
+  userProfile?: UserProfile | null;
+  userRoles?: Record<string, string>;
   onEdit: (event: Event) => void;
 };
 
@@ -18,6 +21,8 @@ export function EventsTable({
   events,
   usersById,
   memberCounts,
+  userProfile,
+  userRoles,
   onEdit,
 }: EventsTableProps) {
   return (
@@ -70,15 +75,17 @@ export function EventsTable({
                           <span>Detail</span>
                         </Link>
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="warning"
-                        onClick={() => onEdit(event)}
-                      >
-                        <Pencil className="size-3.5" />
-                        <span>Edit</span>
-                      </Button>
+                      {canManageEvent(userProfile, event, userRoles?.[event.id]) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="warning"
+                          onClick={() => onEdit(event)}
+                        >
+                          <Pencil className="size-3.5" />
+                          <span>Edit</span>
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -126,16 +133,18 @@ export function EventsTable({
                   <span>Detail</span>
                 </Link>
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="warning"
-                className="flex-1"
-                onClick={() => onEdit(event)}
-              >
-                <Pencil className="size-3.5" />
-                <span>Edit</span>
-              </Button>
+              {canManageEvent(userProfile, event, userRoles?.[event.id]) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="warning"
+                  className="flex-1"
+                  onClick={() => onEdit(event)}
+                >
+                  <Pencil className="size-3.5" />
+                  <span>Edit</span>
+                </Button>
+              )}
             </div>
           </div>
         ))}
