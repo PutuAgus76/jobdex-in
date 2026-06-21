@@ -22,6 +22,7 @@ import {
   getCategoryRule,
   getDefaultArchiveSettings,
   MAIN_CATEGORIES,
+  inferJobdeskCategoryFromText,
 } from "@/lib/jobdesk-categories";
 
 type TaskFormDialogProps = {
@@ -73,16 +74,106 @@ function TaskForm({
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [categoryKey, setCategoryKey] = useState(task?.category_key ?? "");
-  const [subcategoryKey, setSubcategoryKey] = useState(task?.subcategory_key ?? "");
-  const [outputTypes, setOutputTypes] = useState((task?.output_types ?? []).join(", "));
-  const [archiveEnabled, setArchiveEnabled] = useState(task?.archive_enabled ?? true);
-  const [referenceCandidateEnabled, setReferenceCandidateEnabled] = useState(task?.reference_candidate_enabled ?? false);
-  const [requiresFile, setRequiresFile] = useState(task?.requires_file ?? false);
-  const [requiresSourceLink, setRequiresSourceLink] = useState(task?.requires_source_link ?? false);
+  // Run category suggestion on initialization for existing task without category
+  const initialSuggestion = (() => {
+    if (task && !task.category_key) {
+      const result = inferJobdeskCategoryFromText({
+        title: task.name,
+        description: task.description,
+      });
+      if (result) {
+        const catLabel = MAIN_CATEGORIES.find((c) => c.key === result.categoryKey)?.label ?? "";
+        const subLabel = getCategoryRule(result.categoryKey, result.subcategoryKey)?.subcategoryLabel ?? "";
+        return {
+          categoryKey: result.categoryKey,
+          subcategoryKey: result.subcategoryKey,
+          categoryLabel: catLabel,
+          subcategoryLabel: subLabel,
+          reason: result.reason,
+        };
+      }
+    }
+    return null;
+  })();
+
+  const initialDefaults = initialSuggestion
+    ? getDefaultArchiveSettings(initialSuggestion.categoryKey, initialSuggestion.subcategoryKey)
+    : null;
+
+  const [categoryKey, setCategoryKey] = useState(task?.category_key ?? initialSuggestion?.categoryKey ?? "");
+  const [subcategoryKey, setSubcategoryKey] = useState(task?.subcategory_key ?? initialSuggestion?.subcategoryKey ?? "");
+  const [outputTypes, setOutputTypes] = useState(
+    task?.category_key
+      ? (task?.output_types ?? []).join(", ")
+      : (initialDefaults?.outputTypes.join(", ") ?? "")
+  );
+  const [archiveEnabled, setArchiveEnabled] = useState(
+    task?.category_key
+      ? (task?.archive_enabled ?? true)
+      : (initialDefaults ? initialDefaults.archiveEnabled : true)
+  );
+  const [referenceCandidateEnabled, setReferenceCandidateEnabled] = useState(
+    task?.category_key
+      ? (task?.reference_candidate_enabled ?? false)
+      : (initialDefaults ? initialDefaults.referenceCandidateEnabled : false)
+  );
+  const [requiresFile, setRequiresFile] = useState(
+    task?.category_key
+      ? (task?.requires_file ?? false)
+      : (initialDefaults ? initialDefaults.requiresFile : false)
+  );
+  const [requiresSourceLink, setRequiresSourceLink] = useState(
+    task?.category_key
+      ? (task?.requires_source_link ?? false)
+      : (initialDefaults ? initialDefaults.requiresSourceLink : false)
+  );
   const [sourceLink, setSourceLink] = useState(task?.source_link ?? "");
   const [archiveNotes, setArchiveNotes] = useState(task?.archive_notes ?? "");
-  const [dataSensitivity, setDataSensitivity] = useState(task?.data_sensitivity ?? "normal");
+  const [dataSensitivity, setDataSensitivity] = useState(
+    task?.category_key
+      ? (task?.data_sensitivity ?? "normal")
+      : (initialDefaults ? initialDefaults.dataSensitivity : "normal")
+  );
+
+  const [suggestion, setSuggestion] = useState<{
+    categoryKey: string;
+    subcategoryKey: string;
+    categoryLabel: string;
+    subcategoryLabel: string;
+    reason: string;
+  } | null>(initialSuggestion);
+
+  const handleManualDetect = () => {
+    const result = inferJobdeskCategoryFromText({
+      title: name,
+      description: description,
+    });
+
+    if (result) {
+      const catLabel = MAIN_CATEGORIES.find((c) => c.key === result.categoryKey)?.label ?? "";
+      const subLabel = getCategoryRule(result.categoryKey, result.subcategoryKey)?.subcategoryLabel ?? "";
+      setSuggestion({
+        categoryKey: result.categoryKey,
+        subcategoryKey: result.subcategoryKey,
+        categoryLabel: catLabel,
+        subcategoryLabel: subLabel,
+        reason: result.reason,
+      });
+
+      setCategoryKey(result.categoryKey);
+      setSubcategoryKey(result.subcategoryKey);
+
+      const defaults = getDefaultArchiveSettings(result.categoryKey, result.subcategoryKey);
+      setArchiveEnabled(defaults.archiveEnabled);
+      setReferenceCandidateEnabled(defaults.referenceCandidateEnabled);
+      setRequiresFile(defaults.requiresFile);
+      setRequiresSourceLink(defaults.requiresSourceLink);
+      setOutputTypes(defaults.outputTypes.join(", "));
+      setDataSensitivity(defaults.dataSensitivity);
+    } else {
+      setSuggestion(null);
+    }
+  };
 
   const handleCategoryChange = (catKey: string) => {
     setCategoryKey(catKey);
@@ -306,14 +397,36 @@ function TaskForm({
 
           {/* Section: Pengarsipan & Referensi */}
           <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-950 dark:text-slate-50">
-                Pengarsipan &amp; Referensi
-              </h3>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Rule otomatis berjalan berdasarkan kategori dan subkategori pilihan. Anda tetap dapat mengubah pilihan pengarsipan/referensi secara manual.
-              </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-950 dark:text-slate-50">
+                  Pengarsipan &amp; Referensi
+                </h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Rule otomatis berjalan berdasarkan kategori dan subkategori pilihan. Anda tetap dapat mengubah pilihan pengarsipan/referensi secara manual.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleManualDetect}
+                className="text-xs shrink-0"
+              >
+                Deteksi otomatis dari judul
+              </Button>
             </div>
+
+            {suggestion && categoryKey === suggestion.categoryKey && subcategoryKey === suggestion.subcategoryKey ? (
+              <div className="flex items-start gap-2.5 rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-xs text-sky-800 dark:border-sky-950/30 dark:bg-sky-950/20 dark:text-sky-350">
+                <span className="inline-flex items-center rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+                  Kategori disarankan otomatis
+                </span>
+                <span className="font-medium">
+                  {suggestion.reason}
+                </span>
+              </div>
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Kategori Utama">

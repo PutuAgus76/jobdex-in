@@ -2042,3 +2042,225 @@ export function getDefaultArchiveSettings(categoryKey: string, subcategoryKey: s
     dataSensitivity: rule.sensitivity,
   };
 }
+
+type InferenceRule = {
+  keyword: string;
+  categoryKey: string;
+  subcategoryKey: string;
+  label: string;
+};
+
+const INFERENCE_RULES: InferenceRule[] = [
+  // Desain Publikasi
+  { keyword: "countdown", categoryKey: "desain_publikasi", subcategoryKey: "countdown_design", label: "Countdown Design" },
+  { keyword: "announcement", categoryKey: "desain_publikasi", subcategoryKey: "announcement_design", label: "Announcement Design" },
+  { keyword: "thank you", categoryKey: "desain_publikasi", subcategoryKey: "thank_you_post", label: "Thank You Post" },
+  { keyword: "reels cover", categoryKey: "desain_publikasi", subcategoryKey: "reels_cover", label: "Reels Cover" },
+  { keyword: "thumbnail", categoryKey: "desain_publikasi", subcategoryKey: "thumbnail_video", label: "Thumbnail Video" },
+  { keyword: "spanduk", categoryKey: "desain_publikasi", subcategoryKey: "spanduk_banner_cetak", label: "Spanduk / Banner Cetak" },
+  { keyword: "x-banner", categoryKey: "desain_publikasi", subcategoryKey: "x_banner", label: "X-Banner" },
+  { keyword: "baliho", categoryKey: "desain_publikasi", subcategoryKey: "baliho", label: "Baliho" },
+  { keyword: "twibbon", categoryKey: "desain_publikasi", subcategoryKey: "twibbon", label: "Twibbon" },
+  { keyword: "frame", categoryKey: "desain_publikasi", subcategoryKey: "frame_foto", label: "Frame Foto" },
+  { keyword: "photobooth", categoryKey: "desain_publikasi", subcategoryKey: "photobooth", label: "Photobooth" },
+  { keyword: "background zoom", categoryKey: "desain_publikasi", subcategoryKey: "background_zoom", label: "Background Zoom" },
+  { keyword: "poster", categoryKey: "desain_publikasi", subcategoryKey: "poster", label: "Poster" },
+  { keyword: "pamflet", categoryKey: "desain_publikasi", subcategoryKey: "pamflet", label: "Pamflet" },
+  { keyword: "flyer", categoryKey: "desain_publikasi", subcategoryKey: "flyer", label: "Flyer" },
+  { keyword: "feed", categoryKey: "desain_publikasi", subcategoryKey: "feed_instagram", label: "Feed Instagram" },
+  { keyword: "story", categoryKey: "desain_publikasi", subcategoryKey: "story_instagram", label: "Story Instagram" },
+  { keyword: "banner", categoryKey: "desain_publikasi", subcategoryKey: "spanduk_banner_cetak", label: "Spanduk / Banner Cetak" },
+
+  // Identitas Acara dan Panitia
+  { keyword: "brand guideline", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "brand_guideline_acara", label: "Brand Guideline Acara" },
+  { keyword: "color palette", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "color_palette", label: "Color Palette" },
+  { keyword: "palet warna", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "color_palette", label: "Color Palette" },
+  { keyword: "kartu panitia", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "kartu_panitia", label: "Kartu Panitia" },
+  { keyword: "kop surat", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "kop_surat_acara", label: "Kop Surat Acara" },
+  { keyword: "logo acara", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "logo_acara", label: "Logo Acara" },
+  { keyword: "name tag", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "name_tag", label: "Name Tag" },
+  { keyword: "nametag", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "name_tag", label: "Name Tag" },
+  { keyword: "id card", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "id_card", label: "ID Card" },
+  { keyword: "badge", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "badge_peserta", label: "Badge Peserta" },
+  { keyword: "sertifikat", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "sertifikat", label: "Sertifikat" },
+  { keyword: "piagam", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "piagam", label: "Piagam" },
+  { keyword: "plakat", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "plakat_design", label: "Plakat Design" },
+  { keyword: "maskot", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "maskot_acara", label: "Maskot Acara" },
+  { keyword: "supergraphic", categoryKey: "identitas_acara_dan_panitia", subcategoryKey: "supergraphic", label: "Supergraphic" },
+
+  // Dokumen Administrasi
+  { keyword: "cover proposal", categoryKey: "dokumen_administrasi", subcategoryKey: "cover_proposal", label: "Cover Proposal" },
+  { keyword: "surat undangan", categoryKey: "dokumen_administrasi", subcategoryKey: "surat_undangan", label: "Surat Undangan" },
+  { keyword: "surat permohonan", categoryKey: "dokumen_administrasi", subcategoryKey: "surat_permohonan", label: "Surat Permohonan" },
+  { keyword: "surat tugas", categoryKey: "dokumen_administrasi", subcategoryKey: "surat_tugas", label: "Surat Tugas" },
+  { keyword: "surat peminjaman", categoryKey: "dokumen_administrasi", subcategoryKey: "surat_peminjaman", label: "Surat Peminjaman" },
+  { keyword: "surat dispensasi", categoryKey: "dokumen_administrasi", subcategoryKey: "surat_dispensasi", label: "Surat Dispensasi" },
+  { keyword: "checklist perlengkapan", categoryKey: "dokumen_administrasi", subcategoryKey: "checklist_perlengkapan", label: "Checklist Perlengkapan" },
+  { keyword: "daftar peserta", categoryKey: "dokumen_administrasi", subcategoryKey: "daftar_peserta", label: "Daftar Peserta" },
+  { keyword: "buku panduan", categoryKey: "dokumen_administrasi", subcategoryKey: "buku_panduan", label: "Buku Panduan" },
+  { keyword: "timeline", categoryKey: "dokumen_administrasi", subcategoryKey: "timeline_kerja", label: "Timeline Kerja" },
+  { keyword: "sk panitia", categoryKey: "dokumen_administrasi", subcategoryKey: "sk_panitia", label: "SK Panitia" },
+  { keyword: "proposal", categoryKey: "dokumen_administrasi", subcategoryKey: "proposal", label: "Proposal" },
+  { keyword: "lpj", categoryKey: "dokumen_administrasi", subcategoryKey: "lpj", label: "LPJ" },
+  { keyword: "notulen", categoryKey: "dokumen_administrasi", subcategoryKey: "notulen", label: "Notulen" },
+  { keyword: "rundown", categoryKey: "dokumen_administrasi", subcategoryKey: "rundown", label: "Rundown" },
+  { keyword: "tor", categoryKey: "dokumen_administrasi", subcategoryKey: "tor_term_of_reference", label: "TOR / Term of Reference" },
+  { keyword: "juknis", categoryKey: "dokumen_administrasi", subcategoryKey: "juknis", label: "Juknis" },
+  { keyword: "sop", categoryKey: "dokumen_administrasi", subcategoryKey: "sop", label: "SOP" },
+  { keyword: "absensi", categoryKey: "dokumen_administrasi", subcategoryKey: "absensi", label: "Absensi" },
+
+  // Keuangan dan Spreadsheet
+  { keyword: "lpj keuangan", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "lpj_keuangan", label: "LPJ Keuangan" },
+  { keyword: "rekap pengeluaran", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "rekap_pengeluaran", label: "Rekap Pengeluaran" },
+  { keyword: "rekap pemasukan", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "rekap_pemasukan", label: "Rekap Pemasukan" },
+  { keyword: "bukti pembayaran", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "bukti_pembayaran", label: "Bukti Pembayaran" },
+  { keyword: "sponsorship", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "sponsorship_sheet", label: "Sponsorship Sheet" },
+  { keyword: "konsumsi sheet", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "konsumsi_sheet", label: "Konsumsi Sheet" },
+  { keyword: "transport sheet", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "transport_sheet", label: "Transport Sheet" },
+  { keyword: "merchandise sheet", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "merchandise_sheet", label: "Merchandise Sheet" },
+  { keyword: "rab", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "rab", label: "RAB" },
+  { keyword: "invoice", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "invoice", label: "Invoice" },
+  { keyword: "kwitansi", categoryKey: "keuangan_dan_spreadsheet", subcategoryKey: "kwitansi", label: "Kwitansi" },
+
+  // Konten dan Copywriting
+  { keyword: "copy poster", categoryKey: "konten_dan_copywriting", subcategoryKey: "copy_poster", label: "Copy Poster" },
+  { keyword: "press release", categoryKey: "konten_dan_copywriting", subcategoryKey: "press_release", label: "Press Release" },
+  { keyword: "narasi mc", categoryKey: "konten_dan_copywriting", subcategoryKey: "narasi_mc", label: "Narasi MC" },
+  { keyword: "script voice over", categoryKey: "konten_dan_copywriting", subcategoryKey: "script_voice_over", label: "Script Voice Over" },
+  { keyword: "script video", categoryKey: "konten_dan_copywriting", subcategoryKey: "script_video", label: "Script Video" },
+  { keyword: "reminder text", categoryKey: "konten_dan_copywriting", subcategoryKey: "reminder_text", label: "Reminder Text" },
+  { keyword: "template email", categoryKey: "konten_dan_copywriting", subcategoryKey: "template_email", label: "Template Email" },
+  { keyword: "caption", categoryKey: "konten_dan_copywriting", subcategoryKey: "caption_instagram", label: "Caption Instagram" },
+  { keyword: "sambutan", categoryKey: "konten_dan_copywriting", subcategoryKey: "sambutan", label: "Sambutan" },
+  { keyword: "broadcast", categoryKey: "konten_dan_copywriting", subcategoryKey: "broadcast_message", label: "Broadcast Message" },
+
+  // Video dan Multimedia
+  { keyword: "dokumentasi video", categoryKey: "video_dan_multimedia", subcategoryKey: "video_dokumentasi", label: "Video Dokumentasi" },
+  { keyword: "video opening", categoryKey: "video_dan_multimedia", subcategoryKey: "video_opening", label: "Video Opening" },
+  { keyword: "motion graphic", categoryKey: "video_dan_multimedia", subcategoryKey: "motion_graphic", label: "Motion Graphic" },
+  { keyword: "lower third", categoryKey: "video_dan_multimedia", subcategoryKey: "lower_third", label: "Lower Third" },
+  { keyword: "teaser", categoryKey: "video_dan_multimedia", subcategoryKey: "video_teaser", label: "Video Teaser" },
+  { keyword: "highlight", categoryKey: "video_dan_multimedia", subcategoryKey: "video_highlight", label: "Video Highlight" },
+  { keyword: "aftermovie", categoryKey: "video_dan_multimedia", subcategoryKey: "video_aftermovie", label: "Video Aftermovie" },
+  { keyword: "bumper", categoryKey: "video_dan_multimedia", subcategoryKey: "video_bumper", label: "Video Bumper" },
+  { keyword: "testimoni", categoryKey: "video_dan_multimedia", subcategoryKey: "video_testimoni", label: "Video Testimoni" },
+  { keyword: "subtitle", categoryKey: "video_dan_multimedia", subcategoryKey: "subtitle_file", label: "Subtitle File" },
+  { keyword: "backsound", categoryKey: "video_dan_multimedia", subcategoryKey: "audio_backsound", label: "Audio Backsound" },
+  { keyword: "voice over", categoryKey: "video_dan_multimedia", subcategoryKey: "voice_over", label: "Voice Over" },
+
+  // Dokumentasi Foto
+  { keyword: "foto dokumentasi", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_dokumentasi", label: "Foto Dokumentasi" },
+  { keyword: "foto panitia", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_panitia", label: "Foto Panitia" },
+  { keyword: "foto peserta", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_peserta", label: "Foto Peserta" },
+  { keyword: "foto narasumber", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_narasumber", label: "Foto Narasumber" },
+  { keyword: "foto venue", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_venue", label: "Foto Venue" },
+  { keyword: "behind the scene", categoryKey: "dokumentasi_foto", subcategoryKey: "foto_behind_the_scene", label: "Foto Behind The Scene" },
+  { keyword: "selected photos", categoryKey: "dokumentasi_foto", subcategoryKey: "selected_photos", label: "Selected Photos" },
+  { keyword: "dokumentasi mentah", categoryKey: "dokumentasi_foto", subcategoryKey: "dokumentasi_mentah", label: "Dokumentasi Mentah" },
+
+  // Aset Desain
+  { keyword: "template canva", categoryKey: "aset_desain", subcategoryKey: "template_canva", label: "Template Canva" },
+  { keyword: "template figma", categoryKey: "aset_desain", subcategoryKey: "template_figma", label: "Template Figma" },
+  { keyword: "template photoshop", categoryKey: "aset_desain", subcategoryKey: "template_photoshop", label: "Template Photoshop" },
+  { keyword: "template illustrator", categoryKey: "aset_desain", subcategoryKey: "template_illustrator", label: "Template Illustrator" },
+  { keyword: "font pairing", categoryKey: "aset_desain", subcategoryKey: "font_pairing", label: "Font Pairing" },
+  { keyword: "aset desain", categoryKey: "aset_desain", subcategoryKey: "asset_drive", label: "Asset Drive" },
+  { keyword: "mockup", categoryKey: "aset_desain", subcategoryKey: "mockup", label: "Mockup" },
+  { keyword: "pattern", categoryKey: "aset_desain", subcategoryKey: "pattern", label: "Pattern" },
+  { keyword: "background", categoryKey: "aset_desain", subcategoryKey: "background", label: "Background" },
+  { keyword: "texture", categoryKey: "aset_desain", subcategoryKey: "texture", label: "Texture" },
+
+  // Perlengkapan dan Operasional
+  { keyword: "list perlengkapan", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "list_perlengkapan", label: "List Perlengkapan" },
+  { keyword: "peminjaman alat", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "peminjaman_alat", label: "Peminjaman Alat" },
+  { keyword: "layout ruangan", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "layout_ruangan", label: "Layout Ruangan" },
+  { keyword: "denah venue", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "denah_venue", label: "Denah Venue" },
+  { keyword: "rundown teknis", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "rundown_teknis", label: "Rundown Teknis" },
+  { keyword: "cue card", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "cue_card", label: "Cue Card" },
+  { keyword: "operator notes", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "operator_notes", label: "Operator Notes" },
+  { keyword: "lighting notes", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "lighting_notes", label: "Lighting Notes" },
+  { keyword: "sound notes", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "sound_notes", label: "Sound Notes" },
+  { keyword: "inventaris", categoryKey: "perlengkapan_dan_operasional", subcategoryKey: "inventaris_acara", label: "Inventaris Acara" },
+
+  // Koordinasi dan Aktivitas Non-File
+  { keyword: "distribusi tugas", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "distribusi_tugas", label: "Distribusi Tugas" },
+  { keyword: "cek kesiapan", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "cek_kesiapan", label: "Cek Kesiapan" },
+  { keyword: "konfirmasi vendor", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "konfirmasi_vendor", label: "Konfirmasi Vendor" },
+  { keyword: "konfirmasi narasumber", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "konfirmasi_narasumber", label: "Konfirmasi Narasumber" },
+  { keyword: "monitoring progress", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "monitoring_progress", label: "Monitoring Progress" },
+  { keyword: "review internal", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "review_internal", label: "Review Internal" },
+  { keyword: "quality control", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "quality_control", label: "Quality Control" },
+  { keyword: "briefing", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "briefing", label: "Briefing" },
+  { keyword: "koordinasi", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "koordinasi_sie_lain", label: "Koordinasi Sie Lain" },
+  { keyword: "follow-up", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "follow_up_pic", label: "Follow-up PIC" },
+  { keyword: "rapat", categoryKey: "koordinasi_dan_aktivitas_non_file", subcategoryKey: "rapat_internal", label: "Rapat Internal" },
+
+  // Publikasi dan Media Sosial
+  { keyword: "jadwal posting", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "jadwal_posting", label: "Jadwal Posting" },
+  { keyword: "content plan", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "content_plan", label: "Content Plan" },
+  { keyword: "content calendar", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "content_calendar", label: "Content Calendar" },
+  { keyword: "draft feed", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "draft_feed", label: "Draft Feed" },
+  { keyword: "draft story", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "draft_story", label: "Draft Story" },
+  { keyword: "draft reels", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "draft_reels", label: "Draft Reels" },
+  { keyword: "caption plan", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "caption_plan", label: "Caption Plan" },
+  { keyword: "hashtag", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "hashtag_list", label: "Hashtag List" },
+  { keyword: "media partner", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "media_partner_kit", label: "Media Partner Kit" },
+  { keyword: "publikasi final", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "publikasi_final", label: "Publikasi Final" },
+  { keyword: "insight report", categoryKey: "publikasi_dan_media_sosial", subcategoryKey: "insight_report", label: "Insight Report" },
+
+  // Registrasi dan Peserta
+  { keyword: "form pendaftaran", categoryKey: "registrasi_dan_peserta", subcategoryKey: "form_pendaftaran", label: "Form Pendaftaran" },
+  { keyword: "header google form", categoryKey: "registrasi_dan_peserta", subcategoryKey: "header_google_form", label: "Header Google Form" },
+  { keyword: "rekap pendaftar", categoryKey: "registrasi_dan_peserta", subcategoryKey: "rekap_pendaftar", label: "Rekap Pendaftar" },
+  { keyword: "rekap kehadiran", categoryKey: "registrasi_dan_peserta", subcategoryKey: "rekap_kehadiran", label: "Rekap Kehadiran" },
+  { keyword: "sertifikat peserta", categoryKey: "registrasi_dan_peserta", subcategoryKey: "sertifikat_peserta", label: "Sertifikat Peserta" },
+  { keyword: "e-ticket", categoryKey: "registrasi_dan_peserta", subcategoryKey: "e_ticket", label: "E-ticket" },
+  { keyword: "kupon", categoryKey: "registrasi_dan_peserta", subcategoryKey: "kupon", label: "Kupon" },
+  { keyword: "qr code peserta", categoryKey: "registrasi_dan_peserta", subcategoryKey: "qr_code_peserta", label: "QR Code Peserta" },
+  { keyword: "data delegasi", categoryKey: "registrasi_dan_peserta", subcategoryKey: "data_delegasi", label: "Data Delegasi" }
+];
+
+export function inferJobdeskCategoryFromText(input: {
+  title?: string;
+  description?: string;
+  existingCategoryKey?: string;
+  existingSubcategoryKey?: string;
+}): {
+  categoryKey: string;
+  subcategoryKey: string;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+} | null {
+  if (input.existingCategoryKey && input.existingSubcategoryKey) {
+    return null; // Already has category, don't override
+  }
+
+  const titleLower = (input.title || "").toLowerCase();
+  const descLower = (input.description || "").toLowerCase();
+
+  // Try title first (High confidence)
+  for (const rule of INFERENCE_RULES) {
+    if (titleLower.includes(rule.keyword)) {
+      return {
+        categoryKey: rule.categoryKey,
+        subcategoryKey: rule.subcategoryKey,
+        confidence: "high",
+        reason: `Terdeteksi dari kata '${rule.keyword}' pada judul jobdesk.`,
+      };
+    }
+  }
+
+  // Try description (Medium confidence)
+  for (const rule of INFERENCE_RULES) {
+    if (descLower.includes(rule.keyword)) {
+      return {
+        categoryKey: rule.categoryKey,
+        subcategoryKey: rule.subcategoryKey,
+        confidence: "medium",
+        reason: `Terdeteksi dari kata '${rule.keyword}' pada deskripsi jobdesk.`,
+      };
+    }
+  }
+
+  return null;
+}
