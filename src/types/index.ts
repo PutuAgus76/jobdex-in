@@ -172,6 +172,11 @@ export type TaskUpload = {
   version_number: number;
   uploaded_by: string;
   uploaded_at?: unknown;
+  source_link?: string;
+  source_link_type?: "canva" | "figma" | "google_docs" | "google_sheets" | "google_drive" | "other";
+  upload_note?: string;
+  output_type?: string;
+  is_final_candidate?: boolean;
 };
 
 export type DesignType =

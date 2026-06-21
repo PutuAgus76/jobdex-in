@@ -13,6 +13,8 @@ import { getTaskUploads } from "@/lib/firebase/task-uploads";
 import { getTaskById } from "@/lib/firebase/tasks";
 import { canReadTask } from "@/lib/permissions";
 import type { Event, Task, TaskStatusLog, TaskUpload, UserProfile } from "@/types";
+import { db } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function TaskDetailPage() {
   const params = useParams<{ taskId: string }>();
@@ -26,6 +28,7 @@ export default function TaskDetailPage() {
   const [uploads, setUploads] = useState<TaskUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [eventRole, setEventRole] = useState("");
   const taskId = params.taskId;
   const rawReturnTo = searchParams.get("returnTo") || "/dashboard/tasks";
   const returnTo = (rawReturnTo.startsWith("/dashboard") && !rawReturnTo.startsWith("//") && !rawReturnTo.includes(":") && !rawReturnTo.includes("\\"))
@@ -48,7 +51,16 @@ export default function TaskDetailPage() {
         return;
       }
 
-      if (!canReadTask(userProfile, taskData)) {
+      let role = "";
+      if (taskData.event_id) {
+        const memberDoc = await getDoc(doc(db, "events", taskData.event_id, "event_members", userProfile.id)).catch(() => null);
+        if (memberDoc && memberDoc.exists()) {
+          role = memberDoc.data().role_in_event || "";
+        }
+      }
+      setEventRole(role);
+
+      if (!canReadTask(userProfile, taskData, role)) {
         router.replace("/dashboard/unauthorized");
         return;
       }
@@ -123,6 +135,7 @@ export default function TaskDetailPage() {
       currentUser={userProfile}
       onChanged={loadDetail}
       returnTo={returnTo}
+      eventRole={eventRole}
     />
   );
 }

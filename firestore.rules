@@ -48,6 +48,24 @@ service cloud.firestore {
         );
     }
 
+    function isEventMember(eventId) {
+      return exists(/databases/$(database)/documents/events/$(eventId)/event_members/$(request.auth.uid));
+    }
+
+    function getEventMemberRole(eventId) {
+      return isEventMember(eventId)
+        ? get(/databases/$(database)/documents/events/$(eventId)/event_members/$(request.auth.uid)).data.role_in_event
+        : null;
+    }
+
+    function isEventSecretary(eventId) {
+      let role = getEventMemberRole(eventId);
+      return role == "sekretaris_acara" || 
+        role == "Sekretaris Acara" || 
+        role == "sekretaris" || 
+        role == "Sekretaris";
+    }
+
     function canReadTaskData(data) {
       return isSuperAdmin() ||
         isKoordinatorDivisi() ||
@@ -55,6 +73,12 @@ service cloud.firestore {
           isKoordinatorAcara() &&
           data.type == "acara" &&
           data.coordinator_id == request.auth.uid
+        ) ||
+        (
+          data.type == "acara" &&
+          data.event_id != null &&
+          data.event_id != "" &&
+          isEventSecretary(data.event_id)
         ) ||
         data.pic_id == request.auth.uid;
     }
@@ -67,6 +91,13 @@ service cloud.firestore {
           data.type == "acara" &&
           data.coordinator_id == request.auth.uid &&
           data.created_by == request.auth.uid
+        ) ||
+        (
+          data.type == "acara" &&
+          data.event_id != null &&
+          data.event_id != "" &&
+          isEventSecretary(data.event_id) &&
+          data.created_by == request.auth.uid
         );
     }
 
@@ -78,6 +109,13 @@ service cloud.firestore {
           resource.data.type == "acara" &&
           resource.data.coordinator_id == request.auth.uid &&
           request.resource.data.coordinator_id == request.auth.uid
+        ) ||
+        (
+          resource.data.type == "acara" &&
+          resource.data.event_id != null &&
+          resource.data.event_id != "" &&
+          isEventSecretary(resource.data.event_id) &&
+          request.resource.data.event_id == resource.data.event_id
         );
     }
 
@@ -106,6 +144,12 @@ service cloud.firestore {
             isKoordinatorAcara() &&
             task.type == "acara" &&
             task.coordinator_id == request.auth.uid
+          ) ||
+          (
+            task.type == "acara" &&
+            task.event_id != null &&
+            task.event_id != "" &&
+            isEventSecretary(task.event_id)
           ) ||
           task.pic_id == request.auth.uid
         ) &&
@@ -213,7 +257,8 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
-        (isKoordinatorAcara() && resource.data.coordinator_id == request.auth.uid);
+        (isKoordinatorAcara() && resource.data.coordinator_id == request.auth.uid) ||
+        isEventSecretary(eventId);
 
       allow create: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
@@ -234,7 +279,7 @@ service cloud.firestore {
       allow delete: if false; // TODO: evaluasi delete acara setelah workflow task tersedia.
 
       match /event_members/{memberId} {
-        allow read: if canManageEvent(eventId);
+        allow read: if canManageEvent(eventId) || isEventSecretary(eventId);
 
         allow create, update: if canManageEvent(eventId) &&
           request.resource.data.event_id == eventId &&

@@ -25,21 +25,23 @@ type TaskActionButtonsProps = {
   task: Task;
   currentUser: UserProfile;
   onChanged: () => Promise<void>;
+  eventRole?: string;
 };
 
 export function TaskActionButtons({
   task,
   currentUser,
   onChanged,
+  eventRole,
 }: TaskActionButtonsProps) {
   const { user } = useAuth();
   const [statusOpen, setStatusOpen] = useState(false);
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
   const [presetStatus, setPresetStatus] = useState<TaskStatus | undefined>();
-  const allowedStatuses = getAllowedStatusOptions(currentUser, task);
-  const canUpdate = canUpdateTaskStatus(currentUser, task);
-  const canApprove = canApproveTaskWorkflow(currentUser, task);
+  const allowedStatuses = getAllowedStatusOptions(currentUser, task, eventRole);
+  const canUpdate = canUpdateTaskStatus(currentUser, task, eventRole);
+  const canApprove = canApproveTaskWorkflow(currentUser, task, eventRole);
 
   async function sendWorkflowNotification(payload: Record<string, unknown>) {
     if (!user) {

@@ -14,16 +14,16 @@ export const PIC_STATUS_TRANSITIONS: Partial<Record<TaskStatus, TaskStatus[]>> =
   revisi_dikerjakan: ["menunggu_approval"],
 };
 
-export function canUpdateTaskStatus(profile: UserProfile, task: Task) {
-  return canManageTask(profile, task) || task.pic_id === profile.id;
+export function canUpdateTaskStatus(profile: UserProfile, task: Task, eventRole?: string) {
+  return canManageTask(profile, task, eventRole) || task.pic_id === profile.id;
 }
 
-export function canApproveTaskWorkflow(profile: UserProfile, task: Task) {
-  return canManageTask(profile, task);
+export function canApproveTaskWorkflow(profile: UserProfile, task: Task, eventRole?: string) {
+  return canManageTask(profile, task, eventRole);
 }
 
-export function getAllowedStatusOptions(profile: UserProfile, task: Task) {
-  if (canManageTask(profile, task)) {
+export function getAllowedStatusOptions(profile: UserProfile, task: Task, eventRole?: string) {
+  if (canManageTask(profile, task, eventRole)) {
     return [
       "belum_dimulai",
       "sedang_dikerjakan",

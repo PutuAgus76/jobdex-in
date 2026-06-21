@@ -50,48 +50,64 @@ export function canCreateEvent(
 export function canManageEvent(
   profile: UserProfile | null | undefined,
   event: Event | null | undefined,
+  eventRole?: string,
 ) {
   if (!profile || !event) {
     return false;
   }
 
-  return (
+  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
+                      eventRole?.toLowerCase() === "sekretaris acara" ||
+                      eventRole?.toLowerCase() === "sekretaris";
+
+  return Boolean(
     isSuperAdmin(profile) ||
     isKoordinatorDivisi(profile) ||
-    (isKoordinatorAcara(profile) && event.coordinator_id === profile.id)
+    (isKoordinatorAcara(profile) && event.coordinator_id === profile.id) ||
+    isSecretary
   );
 }
 
-export function canCreateTask(input: UserProfile | UserRole | null | undefined) {
-  return isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input);
+export function canCreateTask(input: UserProfile | UserRole | null | undefined, eventRole?: string) {
+  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
+                      eventRole?.toLowerCase() === "sekretaris acara" ||
+                      eventRole?.toLowerCase() === "sekretaris";
+  return Boolean(isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input) || isSecretary);
 }
 
 export function canManageTask(
   profile: UserProfile | null | undefined,
   task: Task | null | undefined,
+  eventRole?: string,
 ) {
   if (!profile || !task) {
     return false;
   }
 
-  return (
+  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
+                      eventRole?.toLowerCase() === "sekretaris acara" ||
+                      eventRole?.toLowerCase() === "sekretaris";
+
+  return Boolean(
     isSuperAdmin(profile) ||
     isKoordinatorDivisi(profile) ||
     (isKoordinatorAcara(profile) &&
       task.type === "acara" &&
-      task.coordinator_id === profile.id)
+      task.coordinator_id === profile.id) ||
+    (task.type === "acara" && task.event_id && isSecretary)
   );
 }
 
 export function canReadTask(
   profile: UserProfile | null | undefined,
   task: Task | null | undefined,
+  eventRole?: string,
 ) {
   if (!profile || !task) {
     return false;
   }
 
-  return canManageTask(profile, task) || task.pic_id === profile.id;
+  return canManageTask(profile, task, eventRole) || task.pic_id === profile.id;
 }
 
 export function canApproveTask(

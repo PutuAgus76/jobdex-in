@@ -37,6 +37,14 @@ export function EventDetail({
   const usersById = new Map(users.map((user) => [user.id, user]));
   const coordinator = usersById.get(event.coordinator_id);
 
+  const currentUserMember = eventMembers.find((m) => m.user_id === userProfile?.id);
+  const eventRole = currentUserMember?.role_in_event;
+  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
+                      eventRole?.toLowerCase() === "sekretaris acara" ||
+                      eventRole?.toLowerCase() === "sekretaris";
+
+  const canManageMembers = canManage && !isSecretary;
+
   // Recalculate event progress dynamically client-side for absolute real-time accuracy!
   const activeTasks = tasks.filter((t) => t.event_id === event.id && !t.is_archived);
   const computedProgress = activeTasks.length > 0
@@ -173,7 +181,7 @@ export function EventDetail({
         eventName={event.name}
         users={users}
         eventMembers={eventMembers}
-        canManage={canManage}
+        canManage={canManageMembers}
         onAdd={onAddMember}
         onRemove={onRemoveMember}
       />

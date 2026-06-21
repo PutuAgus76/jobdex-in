@@ -47,14 +47,22 @@ export default function EventDetailPage() {
         return;
       }
 
-      if (isAnggota(userProfile) || !canManageEvent(userProfile, eventData)) {
+      // Fetch event members first to get current user's role in the event
+      const membersData = await getEventMembers(eventId);
+      const currentUserMember = membersData.find((m) => m.user_id === userProfile.id);
+      const eventRole = currentUserMember?.role_in_event;
+
+      const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
+                          eventRole?.toLowerCase() === "sekretaris acara" ||
+                          eventRole?.toLowerCase() === "sekretaris";
+
+      if ((isAnggota(userProfile) && !isSecretary) || !canManageEvent(userProfile, eventData, eventRole)) {
         router.replace("/dashboard/unauthorized");
         return;
       }
 
-      const [usersData, membersData, taskData] = await Promise.all([
+      const [usersData, taskData] = await Promise.all([
         getMembers(),
-        getEventMembers(eventId),
         getTasksByEvent(eventId),
       ]);
 
@@ -153,13 +161,16 @@ export default function EventDetailPage() {
     );
   }
 
+  const currentUserMember = eventMembers.find((m) => m.user_id === userProfile?.id);
+  const eventRole = currentUserMember?.role_in_event;
+
   return (
     <EventDetail
       event={event}
       users={users}
       eventMembers={eventMembers}
       tasks={tasks}
-      canManage={Boolean(userProfile && canManageEvent(userProfile, event))}
+      canManage={Boolean(userProfile && canManageEvent(userProfile, event, eventRole))}
       onAddMember={handleAddMember}
       onRemoveMember={handleRemoveMember}
       onCreateTask={handleCreateTask}

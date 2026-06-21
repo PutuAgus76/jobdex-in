@@ -41,7 +41,7 @@ export async function uploadImageBuffer({
     const stream = getCloudinary().uploader.upload_stream(
       {
         folder,
-        resource_type: "image",
+        resource_type: "auto",
         use_filename: true,
         filename_override: fileName,
         unique_filename: true,

@@ -24,6 +24,7 @@ type TaskDetailProps = {
   currentUser: UserProfile;
   onChanged: () => Promise<void>;
   returnTo?: string;
+  eventRole?: string;
 };
 
 function formatDateTime(value: unknown) {
@@ -46,6 +47,7 @@ export function TaskDetail({
   currentUser,
   onChanged,
   returnTo = "/dashboard/tasks",
+  eventRole,
 }: TaskDetailProps) {
   const [refDialogOpen, setRefDialogOpen] = useState(false);
 
@@ -87,6 +89,7 @@ export function TaskDetail({
         task={task}
         currentUser={currentUser}
         onChanged={onChanged}
+        eventRole={eventRole}
       />
 
       <TaskWorkflowPanel task={task} usersById={usersById} />
@@ -236,6 +239,7 @@ export function TaskDetail({
         currentUser={currentUser}
         usersById={usersById}
         onUploaded={onChanged}
+        eventRole={eventRole}
       />
 
       <TaskActivityLog logs={logs} usersById={usersById} />

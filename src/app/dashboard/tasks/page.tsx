@@ -23,6 +23,8 @@ import {
 import { canCreateTask, canManageTask } from "@/lib/permissions";
 import type { Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
+import { db } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function TasksPage() {
   const { userProfile } = useAuth();
@@ -50,6 +52,7 @@ export default function TasksPage() {
   }, []);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [userEventRoles, setUserEventRoles] = useState<Map<string, string>>(new Map());
 
   const loadData = useCallback(async () => {
     if (!userProfile) {
@@ -65,6 +68,19 @@ export default function TasksPage() {
         getEventsForProfile(userProfile).catch(() => []),
         getMembers().catch(() => [userProfile]),
       ]);
+
+      const rolesMap = new Map<string, string>();
+      if (eventData.length > 0) {
+        const memberDocs = await Promise.all(
+          eventData.map((e) => getDoc(doc(db, "events", e.id, "event_members", userProfile.id)).catch(() => null))
+        );
+        memberDocs.forEach((docSnap, index) => {
+          if (docSnap && docSnap.exists()) {
+            rolesMap.set(eventData[index].id, docSnap.data().role_in_event || "");
+          }
+        });
+      }
+      setUserEventRoles(rolesMap);
 
       setTasks(taskData);
       setEvents(eventData);
@@ -253,7 +269,7 @@ export default function TasksPage() {
           tasks={filteredTasks}
           usersById={usersById}
           eventsById={eventsById}
-          canEdit={(task) => canManageTask(userProfile, task)}
+          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined)}
           onEdit={(task) => {
             setSelectedTask(task);
             setFormOpen(true);
@@ -265,7 +281,7 @@ export default function TasksPage() {
           tasks={filteredTasks}
           usersById={usersById}
           eventsById={eventsById}
-          canEdit={(task) => canManageTask(userProfile, task)}
+          canEdit={(task) => canManageTask(userProfile, task, task.event_id ? userEventRoles.get(task.event_id) : undefined)}
           onEdit={(task) => {
             setSelectedTask(task);
             setFormOpen(true);

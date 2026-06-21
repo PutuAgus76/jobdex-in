@@ -43,8 +43,23 @@ export async function getServerAuthContext(request: NextRequest) {
   };
 }
 
-export function canUploadTaskResult(profile: UserProfile, task: Task) {
-  return canManageTask(profile, task) || task.pic_id === profile.id;
+export async function canUploadTaskResult(profile: UserProfile, task: Task) {
+  if (task.pic_id === profile.id) {
+    return true;
+  }
+  let eventRole: string | undefined = undefined;
+  if (task.type === "acara" && task.event_id) {
+    const memberDoc = await getAdminDb()
+      .collection("events")
+      .doc(task.event_id)
+      .collection("event_members")
+      .doc(profile.id)
+      .get();
+    if (memberDoc.exists) {
+      eventRole = memberDoc.data()?.role_in_event;
+    }
+  }
+  return canManageTask(profile, task, eventRole);
 }
 
 export function canTriggerTaskNotification(profile: UserProfile, task: Task) {
