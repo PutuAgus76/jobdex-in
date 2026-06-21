@@ -149,7 +149,7 @@ export function canApproveTask(
   if (role === "super_admin") return true;
 
   if (normalizedRole) {
-    if (normalizedRole === "koordinator_acara") return true;
+    if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara") return true;
     if (role === "koordinator_divisi") {
       return normalizedRole !== "anggota_acara" && normalizedRole !== "sekretaris_acara";
     }

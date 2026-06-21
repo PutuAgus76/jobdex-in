@@ -264,10 +264,14 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      allow read: if isSuperAdmin() ||
+      allow get: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
         isEventMember(eventId) ||
         resource.data.coordinator_id == request.auth.uid;
+
+      allow list: if isSuperAdmin() || isKoordinatorDivisi();
+      allow list: if resource.data.coordinator_id == request.auth.uid;
+      allow list: if isEventMember(eventId);
 
       allow create: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
@@ -301,7 +305,19 @@ service cloud.firestore {
     }
 
     match /tasks/{taskId} {
-      allow read: if isSignedIn() && canReadTaskData(resource.data);
+      allow get: if isSignedIn() && canReadTaskData(resource.data);
+
+      allow list: if isSignedIn() && resource.data.pic_id == request.auth.uid;
+      allow list: if isSignedIn() && (isSuperAdmin() || isKoordinatorDivisi());
+      allow list: if isSignedIn() && (
+        resource.data.event_id != null &&
+        resource.data.event_id != "" &&
+        (
+          isEventCoordinator(resource.data.event_id) ||
+          isEventSecretary(resource.data.event_id) ||
+          isEventMember(resource.data.event_id)
+        )
+      );
 
       allow create: if isSignedIn() &&
         canCreateTaskData(request.resource.data) &&
