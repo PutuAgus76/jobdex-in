@@ -13,6 +13,12 @@ export const metadata: Metadata = {
   title: "JobDex.in",
   description:
     "Aplikasi manajemen job desk untuk Humas dan Media Kreatif organisasi mahasiswa.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" }
+    ],
+  }
 };
 
 export default function RootLayout({
