@@ -131,6 +131,25 @@ export function TaskUploadSection({
             </div>
           )}
 
+          {/* Rule-based warnings */}
+          <div className="space-y-2">
+            {task.requires_file && !latestUpload ? (
+              <p className="rounded-[8px] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
+                ⚠️ Tugas ini memiliki kategori yang <strong>wajib mengunggah file hasil</strong> (seperti poster/surat/laporan). Harap unggah berkas di bawah ini.
+              </p>
+            ) : null}
+            {task.requires_source_link && !task.source_link ? (
+              <p className="rounded-[8px] bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 px-3.5 py-2.5 text-xs text-amber-800 dark:text-amber-300 font-medium">
+                ⚠️ Tugas ini <strong>wajib mencantumkan link sumber pengerjaan</strong> (Canva/Figma/Docs). Silakan edit detail tugas untuk melengkapinya.
+              </p>
+            ) : null}
+            {task.requires_file === false ? (
+              <p className="rounded-[8px] bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/60 px-3.5 py-2.5 text-xs text-sky-800 dark:text-sky-300 font-medium">
+                ℹ️ Kategori tugas ini <strong>tidak wajib mengunggah file hasil</strong> (hanya log aktivitas). Anda tetap dapat mengunggah screenshot/file jika diperlukan, atau langsung melakukan update status tugas.
+              </p>
+            ) : null}
+          </div>
+
           <div className="flex flex-col gap-3 rounded-[8px] border border-slate-200 dark:border-slate-800 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold text-slate-950 dark:text-slate-50">Upload Hasil Desain</p>

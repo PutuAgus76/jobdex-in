@@ -133,6 +133,18 @@ export type Task = {
   created_by: string;
   created_at?: unknown;
   updated_at?: unknown;
+  category_key?: string;
+  category_label?: string;
+  subcategory_key?: string;
+  subcategory_label?: string;
+  output_types?: string[];
+  archive_enabled?: boolean;
+  reference_candidate_enabled?: boolean;
+  requires_file?: boolean;
+  requires_source_link?: boolean;
+  source_link?: string;
+  archive_notes?: string;
+  data_sensitivity?: "normal" | "internal" | "sensitive";
 };
 
 export type TaskStatusLog = {
@@ -291,6 +303,18 @@ export type TaskInput = {
   drive_reference_url: string;
   color_palette: string[];
   visual_direction: string;
+  category_key?: string;
+  category_label?: string;
+  subcategory_key?: string;
+  subcategory_label?: string;
+  output_types?: string[];
+  archive_enabled?: boolean;
+  reference_candidate_enabled?: boolean;
+  requires_file?: boolean;
+  requires_source_link?: boolean;
+  source_link?: string;
+  archive_notes?: string;
+  data_sensitivity?: "normal" | "internal" | "sensitive";
 };
 
 export type Organization = {

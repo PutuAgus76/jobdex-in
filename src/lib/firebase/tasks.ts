@@ -189,6 +189,18 @@ export async function createTask(input: TaskInput, createdBy: string) {
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
+    category_key: input.category_key || "",
+    category_label: input.category_label || "",
+    subcategory_key: input.subcategory_key || "",
+    subcategory_label: input.subcategory_label || "",
+    output_types: input.output_types || [],
+    archive_enabled: input.archive_enabled ?? true,
+    reference_candidate_enabled: input.reference_candidate_enabled ?? false,
+    requires_file: input.requires_file ?? false,
+    requires_source_link: input.requires_source_link ?? false,
+    source_link: input.source_link || "",
+    archive_notes: input.archive_notes || "",
+    data_sensitivity: input.data_sensitivity || "normal",
   });
 
   if (input.type === "acara" && input.event_id) {
@@ -220,6 +232,18 @@ export async function updateTask(taskId: string, input: TaskInput) {
     color_palette: input.color_palette,
     visual_direction: input.visual_direction,
     updated_at: serverTimestamp(),
+    category_key: input.category_key || "",
+    category_label: input.category_label || "",
+    subcategory_key: input.subcategory_key || "",
+    subcategory_label: input.subcategory_label || "",
+    output_types: input.output_types || [],
+    archive_enabled: input.archive_enabled ?? true,
+    reference_candidate_enabled: input.reference_candidate_enabled ?? false,
+    requires_file: input.requires_file ?? false,
+    requires_source_link: input.requires_source_link ?? false,
+    source_link: input.source_link || "",
+    archive_notes: input.archive_notes || "",
+    data_sensitivity: input.data_sensitivity || "normal",
   });
 
   if (oldData && oldData.type === "acara" && oldData.event_id) {

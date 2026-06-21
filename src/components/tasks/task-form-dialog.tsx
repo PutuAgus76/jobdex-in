@@ -16,6 +16,13 @@ import {
   parseColorPalette,
 } from "@/lib/task-utils";
 import type { Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
+import {
+  getMainCategories,
+  getSubcategories,
+  getCategoryRule,
+  getDefaultArchiveSettings,
+  MAIN_CATEGORIES,
+} from "@/lib/jobdesk-categories";
 
 type TaskFormDialogProps = {
   open: boolean;
@@ -65,6 +72,41 @@ function TaskForm({
   const [visualDirection, setVisualDirection] = useState(task?.visual_direction ?? "");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [categoryKey, setCategoryKey] = useState(task?.category_key ?? "");
+  const [subcategoryKey, setSubcategoryKey] = useState(task?.subcategory_key ?? "");
+  const [outputTypes, setOutputTypes] = useState((task?.output_types ?? []).join(", "));
+  const [archiveEnabled, setArchiveEnabled] = useState(task?.archive_enabled ?? true);
+  const [referenceCandidateEnabled, setReferenceCandidateEnabled] = useState(task?.reference_candidate_enabled ?? false);
+  const [requiresFile, setRequiresFile] = useState(task?.requires_file ?? false);
+  const [requiresSourceLink, setRequiresSourceLink] = useState(task?.requires_source_link ?? false);
+  const [sourceLink, setSourceLink] = useState(task?.source_link ?? "");
+  const [archiveNotes, setArchiveNotes] = useState(task?.archive_notes ?? "");
+  const [dataSensitivity, setDataSensitivity] = useState(task?.data_sensitivity ?? "normal");
+
+  const handleCategoryChange = (catKey: string) => {
+    setCategoryKey(catKey);
+    setSubcategoryKey("");
+    setOutputTypes("");
+    setArchiveEnabled(true);
+    setReferenceCandidateEnabled(false);
+    setRequiresFile(false);
+    setRequiresSourceLink(false);
+    setDataSensitivity("normal");
+  };
+
+  const handleSubcategoryChange = (subKey: string) => {
+    setSubcategoryKey(subKey);
+    if (categoryKey && subKey) {
+      const defaults = getDefaultArchiveSettings(categoryKey, subKey);
+      setArchiveEnabled(defaults.archiveEnabled);
+      setReferenceCandidateEnabled(defaults.referenceCandidateEnabled);
+      setRequiresFile(defaults.requiresFile);
+      setRequiresSourceLink(defaults.requiresSourceLink);
+      setOutputTypes(defaults.outputTypes.join(", "));
+      setDataSensitivity(defaults.dataSensitivity);
+    }
+  };
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -117,6 +159,18 @@ function TaskForm({
           drive_reference_url: driveReferenceUrl.trim(),
           color_palette: colors,
           visual_direction: visualDirection.trim(),
+          category_key: categoryKey,
+          category_label: MAIN_CATEGORIES.find((c) => c.key === categoryKey)?.label ?? "",
+          subcategory_key: subcategoryKey,
+          subcategory_label: categoryKey && subcategoryKey ? getCategoryRule(categoryKey, subcategoryKey)?.subcategoryLabel ?? "" : "",
+          output_types: outputTypes.split(",").map((t) => t.trim()).filter(Boolean),
+          archive_enabled: archiveEnabled,
+          reference_candidate_enabled: referenceCandidateEnabled,
+          requires_file: requiresFile,
+          requires_source_link: requiresSourceLink,
+          source_link: sourceLink.trim(),
+          archive_notes: archiveNotes.trim(),
+          data_sensitivity: dataSensitivity as "normal" | "internal" | "sensitive",
         },
         task?.id,
       );
@@ -249,6 +303,161 @@ function TaskForm({
             <Input value={colorPalette} onChange={(event) => setColorPalette(event.target.value)} placeholder="#0f172a, #22c55e" />
           </Field>
           <TextArea label="Arahan visual/supergrafis" value={visualDirection} onChange={setVisualDirection} />
+
+          {/* Section: Pengarsipan & Referensi */}
+          <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-slate-950 dark:text-slate-50">
+                Pengarsipan &amp; Referensi
+              </h3>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Rule otomatis berjalan berdasarkan kategori dan subkategori pilihan. Anda tetap dapat mengubah pilihan pengarsipan/referensi secara manual.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Kategori Utama">
+                <select
+                  className={selectClassName}
+                  value={categoryKey}
+                  onChange={(event) => handleCategoryChange(event.target.value)}
+                >
+                  <option value="">Pilih kategori utama (opsional)</option>
+                  {getMainCategories().map((cat) => (
+                    <option key={cat.key} value={cat.key}>{cat.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Subkategori">
+                <select
+                  className={selectClassName}
+                  value={subcategoryKey}
+                  onChange={(event) => handleSubcategoryChange(event.target.value)}
+                  disabled={!categoryKey}
+                >
+                  <option value="">Pilih subkategori</option>
+                  {categoryKey && getSubcategories(categoryKey).map((sub) => (
+                    <option key={sub.key} value={sub.key}>{sub.label}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            {categoryKey && subcategoryKey ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="flex items-center gap-2 p-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+                    <input
+                      type="checkbox"
+                      id="archiveEnabled"
+                      checked={archiveEnabled}
+                      onChange={(e) => setArchiveEnabled(e.target.checked)}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="archiveEnabled" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                      Masuk Arsip Acara
+                      <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                        Direkomendasikan
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+                    <input
+                      type="checkbox"
+                      id="referenceCandidateEnabled"
+                      checked={referenceCandidateEnabled}
+                      onChange={(e) => setReferenceCandidateEnabled(e.target.checked)}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="referenceCandidateEnabled" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                      Kandidat Referensi
+                      <span className="block text-[10px] text-slate-500 font-medium">
+                        {dataSensitivity === "sensitive" ? (
+                          <span className="text-rose-600 dark:text-rose-400 font-semibold">Sensitif (Tidak disarankan)</span>
+                        ) : (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Direkomendasikan</span>
+                        )}
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+                    <input
+                      type="checkbox"
+                      id="requiresFile"
+                      checked={requiresFile}
+                      onChange={(e) => setRequiresFile(e.target.checked)}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="requiresFile" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                      Wajib File Hasil
+                      <span className="block text-[10px] text-slate-500 font-medium">
+                        Soft warning saat upload
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="flex items-center gap-2 p-3 rounded-[8px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
+                    <input
+                      type="checkbox"
+                      id="requiresSourceLink"
+                      checked={requiresSourceLink}
+                      onChange={(e) => setRequiresSourceLink(e.target.checked)}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="requiresSourceLink" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                      Wajib Link Sumber
+                      <span className="block text-[10px] text-slate-500 font-medium">
+                        Canva/Figma/Docs/Sheets
+                      </span>
+                    </label>
+                  </div>
+
+                  <Field label="Sensitivitas Data">
+                    <select
+                      className="h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none"
+                      value={dataSensitivity}
+                      onChange={(e) => setDataSensitivity(e.target.value as "normal" | "internal" | "sensitive")}
+                    >
+                      <option value="normal">Normal (Public/Shareable)</option>
+                      <option value="internal">Internal (Panitia saja)</option>
+                      <option value="sensitive">Sensitive (Data Pribadi/Bayar)</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Jenis Output">
+                    <Input
+                      placeholder="image, pdf, canva_link"
+                      value={outputTypes}
+                      onChange={(e) => setOutputTypes(e.target.value)}
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Link Sumber (Figma/Canva/Workspace/Drive)">
+                    <Input
+                      placeholder="https://..."
+                      value={sourceLink}
+                      onChange={(e) => setSourceLink(e.target.value)}
+                    />
+                  </Field>
+
+                  <Field label="Catatan Arsip / Serah Terima">
+                    <Input
+                      placeholder="Contoh: Upload format PDF..."
+                      value={archiveNotes}
+                      onChange={(e) => setArchiveNotes(e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </>
+            ) : null}
+          </div>
 
           {error ? (
             <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>

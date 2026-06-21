@@ -113,6 +113,71 @@ export function TaskDetail({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Kategori &amp; Arsip</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Kategori Utama</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                {task.category_label || "Belum dikategorikan"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Subkategori</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                {task.subcategory_label || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Jenis Output</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                {task.output_types?.length ? task.output_types.join(", ") : "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Masuk Arsip</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                {task.archive_enabled === undefined ? "-" : task.archive_enabled ? "Ya" : "Tidak"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Kandidat Referensi</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50">
+                {task.reference_candidate_enabled === undefined ? "-" : task.reference_candidate_enabled ? "Ya" : "Tidak"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Sensitivitas Data</p>
+              <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-slate-50 capitalize">
+                {task.data_sensitivity || "normal"}
+              </p>
+            </div>
+            {task.source_link ? (
+              <div className="sm:col-span-2">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Link Sumber (Canva/Figma/Drive)</p>
+                <a
+                  href={task.source_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-block text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-200 text-sm font-semibold break-all"
+                >
+                  {task.source_link}
+                </a>
+              </div>
+            ) : null}
+            {task.archive_notes ? (
+              <div className="sm:col-span-2">
+                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Catatan Arsip</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{task.archive_notes}</p>
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 w-full max-w-full min-w-0">
         <Card className="w-full min-w-0 max-w-full">
           <CardHeader>
