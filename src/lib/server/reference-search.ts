@@ -1,5 +1,6 @@
 import { getAdminDb } from "./firebase-admin";
-import type { DesignReference, DesignType, TaskUpload } from "@/types";
+import type { DesignReference, TaskUpload } from "@/types";
+import { isTaskReferenceEligible, mapTaskSubcategoryToDesignType } from "@/lib/reference-utils";
 import { generateText } from "./ai-provider";
 import { WA_LABEL } from "./whatsapp-labels";
 
@@ -655,21 +656,7 @@ function buildAnswerText(
   return resultLines.join("\n").trim();
 }
 
-export function mapTaskSubcategoryToDesignType(subcategoryKey?: string): DesignType {
-  if (!subcategoryKey) return "lainnya";
-  const key = subcategoryKey.toLowerCase();
-  if (key === "poster") return "poster";
-  if (key === "name_tag" || key === "id_card" || key === "kartu_panitia" || key === "badge_peserta") return "name_tag";
-  if (key === "twibbon") return "twibbon";
-  if (key.includes("feed")) return "feed_ig";
-  if (key.includes("story")) return "story_ig";
-  if (key.includes("banner") || key.includes("spanduk") || key.includes("backdrop") || key.includes("baliho")) return "banner";
-  if (key === "sertifikat" || key === "piagam") return "sertifikat";
-  if (key.includes("foto") || key.includes("dokumentasi")) return "dokumentasi";
-  if (key.includes("video") || key.includes("animasi")) return "animasi";
-  if (key.includes("merchandise") || key.includes("kaos") || key.includes("baju") || key.includes("plakat")) return "merchandise";
-  return "lainnya";
-}
+export { mapTaskSubcategoryToDesignType } from "@/lib/reference-utils";
 
 // ─── Main Search Function ─────────────────────────────────────────────────────
 
@@ -700,7 +687,7 @@ export async function searchDesignReferencesDetailed(
   // Fetch tasks candidate for reference
   const tasksSnapshot = await db
     .collection("tasks")
-    .where("reference_candidate_enabled", "==", true)
+    .where("status", "==", "approved")
     .get();
 
   const allEventsSnap = await db.collection("events").get();
@@ -730,14 +717,12 @@ export async function searchDesignReferencesDetailed(
   const taskUploadsResults = await Promise.all(taskPromises);
 
   taskUploadsResults.forEach(({ taskId, taskData, uploads }) => {
-    const isApproved = taskData.status === "approved" || taskData.approval_status === "approved";
-    if (!isApproved) return;
+    if (!isTaskReferenceEligible(taskData, uploads.length)) return;
+
+    if (taskData.data_sensitivity === "sensitive") return;
 
     const isArchiveMatch = !taskData.is_archived || (taskData.is_archived && taskData.archive_enabled);
     if (!isArchiveMatch) return;
-
-    const hasResult = !!taskData.result_design_url || !!taskData.source_link;
-    if (!hasResult) return;
 
     const finalUpload = uploads.find((u) => u.is_final_candidate) || uploads[0];
 

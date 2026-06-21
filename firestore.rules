@@ -229,6 +229,32 @@ service cloud.firestore {
         ]);
     }
 
+    function isReferenceEligible(data) {
+      return (
+        ("reference_candidate_enabled" in data && data.reference_candidate_enabled == true) ||
+        (
+          !("reference_candidate_enabled" in data) &&
+          data.status == "approved" &&
+          (
+            data.category_key == "desain_publikasi" ||
+            data.category_key == "identitas_acara_dan_panitia" ||
+            data.category_key == "aset_desain" ||
+            data.subcategory_key == "poster" ||
+            data.subcategory_key == "name_tag" ||
+            data.subcategory_key == "twibbon" ||
+            data.subcategory_key == "feed_ig" ||
+            data.subcategory_key == "story_ig" ||
+            data.subcategory_key == "banner" ||
+            data.subcategory_key == "sertifikat" ||
+            data.subcategory_key == "dokumentasi" ||
+            data.subcategory_key == "animasi" ||
+            data.subcategory_key == "merchandise" ||
+            data.name.matches("(?i).*(poster|spanduk|banner|nametag|piagam|feed|story|desain).*")
+          )
+        )
+      );
+    }
+
     match /users/{userId} {
       allow create: if isSelf(userId) &&
         request.resource.data.role == "anggota" &&
@@ -308,8 +334,11 @@ service cloud.firestore {
       allow get: if isSignedIn() && (
         canReadTaskData(resource.data) ||
         (
-          resource.data.reference_candidate_enabled == true &&
-          resource.data.data_sensitivity != "sensitive"
+          isReferenceEligible(resource.data) &&
+          (
+            !("data_sensitivity" in resource.data) ||
+            resource.data.data_sensitivity != "sensitive"
+          )
         )
       );
 
@@ -326,7 +355,7 @@ service cloud.firestore {
           )
         ) ||
         (
-          resource.data.reference_candidate_enabled == true
+          isReferenceEligible(resource.data)
         )
       );
 
@@ -348,8 +377,16 @@ service cloud.firestore {
       }
 
       match /uploads/{uploadId} {
-        allow read: if isSignedIn() &&
-          canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data);
+        allow read: if isSignedIn() && (
+          canReadTaskData(get(/databases/$(database)/documents/tasks/$(taskId)).data) ||
+          (
+            isReferenceEligible(get(/databases/$(database)/documents/tasks/$(taskId)).data) &&
+            (
+              !("data_sensitivity" in get(/databases/$(database)/documents/tasks/$(taskId)).data) ||
+              get(/databases/$(database)/documents/tasks/$(taskId)).data.data_sensitivity != "sensitive"
+            )
+          )
+        );
         allow create, update, delete: if false; // Metadata upload ditulis server API via Admin SDK.
       }
     }
