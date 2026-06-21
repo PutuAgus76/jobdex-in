@@ -18,6 +18,7 @@ import {
   archiveTask,
   createTask,
   getTasksForProfile,
+  getTasksByEvent,
   updateTask,
 } from "@/lib/firebase/tasks";
 import { canCreateTask, canManageTask } from "@/lib/permissions";
@@ -63,20 +64,66 @@ export default function TasksPage() {
     setError("");
 
     try {
-      const [taskData, eventData, userData] = await Promise.all([
-        getTasksForProfile(userProfile),
-        getEventsForProfile(userProfile).catch(() => []),
-        getMembers().catch(() => [userProfile]),
+      // 1. Fetch main tasks
+      let taskData: Task[] = [];
+      try {
+        taskData = await getTasksForProfile(userProfile);
+      } catch (err) {
+        console.error("Failed to fetch main tasks:", err);
+        const detailedError = "Gagal memuat job desk karena permission Firestore. Cek rules untuk tasks/events/event_members.";
+        const genericError = "Belum bisa memuat job desk. Silakan coba muat ulang atau hubungi admin.";
+        setError(userProfile.role === "super_admin" ? detailedError : genericError);
+        throw err;
+      }
+
+      // 2. Fetch events and members as optional
+      const [eventsResult, usersResult] = await Promise.allSettled([
+        getEventsForProfile(userProfile),
+        getMembers(),
       ]);
 
+      const eventData = eventsResult.status === "fulfilled" ? eventsResult.value : [];
+      const userData = usersResult.status === "fulfilled" ? usersResult.value : [userProfile];
+
+      // 3. Fetch event tasks for non-staff
+      if (userProfile.role !== "super_admin" && userProfile.role !== "koordinator_divisi") {
+        if (eventData.length > 0) {
+          const eventTasksResults = await Promise.allSettled(
+            eventData.map(e => getTasksByEvent(e.id))
+          );
+          
+          eventTasksResults.forEach(res => {
+            if (res.status === "fulfilled") {
+              res.value.forEach(t => {
+                if (!taskData.some(existing => existing.id === t.id)) {
+                  taskData.push(t);
+                }
+              });
+            }
+          });
+        }
+      }
+
+      // Sort tasks again after merging
+      taskData.sort((a, b) => {
+        const getMillis = (task: Task) => {
+          if (task.created_at && typeof task.created_at === "object" && "toDate" in task.created_at) return (task.created_at as { toDate: () => Date }).toDate().getTime();
+          if (task.updated_at && typeof task.updated_at === "object" && "toDate" in task.updated_at) return (task.updated_at as { toDate: () => Date }).toDate().getTime();
+          if (task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline) return (task.deadline as { toDate: () => Date }).toDate().getTime();
+          return 0;
+        };
+        return getMillis(b) - getMillis(a);
+      });
+
+      // 4. Resolve event roles
       const rolesMap = new Map<string, string>();
       if (eventData.length > 0) {
-        const memberDocs = await Promise.all(
-          eventData.map((e) => getDoc(doc(db, "events", e.id, "event_members", userProfile.id)).catch(() => null))
+        const memberDocsResults = await Promise.allSettled(
+          eventData.map((e) => getDoc(doc(db, "events", e.id, "event_members", userProfile.id)))
         );
-        memberDocs.forEach((docSnap, index) => {
-          if (docSnap && docSnap.exists()) {
-            rolesMap.set(eventData[index].id, docSnap.data().role_in_event || "");
+        memberDocsResults.forEach((res, index) => {
+          if (res.status === "fulfilled" && res.value.exists()) {
+            rolesMap.set(eventData[index].id, res.value.data().role_in_event || "");
           }
         });
       }
@@ -86,7 +133,7 @@ export default function TasksPage() {
       setEvents(eventData);
       setUsers(userData.length ? userData : [userProfile]);
     } catch {
-      setError("Gagal mengambil data job desk. Periksa Firestore Rules dan koneksi.");
+      setError((prev) => prev || "Belum bisa memuat job desk. Silakan coba muat ulang atau hubungi admin.");
     } finally {
       setLoading(false);
     }
@@ -241,15 +288,20 @@ export default function TasksPage() {
       </div>
 
       {error ? (
-        <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
+        <div className="flex flex-col items-start gap-3 rounded-[8px] bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+          <p>{error}</p>
+          <Button variant="outline" size="sm" onClick={() => void loadData()} className="bg-white text-red-700 hover:bg-red-50 hover:text-red-800 dark:bg-transparent dark:text-red-200 dark:hover:bg-red-900/50">
+            Muat ulang
+          </Button>
+        </div>
       ) : null}
 
       {loading ? (
         <LoadingState title="Memuat daftar job desk..." />
-      ) : tasks.length === 0 ? (
+      ) : tasks.length === 0 && !error ? (
         <EmptyState
-          title="Belum ada job desk"
-          description="Buat job desk pertama untuk mulai mengelola tugas divisi atau acara."
+          title={userProfile.role === "anggota" && events.length === 0 ? "Belum ada job desk yang terhubung dengan akun ini" : "Belum ada job desk"}
+          description={userProfile.role === "anggota" && events.length === 0 ? "Anda belum ditugaskan pada job desk atau acara apapun." : "Buat job desk pertama untuk mulai mengelola tugas divisi atau acara."}
           action={
             canCreate ? (
               <Button type="button" size="sm" onClick={() => setFormOpen(true)}>
@@ -259,7 +311,7 @@ export default function TasksPage() {
             ) : undefined
           }
         />
-      ) : filteredTasks.length === 0 ? (
+      ) : filteredTasks.length === 0 && !error ? (
         <EmptyState
           title="Tidak ada job desk yang cocok"
           description="Coba ubah search atau filter yang digunakan."
