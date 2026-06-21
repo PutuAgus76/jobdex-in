@@ -16,7 +16,7 @@ import {
   canCreateDesignReference,
   canEditDesignReference,
   createDesignReference,
-  getDesignReferencesForProfile,
+  getCombinedReferencesForDashboard,
   updateDesignReference,
 } from "@/lib/firebase/design-references";
 import { getEventsForProfile } from "@/lib/firebase/events";
@@ -29,14 +29,15 @@ import type {
   DesignType,
   UserProfile,
   Event,
+  ReferenceListItem,
 } from "@/types";
 
 export default function ReferencesPage() {
   const { userProfile } = useAuth();
-  const [references, setReferences] = useState<DesignReference[]>([]);
+  const [references, setReferences] = useState<ReferenceListItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
-  const [selectedReference, setSelectedReference] = useState<DesignReference | null>(null);
+  const [selectedReference, setSelectedReference] = useState<ReferenceListItem | null>(null);
   const [editingReference, setEditingReference] = useState<DesignReference | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function ReferencesPage() {
 
     try {
       const [referencesData, usersData, eventsData] = await Promise.all([
-        getDesignReferencesForProfile(userProfile),
+        getCombinedReferencesForDashboard(userProfile),
         getMembers().catch(() => [userProfile]),
         getEventsForProfile(userProfile).catch(() => []),
       ]);
@@ -86,8 +87,7 @@ export default function ReferencesPage() {
   const canShowArchived = isKoordinator(userProfile);
 
   const eventNames = useMemo(() => {
-    const list = references.map((item) => item.event_name).filter(Boolean);
-    // Add names from loaded events if they have references or if we want them as options
+    const list = references.map((item) => item.event_name).filter((val): val is string => !!val);
     events.forEach(e => {
       if (e.name) list.push(e.name);
     });
@@ -96,7 +96,10 @@ export default function ReferencesPage() {
 
   const years = useMemo(
     () =>
-      [...new Set(references.map((item) => item.year).filter(Boolean))]
+      [...new Set(references.map((item) => {
+        if (!item.year) return 0;
+        return typeof item.year === "number" ? item.year : parseInt(String(item.year)) || 0;
+      }).filter(Boolean))]
         .sort((a, b) => b - a),
     [references],
   );
@@ -109,17 +112,18 @@ export default function ReferencesPage() {
         reference.title,
         reference.event_name,
         reference.notes,
-        reference.style_notes,
-        reference.file_inventory_notes,
+        reference.category_label,
+        reference.subcategory_label,
+        reference.source_link,
       ]
         .join(" ")
         .toLowerCase();
       const matchesSearch = !query || haystack.includes(query);
       const matchesDesignType =
-        designType === "all" || reference.design_type === designType;
+        designType === "all" || reference.visual_type === designType;
       const matchesYear = !year || String(reference.year) === year;
       const matchesEvent = !eventName || reference.event_name === eventName;
-      const matchesArchive = showArchived ? true : !reference.is_archived;
+      const matchesArchive = showArchived ? true : reference.status !== "archived";
       const matchesScope =
         scopeFilter === "all" ||
         (scopeFilter === "divisi" && (!reference.scope || reference.scope === "divisi")) ||
@@ -249,10 +253,10 @@ export default function ReferencesPage() {
       {filteredReferences.length ? (
         <ReferencesGrid
           references={filteredReferences}
-          canEditReference={(reference) => canEditDesignReference(userProfile, reference)}
+          canEditReference={(reference) => reference.source_type !== "approved_task" && canEditDesignReference(userProfile, reference as unknown as DesignReference)}
           onView={setSelectedReference}
-          onEdit={openEditForm}
-          onArchive={handleArchive}
+          onEdit={(reference) => openEditForm(reference as unknown as DesignReference)}
+          onArchive={(reference) => handleArchive(reference as unknown as DesignReference)}
         />
       ) : (
         <EmptyState
@@ -285,7 +289,7 @@ export default function ReferencesPage() {
       <ReferenceBulkImportDialog
         open={bulkImportOpen}
         events={events}
-        existingReferences={references}
+        existingReferences={references as unknown as DesignReference[]}
         currentUser={userProfile}
         onClose={() => setBulkImportOpen(false)}
         onSuccess={loadReferences}

@@ -5,16 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ColorPalettePreview } from "@/components/references/color-palette-preview";
 import { DesignTypeBadge } from "@/components/references/design-type-badge";
-import type { DesignReference } from "@/types";
+import type { ReferenceListItem, DesignType } from "@/types";
 
-import { Eye, FolderOpen, Palette, Pencil, Archive } from "lucide-react";
+import { Eye, FolderOpen, Palette, Pencil, Archive, ExternalLink } from "lucide-react";
 
 type ReferenceCardProps = {
-  reference: DesignReference;
+  reference: ReferenceListItem;
   canEdit: boolean;
-  onView: (reference: DesignReference) => void;
-  onEdit: (reference: DesignReference) => void;
-  onArchive: (reference: DesignReference) => void;
+  onView: (reference: ReferenceListItem) => void;
+  onEdit: (reference: ReferenceListItem) => void;
+  onArchive: (reference: ReferenceListItem) => void;
 };
 
 export function ReferenceCard({
@@ -44,9 +44,12 @@ export function ReferenceCard({
       <CardContent className="space-y-4 p-5 flex-1 flex flex-col justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <DesignTypeBadge type={reference.design_type} />
-            <Badge variant={reference.is_archived ? "warning" : "success"}>
-              {reference.is_archived ? "Archived" : "Aktif"}
+            <DesignTypeBadge type={reference.visual_type as DesignType} />
+            <Badge variant={reference.status === "archived" ? "warning" : "success"}>
+              {reference.status === "archived" ? "Archived" : "Aktif"}
+            </Badge>
+            <Badge variant={reference.source_type === "approved_task" ? "orange" : "neutral"}>
+              {reference.source_type === "approved_task" ? "Dari Jobdesk Approved" : "Manual"}
             </Badge>
           </div>
           <div>
@@ -57,7 +60,7 @@ export function ReferenceCard({
           </div>
           <ColorPalettePreview colors={reference.color_palette ?? []} />
           <p className="line-clamp-2 min-h-10 text-xs font-medium leading-relaxed text-slate-650 dark:text-slate-300">
-            {reference.style_notes || reference.notes || "Tidak ada catatan."}
+            {reference.notes || "Tidak ada catatan."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 pt-3 border-t border-dashed border-neutral-200 dark:border-neutral-800">
@@ -65,52 +68,81 @@ export function ReferenceCard({
             <Eye className="size-3.5" />
             <span>Detail</span>
           </Button>
-          {(() => {
-            const driveUrl = (reference.drive_links && reference.drive_links[0]) || 
-                             reference.drive_url || 
-                             (reference.file_inventory && reference.file_inventory[0]?.url) || 
-                             "";
-            const canvaLinks = reference.canva_links || [];
-            return (
-              <>
-                {driveUrl ? (
-                  <Button asChild size="sm" variant="secondary">
-                    <a href={driveUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                      <FolderOpen className="size-3.5" />
-                      <span>Drive</span>
-                    </a>
-                  </Button>
-                ) : null}
-                {canvaLinks.length > 0 ? (
-                  <Button asChild size="sm" variant="secondary">
-                    <a href={canvaLinks[0]} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
-                      <Palette className="size-3.5" />
-                      <span>Canva</span>
-                    </a>
-                  </Button>
-                ) : null}
-              </>
-            );
-          })()}
-          {canEdit ? (
+          
+          {reference.source_type === "approved_task" ? (
             <>
-              <Button type="button" size="sm" variant="warning" onClick={() => onEdit(reference)}>
-                <Pencil className="size-3.5" />
-                <span>Edit</span>
-              </Button>
-              {!reference.is_archived ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => onArchive(reference)}
-                >
-                  <Archive className="size-3.5" />
-                  <span>Archive</span>
+              {reference.task_id ? (
+                <Button asChild size="sm" variant="secondary">
+                  <a href={`/dashboard/tasks/${reference.task_id}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                    <ExternalLink className="size-3.5" />
+                    <span>Buka Jobdesk</span>
+                  </a>
+                </Button>
+              ) : null}
+              {reference.file_url ? (
+                <Button asChild size="sm" variant="secondary">
+                  <a href={reference.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                    <FolderOpen className="size-3.5" />
+                    <span>Buka File</span>
+                  </a>
+                </Button>
+              ) : null}
+              {reference.source_link ? (
+                <Button asChild size="sm" variant="secondary">
+                  <a href={reference.source_link} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                    <Palette className="size-3.5" />
+                    <span>Buka Sumber Desain</span>
+                  </a>
                 </Button>
               ) : null}
             </>
-          ) : null}
+          ) : (
+            <>
+              {(() => {
+                const driveUrl = reference.file_url || "";
+                const canvaLink = reference.source_link || "";
+                return (
+                  <>
+                    {driveUrl ? (
+                      <Button asChild size="sm" variant="secondary">
+                        <a href={driveUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                          <FolderOpen className="size-3.5" />
+                          <span>Drive</span>
+                        </a>
+                      </Button>
+                    ) : null}
+                    {canvaLink ? (
+                      <Button asChild size="sm" variant="secondary">
+                        <a href={canvaLink} target="_blank" rel="noreferrer" className="flex items-center gap-1.5">
+                          <Palette className="size-3.5" />
+                          <span>Canva</span>
+                        </a>
+                      </Button>
+                    ) : null}
+                  </>
+                );
+              })()}
+              {canEdit ? (
+                <>
+                  <Button type="button" size="sm" variant="warning" onClick={() => onEdit(reference)}>
+                    <Pencil className="size-3.5" />
+                    <span>Edit</span>
+                  </Button>
+                  {reference.status !== "archived" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => onArchive(reference)}
+                    >
+                      <Archive className="size-3.5" />
+                      <span>Archive</span>
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

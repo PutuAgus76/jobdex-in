@@ -1,5 +1,5 @@
 import { getAdminDb } from "./firebase-admin";
-import type { DesignReference } from "@/types";
+import type { DesignReference, DesignType, TaskUpload } from "@/types";
 import { generateText } from "./ai-provider";
 import { WA_LABEL } from "./whatsapp-labels";
 
@@ -609,9 +609,15 @@ function buildAnswerText(
 
   displayReferences.forEach((item, index) => {
     const ref = item.ref;
+    const isApprovedTask = ref.id.startsWith("task_");
 
-    resultLines.push(`${index + 1}. ${ref.title}`);
-    resultLines.push(`   Kegiatan: ${ref.event_name || "-"}`);
+    if (isApprovedTask) {
+      resultLines.push(`${index + 1}. Ditemukan dari jobdesk approved:`);
+      resultLines.push(`   ${ref.title} - ${ref.event_name || "-"}`);
+    } else {
+      resultLines.push(`${index + 1}. ${ref.title}`);
+      resultLines.push(`   Kegiatan: ${ref.event_name || "-"}`);
+    }
     resultLines.push(`   Tahun: ${ref.year}`);
 
     // Honest reason
@@ -649,6 +655,22 @@ function buildAnswerText(
   return resultLines.join("\n").trim();
 }
 
+export function mapTaskSubcategoryToDesignType(subcategoryKey?: string): DesignType {
+  if (!subcategoryKey) return "lainnya";
+  const key = subcategoryKey.toLowerCase();
+  if (key === "poster") return "poster";
+  if (key === "name_tag" || key === "id_card" || key === "kartu_panitia" || key === "badge_peserta") return "name_tag";
+  if (key === "twibbon") return "twibbon";
+  if (key.includes("feed")) return "feed_ig";
+  if (key.includes("story")) return "story_ig";
+  if (key.includes("banner") || key.includes("spanduk") || key.includes("backdrop") || key.includes("baliho")) return "banner";
+  if (key === "sertifikat" || key === "piagam") return "sertifikat";
+  if (key.includes("foto") || key.includes("dokumentasi")) return "dokumentasi";
+  if (key.includes("video") || key.includes("animasi")) return "animasi";
+  if (key.includes("merchandise") || key.includes("kaos") || key.includes("baju") || key.includes("plakat")) return "merchandise";
+  return "lainnya";
+}
+
 // ─── Main Search Function ─────────────────────────────────────────────────────
 
 export async function searchDesignReferencesDetailed(
@@ -673,6 +695,99 @@ export async function searchDesignReferencesDetailed(
   const allReferences: DesignReference[] = [];
   snapshot.forEach((doc) => {
     allReferences.push({ id: doc.id, ...doc.data() } as DesignReference);
+  });
+
+  // Fetch tasks candidate for reference
+  const tasksSnapshot = await db
+    .collection("tasks")
+    .where("reference_candidate_enabled", "==", true)
+    .get();
+
+  const allEventsSnap = await db.collection("events").get();
+  const eventsMap = new Map<string, string>();
+  allEventsSnap.forEach((doc) => {
+    eventsMap.set(doc.id, doc.data().name || "");
+  });
+
+  const taskPromises: Promise<{
+    taskId: string;
+    taskData: Record<string, unknown>;
+    uploads: TaskUpload[];
+  }>[] = [];
+  tasksSnapshot.forEach((doc) => {
+    const taskData = doc.data() as Record<string, unknown>;
+    const taskId = doc.id;
+    const promise = doc.ref.collection("uploads").orderBy("version_number", "desc").get().then((uploadsSnap) => {
+      const uploads: TaskUpload[] = [];
+      uploadsSnap.forEach((uDoc) => {
+        uploads.push({ id: uDoc.id, ...uDoc.data() } as TaskUpload);
+      });
+      return { taskId, taskData, uploads };
+    });
+    taskPromises.push(promise);
+  });
+
+  const taskUploadsResults = await Promise.all(taskPromises);
+
+  taskUploadsResults.forEach(({ taskId, taskData, uploads }) => {
+    const isApproved = taskData.status === "approved" || taskData.approval_status === "approved";
+    if (!isApproved) return;
+
+    const isArchiveMatch = !taskData.is_archived || (taskData.is_archived && taskData.archive_enabled);
+    if (!isArchiveMatch) return;
+
+    const hasResult = !!taskData.result_design_url || !!taskData.source_link;
+    if (!hasResult) return;
+
+    const finalUpload = uploads.find((u) => u.is_final_candidate) || uploads[0];
+
+    let taskYear = new Date().getFullYear();
+    if (taskData.deadline) {
+      const deadline = taskData.deadline as { toDate?: () => Date } | Date | string | number;
+      const d = (typeof deadline === "object" && deadline && "toDate" in deadline && typeof deadline.toDate === "function")
+        ? deadline.toDate()
+        : new Date(deadline as string | number | Date);
+      if (!isNaN(d.getTime())) {
+        taskYear = d.getFullYear();
+      }
+    }
+
+    const visualType = mapTaskSubcategoryToDesignType(taskData.subcategory_key as string);
+    const fileUrl = (finalUpload?.upload_url || taskData.result_design_url || "") as string;
+    const thumbnailUrl = (finalUpload?.thumbnail_url || (fileUrl && fileUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? fileUrl : "")) as string;
+    const sourceLink = (finalUpload?.source_link || taskData.source_link || "") as string;
+
+    const refItem: DesignReference = {
+      id: `task_${taskId}`,
+      organization_id: (taskData.organization_id || "main_org") as string,
+      title: taskData.name as string,
+      event_name: taskData.event_id ? (eventsMap.get(taskData.event_id as string) || "") : "",
+      design_type: visualType,
+      year: taskYear,
+      drive_url: fileUrl,
+      thumbnail_url: thumbnailUrl,
+      style_notes: (taskData.visual_direction || taskData.description || "") as string,
+      color_palette: (taskData.color_palette || []) as string[],
+      notes: (taskData.description || "") as string,
+      is_archived: (taskData.is_archived || false) as boolean,
+      created_by: (taskData.pic_id || taskData.created_by || "") as string,
+      scope: taskData.type as "divisi" | "acara",
+      category: taskData.category_key as unknown as "divisi" | "acara" | "canva" | "drive" | "video" | "dokumen" | "lainnya",
+      event_id: (taskData.event_id || "") as string,
+      drive_links: [taskData.drive_reference_url].filter(Boolean) as string[],
+      canva_links: sourceLink.includes("canva.com") ? [sourceLink] : [],
+      doc_links: (sourceLink.includes("docs.google.com") || sourceLink.includes("drive.google.com")) ? [sourceLink] : [],
+      other_links: (!sourceLink.includes("canva.com") && !sourceLink.includes("google.com")) ? [sourceLink] : [],
+      file_inventory: uploads.map((u) => ({
+        name: u.file_name || `Hasil pengerjaan - v${u.version_number}`,
+        url: u.upload_url || u.source_link || "",
+        type: "file" as const,
+        mime_type: u.file_type || "",
+      })),
+      file_inventory_notes: finalUpload?.upload_note || "",
+    };
+
+    allReferences.push(refItem);
   });
 
   // ── Step 1: Score all references with file-level analysis ────────────────

@@ -1,14 +1,14 @@
 "use client";
 
 import { ReferenceCard } from "@/components/references/reference-card";
-import type { DesignReference } from "@/types";
+import type { ReferenceListItem } from "@/types";
 
 type ReferencesGridProps = {
-  references: DesignReference[];
-  canEditReference: (reference: DesignReference) => boolean;
-  onView: (reference: DesignReference) => void;
-  onEdit: (reference: DesignReference) => void;
-  onArchive: (reference: DesignReference) => void;
+  references: ReferenceListItem[];
+  canEditReference: (reference: ReferenceListItem) => boolean;
+  onView: (reference: ReferenceListItem) => void;
+  onEdit: (reference: ReferenceListItem) => void;
+  onArchive: (reference: ReferenceListItem) => void;
 };
 
 export function ReferencesGrid({

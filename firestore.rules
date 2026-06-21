@@ -305,17 +305,28 @@ service cloud.firestore {
     }
 
     match /tasks/{taskId} {
-      allow get: if isSignedIn() && canReadTaskData(resource.data);
-
-      allow list: if isSignedIn() && resource.data.pic_id == request.auth.uid;
-      allow list: if isSignedIn() && (isSuperAdmin() || isKoordinatorDivisi());
-      allow list: if isSignedIn() && (
-        resource.data.event_id != null &&
-        resource.data.event_id != "" &&
+      allow get: if isSignedIn() && (
+        canReadTaskData(resource.data) ||
         (
-          isEventCoordinator(resource.data.event_id) ||
-          isEventSecretary(resource.data.event_id) ||
-          isEventMember(resource.data.event_id)
+          resource.data.reference_candidate_enabled == true &&
+          resource.data.data_sensitivity != "sensitive"
+        )
+      );
+
+      allow list: if isSignedIn() && (
+        resource.data.pic_id == request.auth.uid ||
+        (isSuperAdmin() || isKoordinatorDivisi()) ||
+        (
+          resource.data.event_id != null &&
+          resource.data.event_id != "" &&
+          (
+            isEventCoordinator(resource.data.event_id) ||
+            isEventSecretary(resource.data.event_id) ||
+            isEventMember(resource.data.event_id)
+          )
+        ) ||
+        (
+          resource.data.reference_candidate_enabled == true
         )
       );
 

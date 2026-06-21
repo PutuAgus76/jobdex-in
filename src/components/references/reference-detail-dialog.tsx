@@ -5,11 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ColorPalettePreview } from "@/components/references/color-palette-preview";
 import { DesignTypeBadge } from "@/components/references/design-type-badge";
 import { Badge } from "@/components/ui/badge";
-import type { DesignReference, UserProfile } from "@/types";
-import { FolderOpen, Palette, FileText, Link as LinkIcon, Sparkles } from "lucide-react";
+import type { ReferenceListItem, UserProfile, DesignType, DesignReference } from "@/types";
+import { FolderOpen, Palette, FileText, Link as LinkIcon, Sparkles, ExternalLink } from "lucide-react";
 
 type ReferenceDetailDialogProps = {
-  reference: DesignReference | null;
+  reference: ReferenceListItem | null;
   usersById: Map<string, UserProfile>;
   onClose: () => void;
 };
@@ -34,21 +34,71 @@ export function ReferenceDetailDialog({
     return null;
   }
 
-  const rows = [
-    ["Judul", reference.title],
-    ["Skope", reference.scope === "acara" ? "Acara khusus" : "Divisi"],
-    ["Kategori", reference.category ? reference.category.toUpperCase() : "LAINNYA"],
-    ["Nama acara", reference.event_name || "-"],
-    ["Tahun", String(reference.year)],
-    ["Created by", usersById.get(reference.created_by)?.name ?? "User tidak ditemukan"],
-    ["Created at", formatDateTime(reference.created_at)],
-  ];
+  const isApprovedTask = reference.source_type === "approved_task";
+
+  const rows = isApprovedTask
+    ? [
+        ["Nama Jobdesk", reference.title],
+        ["Nama Acara", reference.event_name || "-"],
+        ["PIC / Pembuat", usersById.get(reference.created_by)?.name ?? "Tidak diketahui"],
+        ["Status", "Approved"],
+        ["Kategori", reference.category_label || "-"],
+        ["Subkategori", reference.subcategory_label || "-"],
+        ["Catatan Upload", reference.notes || "-"],
+        ["Tanggal Approved", formatDateTime(reference.updated_at)],
+      ]
+    : (() => {
+        const refManual = reference as unknown as DesignReference;
+        return [
+          ["Judul", refManual.title],
+          ["Skope", refManual.scope === "acara" ? "Acara khusus" : "Divisi"],
+          ["Kategori", refManual.category ? refManual.category.toUpperCase() : "LAINNYA"],
+          ["Nama acara", refManual.event_name || "-"],
+          ["Tahun", String(refManual.year)],
+          ["Created by", usersById.get(refManual.created_by)?.name ?? "User tidak ditemukan"],
+          ["Created at", formatDateTime(refManual.created_at)],
+        ];
+      })();
 
   // Links list resolving (Drive, Canva, Doc, Other)
-  const driveLinks = reference.drive_links || (reference.drive_url ? [reference.drive_url] : []);
-  const canvaLinks = reference.canva_links || [];
-  const docLinks = reference.doc_links || [];
-  const otherLinks = reference.other_links || [];
+  const driveLinks: string[] = [];
+  const canvaLinks: string[] = [];
+  const docLinks: string[] = [];
+  const otherLinks: string[] = [];
+
+  if (isApprovedTask) {
+    if (reference.file_url) {
+      driveLinks.push(reference.file_url);
+    }
+    if (reference.source_link) {
+      const url = reference.source_link;
+      const lowerUrl = url.toLowerCase();
+      if (lowerUrl.includes("canva.com") || lowerUrl.includes("figma.com")) {
+        canvaLinks.push(url);
+      } else if (lowerUrl.includes("docs.google.com") || lowerUrl.includes("drive.google.com")) {
+        docLinks.push(url);
+      } else {
+        otherLinks.push(url);
+      }
+    }
+  } else {
+    // manual references
+    const refAny = reference as unknown as DesignReference;
+    if (refAny.drive_links && Array.isArray(refAny.drive_links)) {
+      driveLinks.push(...refAny.drive_links);
+    } else if (refAny.drive_url) {
+      driveLinks.push(refAny.drive_url);
+    }
+    if (refAny.canva_links && Array.isArray(refAny.canva_links)) {
+      canvaLinks.push(...refAny.canva_links);
+    }
+    if (refAny.doc_links && Array.isArray(refAny.doc_links)) {
+      docLinks.push(...refAny.doc_links);
+    }
+    if (refAny.other_links && Array.isArray(refAny.other_links)) {
+      otherLinks.push(...refAny.other_links);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/40 px-4 py-8 backdrop-blur-sm">
@@ -56,13 +106,22 @@ export function ReferenceDetailDialog({
         <div className="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 p-5">
           <div>
             <div className="flex flex-wrap gap-2 items-center">
-              <DesignTypeBadge type={reference.design_type} />
+              <DesignTypeBadge type={reference.visual_type as DesignType} />
               <Badge variant={reference.scope === "acara" ? "success" : "info"}>
                 {reference.scope === "acara" ? "Acara" : "Divisi"}
               </Badge>
-              {reference.category ? (
+              {reference.source_type === "approved_task" ? (
+                <Badge variant="orange">
+                  Dari Jobdesk Approved
+                </Badge>
+              ) : (
+                <Badge variant="neutral">
+                  Manual
+                </Badge>
+              )}
+              {reference.category_label || (reference as unknown as DesignReference).category ? (
                 <Badge variant="default" className="uppercase">
-                  {reference.category}
+                  {reference.category_label || (reference as unknown as DesignReference).category}
                 </Badge>
               ) : null}
             </div>
@@ -208,6 +267,20 @@ export function ReferenceDetailDialog({
                 </div>
               </section>
             ) : null}
+            {isApprovedTask && reference.task_id && (
+              <section className="space-y-2">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Aktivitas Jobdesk</p>
+                <a
+                  href={`/dashboard/tasks/${reference.task_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-sky-600 hover:text-sky-750 font-semibold border border-sky-200 dark:border-sky-900/50 rounded-lg p-3 bg-sky-50/20 dark:bg-sky-950/10 hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-all jd-safe-text min-w-0"
+                >
+                  <ExternalLink className="size-4 shrink-0 text-sky-500" />
+                  <span>Buka Halaman Detail Jobdesk</span>
+                </a>
+              </section>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -229,7 +302,7 @@ export function ReferenceDetailDialog({
               <ColorPalettePreview colors={reference.color_palette ?? []} />
             </section>
 
-            <Block label="Style notes / supergrafis" value={reference.style_notes} />
+            <Block label="Style notes / supergrafis" value={isApprovedTask ? reference.notes : (reference as unknown as DesignReference).style_notes} />
             
             {/* Dedicated Gemini Catatan Analysis Section */}
             <section className="border border-sky-100 dark:border-sky-900/50 rounded-lg bg-sky-50/50 dark:bg-sky-950/10 p-4 shadow-sm">
@@ -248,7 +321,7 @@ export function ReferenceDetailDialog({
               )}
             </section>
 
-            <Block label="Catatan tambahan" value={reference.notes} />
+            <Block label="Catatan tambahan" value={isApprovedTask ? "" : (reference as unknown as DesignReference).notes} />
           </div>
         </div>
       </div>

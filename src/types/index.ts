@@ -231,6 +231,37 @@ export type DesignReference = {
   }>;
 };
 
+export type ReferenceListItem = {
+  id: string;
+  source_type: "manual_reference" | "approved_task";
+  title: string;
+  event_name?: string;
+  year?: string | number;
+  scope?: string;
+  visual_type?: string;
+  category_label?: string;
+  subcategory_label?: string;
+  thumbnail_url?: string;
+  file_url?: string;
+  source_link?: string;
+  source_link_type?: string;
+  notes?: string;
+  status?: "active" | "archived";
+  created_at?: unknown;
+  updated_at?: unknown;
+  task_id?: string;
+  event_id?: string;
+  color_palette?: string[];
+  file_inventory?: Array<{
+    name: string;
+    url: string;
+    type: "file" | "folder";
+    mime_type?: string;
+  }>;
+  file_inventory_notes?: string;
+  created_by: string;
+};
+
 export type DesignReferenceInput = {
   title: string;
   event_name: string;

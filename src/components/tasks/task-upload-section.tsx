@@ -48,6 +48,10 @@ export function TaskUploadSection({
   const latestUpload = useMemo(() => uploads[0], [uploads]);
   const canUpload = canManageTask(currentUser, task, eventRole) || task.pic_id === currentUser.id;
 
+  const isDesignCategory = useMemo(() => {
+    return task.category_key === "desain_publikasi" || task.category_key === "identitas_acara_dan_panitia" || task.category_key === "aset_desain";
+  }, [task.category_key]);
+
   // Clean up object URL when component unmounts or preview changes
   useEffect(() => {
     return () => {
@@ -336,6 +340,11 @@ export function TaskUploadSection({
                       <p className="mt-1 text-[10px] text-slate-400">
                         Opsional. Contoh: Canva, Figma, Google Drive.
                       </p>
+                      {isDesignCategory && (
+                        <p className="mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                          Jika desain dibuat di Canva/Figma, tambahkan link sumber agar mudah diedit ulang oleh penerus.
+                        </p>
+                      )}
                     </div>
 
                     <div>
