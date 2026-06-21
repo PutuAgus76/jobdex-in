@@ -2050,7 +2050,7 @@ type InferenceRule = {
   label: string;
 };
 
-const INFERENCE_RULES: InferenceRule[] = [
+export const INFERENCE_RULES: InferenceRule[] = [
   // Desain Publikasi
   { keyword: "countdown", categoryKey: "desain_publikasi", subcategoryKey: "countdown_design", label: "Countdown Design" },
   { keyword: "announcement", categoryKey: "desain_publikasi", subcategoryKey: "announcement_design", label: "Announcement Design" },

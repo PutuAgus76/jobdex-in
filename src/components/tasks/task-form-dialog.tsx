@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, useEffect, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, FolderOpen, Save } from "lucide-react";
@@ -24,6 +24,26 @@ import {
   MAIN_CATEGORIES,
   inferJobdeskCategoryFromText,
 } from "@/lib/jobdesk-categories";
+import { useAuth } from "@/hooks/use-auth";
+import { runRuleBasedDetection, mapOutputToSensitivity, type DetectJobdeskCategoryResult } from "@/lib/jobdesk-category-detection";
+
+function formatDetectionReason(result: DetectJobdeskCategoryResult): string {
+  if (result.source === "rule_based") {
+    const subLabel = result.category_key && result.subcategory_key
+      ? getCategoryRule(result.category_key, result.subcategory_key)?.subcategoryLabel ?? ""
+      : "";
+    const keyword = result.matched_keywords?.[0] || "";
+    const confPercent = Math.round(result.confidence * 100);
+    return `Terdeteksi sebagai ${subLabel} berdasarkan kata kunci "${keyword}" dengan confidence ${confPercent}%.`;
+  }
+  if (result.source === "reference_similarity") {
+    return `Terdeteksi mengikuti pola referensi lama: ${result.matched_reference_title || result.reason}.`;
+  }
+  if (result.source === "ai_fallback") {
+    return result.reason || "AI menyarankan kategori ini karena rule-based belum yakin.";
+  }
+  return result.reason || "Belum bisa mendeteksi kategori dengan yakin. Silakan pilih kategori manual.";
+}
 
 type TaskFormDialogProps = {
   open: boolean;
@@ -56,6 +76,16 @@ function TaskForm({
   onClose,
   onSave,
 }: TaskFormDialogProps) {
+  const { user } = useAuth();
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [localSuggestion, setLocalSuggestion] = useState<{
+    categoryKey: string;
+    subcategoryKey: string;
+    categoryLabel: string;
+    subcategoryLabel: string;
+    reason: string;
+  } | null>(null);
+
   const [type, setType] = useState<TaskType>(task?.type ?? (defaultEventId ? "acara" : "divisi"));
   const [eventId, setEventId] = useState(task?.event_id ?? defaultEventId ?? "");
   const [name, setName] = useState(task?.name ?? "");
@@ -143,37 +173,126 @@ function TaskForm({
     reason: string;
   } | null>(initialSuggestion);
 
-  const handleManualDetect = () => {
-    const result = inferJobdeskCategoryFromText({
-      title: name,
-      description: description,
-    });
+  const handleManualDetect = async () => {
+    if (!name.trim()) {
+      setError("Nama task wajib diisi untuk mendeteksi kategori.");
+      return;
+    }
 
-    if (result) {
-      const catLabel = MAIN_CATEGORIES.find((c) => c.key === result.categoryKey)?.label ?? "";
-      const subLabel = getCategoryRule(result.categoryKey, result.subcategoryKey)?.subcategoryLabel ?? "";
-      setSuggestion({
-        categoryKey: result.categoryKey,
-        subcategoryKey: result.subcategoryKey,
-        categoryLabel: catLabel,
-        subcategoryLabel: subLabel,
-        reason: result.reason,
+    setIsDetecting(true);
+    setError("");
+    setSuggestion(null);
+
+    try {
+      const token = await user?.getIdToken();
+      if (!token) {
+        throw new Error("Sesi login Anda tidak valid atau kedaluwarsa.");
+      }
+
+      const event = events.find((e) => e.id === eventId);
+      const eventName = event ? event.name : "";
+
+      const res = await fetch("/api/tasks/detect-category", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: name,
+          description: description,
+          eventName: eventName,
+        }),
       });
 
-      setCategoryKey(result.categoryKey);
-      setSubcategoryKey(result.subcategoryKey);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal mendeteksi kategori.");
+      }
 
-      const defaults = getDefaultArchiveSettings(result.categoryKey, result.subcategoryKey);
-      setArchiveEnabled(defaults.archiveEnabled);
-      setReferenceCandidateEnabled(defaults.referenceCandidateEnabled);
-      setRequiresFile(defaults.requiresFile);
-      setRequiresSourceLink(defaults.requiresSourceLink);
-      setOutputTypes(defaults.outputTypes.join(", "));
-      setDataSensitivity(defaults.dataSensitivity);
-    } else {
-      setSuggestion(null);
+      const result = await res.json();
+
+      if (result) {
+        const formattedReason = formatDetectionReason(result);
+
+        if (result.category_key && result.subcategory_key) {
+          const catLabel = MAIN_CATEGORIES.find((c) => c.key === result.category_key)?.label ?? "";
+          const subLabel = getCategoryRule(result.category_key, result.subcategory_key)?.subcategoryLabel ?? "";
+
+          setSuggestion({
+            categoryKey: result.category_key,
+            subcategoryKey: result.subcategory_key,
+            categoryLabel: catLabel,
+            subcategoryLabel: subLabel,
+            reason: formattedReason,
+          });
+
+          // Populate the fields
+          setCategoryKey(result.category_key);
+          setSubcategoryKey(result.subcategory_key);
+          setArchiveEnabled(result.archive_enabled);
+          setReferenceCandidateEnabled(result.reference_candidate_enabled);
+          
+          // Map data sensitivity
+          const mappedSensitivity = mapOutputToSensitivity(result.data_sensitivity);
+          setDataSensitivity(mappedSensitivity);
+
+          // Get and set requiresFile, requiresSourceLink, and outputTypes using the client-side helper
+          const defaults = getDefaultArchiveSettings(result.category_key, result.subcategory_key);
+          setRequiresFile(defaults.requiresFile);
+          setRequiresSourceLink(defaults.requiresSourceLink);
+          setOutputTypes(defaults.outputTypes.join(", "));
+        } else {
+          // If category/subcategory is null, reset suggestion and show feedback in suggestion state
+          setSuggestion({
+            categoryKey: "",
+            subcategoryKey: "",
+            categoryLabel: "",
+            subcategoryLabel: "",
+            reason: formattedReason,
+          });
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mendeteksi kategori.");
+    } finally {
+      setIsDetecting(false);
     }
   };
+
+  useEffect(() => {
+    if (!name.trim()) {
+      const timer = setTimeout(() => {
+        setLocalSuggestion(null);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    const timer = setTimeout(() => {
+      const result = runRuleBasedDetection(name, description);
+      if (result && result.category_key && result.subcategory_key) {
+        // Only show suggestion if it's different from current manual selection
+        if (
+          result.category_key !== categoryKey ||
+          result.subcategory_key !== subcategoryKey
+        ) {
+          const catLabel = MAIN_CATEGORIES.find((c) => c.key === result.category_key)?.label ?? "";
+          const subLabel = getCategoryRule(result.category_key, result.subcategory_key)?.subcategoryLabel ?? "";
+          setLocalSuggestion({
+            categoryKey: result.category_key,
+            subcategoryKey: result.subcategory_key,
+            categoryLabel: catLabel,
+            subcategoryLabel: subLabel,
+            reason: `Terdeteksi dari kata kunci "${result.matched_keywords?.[0] || ""}"`,
+          });
+          return;
+        }
+      }
+      setLocalSuggestion(null);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [name, description, categoryKey, subcategoryKey]);
 
   const handleCategoryChange = (catKey: string) => {
     setCategoryKey(catKey);
@@ -411,16 +530,25 @@ function TaskForm({
                 variant="outline"
                 size="sm"
                 onClick={handleManualDetect}
+                disabled={isDetecting}
                 className="text-xs shrink-0"
               >
-                Deteksi otomatis dari judul
+                {isDetecting ? "Mendeteksi..." : "Deteksi otomatis dari judul"}
               </Button>
             </div>
 
             {suggestion && categoryKey === suggestion.categoryKey && subcategoryKey === suggestion.subcategoryKey ? (
-              <div className="flex items-start gap-2.5 rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-xs text-sky-800 dark:border-sky-950/30 dark:bg-sky-950/20 dark:text-sky-350">
-                <span className="inline-flex items-center rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
-                  Kategori disarankan otomatis
+              <div className={`flex items-start gap-2.5 rounded-lg border p-3 text-xs font-medium ${
+                suggestion.categoryKey
+                  ? "border-sky-100 bg-sky-50/50 text-sky-800 dark:border-sky-950/30 dark:bg-sky-950/20 dark:text-sky-350"
+                  : "border-amber-100 bg-amber-50/50 text-amber-800 dark:border-amber-950/30 dark:bg-amber-950/20 dark:text-amber-350"
+              }`}>
+                <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                  suggestion.categoryKey
+                    ? "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                }`}>
+                  {suggestion.categoryKey ? "Kategori disarankan otomatis" : "Deteksi Kategori"}
                 </span>
                 <span className="font-medium">
                   {suggestion.reason}
@@ -456,6 +584,33 @@ function TaskForm({
                 </select>
               </Field>
             </div>
+
+            {localSuggestion && (
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-lg">
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Saran:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryKey(localSuggestion.categoryKey);
+                    setSubcategoryKey(localSuggestion.subcategoryKey);
+                    const defaults = getDefaultArchiveSettings(localSuggestion.categoryKey, localSuggestion.subcategoryKey);
+                    setArchiveEnabled(defaults.archiveEnabled);
+                    setReferenceCandidateEnabled(defaults.referenceCandidateEnabled);
+                    setRequiresFile(defaults.requiresFile);
+                    setRequiresSourceLink(defaults.requiresSourceLink);
+                    setOutputTypes(defaults.outputTypes.join(", "));
+                    setDataSensitivity(defaults.dataSensitivity);
+                    setLocalSuggestion(null);
+                  }}
+                  className="text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                >
+                  {localSuggestion.categoryLabel} &gt; {localSuggestion.subcategoryLabel}
+                </button>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                  ({localSuggestion.reason})
+                </span>
+              </div>
+            )}
 
             {categoryKey && subcategoryKey ? (
               <>
