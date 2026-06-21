@@ -266,7 +266,8 @@ service cloud.firestore {
     match /events/{eventId} {
       allow read: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
-        isEventMember(eventId);
+        isEventMember(eventId) ||
+        resource.data.coordinator_id == request.auth.uid;
 
       allow create: if isSuperAdmin() ||
         isKoordinatorDivisi() ||
