@@ -5,6 +5,7 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import type { EventMember } from "@/types";
@@ -42,3 +43,11 @@ export async function addEventMember({
 export async function removeEventMember(eventId: string, userId: string) {
   await deleteDoc(doc(db, "events", eventId, "event_members", userId));
 }
+
+export async function updateEventMemberRole(eventId: string, userId: string, roleInEvent: string) {
+  const ref = doc(db, "events", eventId, "event_members", userId);
+  await updateDoc(ref, {
+    role_in_event: roleInEvent,
+  });
+}
+

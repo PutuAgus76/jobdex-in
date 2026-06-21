@@ -73,6 +73,8 @@ export type EventInput = {
   // Fase 19C: Event-specific WhatsApp group
   whatsapp_group_id?: string;
   whatsapp_group_name?: string;
+  secretary_id?: string;
+  initial_member_ids?: string[];
 };
 
 export type TaskType = "divisi" | "acara";

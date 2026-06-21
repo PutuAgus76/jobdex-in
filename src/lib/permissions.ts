@@ -56,23 +56,45 @@ export function canManageEvent(
     return false;
   }
 
-  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
-                      eventRole?.toLowerCase() === "sekretaris acara" ||
-                      eventRole?.toLowerCase() === "sekretaris";
+  const role = getRole(profile);
+  const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
 
-  return Boolean(
-    isSuperAdmin(profile) ||
-    isKoordinatorDivisi(profile) ||
-    (isKoordinatorAcara(profile) && event.coordinator_id === profile.id) ||
-    isSecretary
-  );
+  if (role === "super_admin") {
+    return true;
+  }
+
+  // Event coordinator can manage
+  if (normalizedRole === "koordinator_acara" || event.coordinator_id === profile.id) {
+    return true;
+  }
+
+  // Koordinator divisi can manage unless their event role is anggota_acara or sekretaris_acara
+  if (role === "koordinator_divisi") {
+    return normalizedRole !== "anggota_acara" && normalizedRole !== "sekretaris_acara";
+  }
+
+  return false;
 }
 
-export function canCreateTask(input: UserProfile | UserRole | null | undefined, eventRole?: string) {
-  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
-                      eventRole?.toLowerCase() === "sekretaris acara" ||
-                      eventRole?.toLowerCase() === "sekretaris";
-  return Boolean(isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input) || isSecretary);
+export function canCreateTask(
+  profile: UserProfile | UserRole | null | undefined,
+  eventRole?: string,
+) {
+  if (!profile) return false;
+  const role = getRole(profile);
+  const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
+
+  if (role === "super_admin") return true;
+
+  if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara") {
+    return true;
+  }
+
+  if (role === "koordinator_divisi") {
+    return normalizedRole !== "anggota_acara";
+  }
+
+  return false;
 }
 
 export function canManageTask(
@@ -84,18 +106,24 @@ export function canManageTask(
     return false;
   }
 
-  const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
-                      eventRole?.toLowerCase() === "sekretaris acara" ||
-                      eventRole?.toLowerCase() === "sekretaris";
+  const role = getRole(profile);
+  const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
 
-  return Boolean(
-    isSuperAdmin(profile) ||
-    isKoordinatorDivisi(profile) ||
-    (isKoordinatorAcara(profile) &&
-      task.type === "acara" &&
-      task.coordinator_id === profile.id) ||
-    (task.type === "acara" && task.event_id && isSecretary)
-  );
+  if (role === "super_admin") return true;
+
+  if (task.type === "acara") {
+    if (normalizedRole === "koordinator_acara" || normalizedRole === "sekretaris_acara" || task.coordinator_id === profile.id) {
+      return true;
+    }
+    if (role === "koordinator_divisi") {
+      return normalizedRole !== "anggota_acara" && normalizedRole !== "sekretaris_acara";
+    }
+  } else {
+    // Division tasks
+    if (role === "koordinator_divisi") return true;
+  }
+
+  return false;
 }
 
 export function canReadTask(
@@ -112,7 +140,22 @@ export function canReadTask(
 
 export function canApproveTask(
   input: UserProfile | UserRole | null | undefined,
+  eventRole?: string,
 ) {
+  if (!input) return false;
+  const role = getRole(input);
+  const normalizedRole = eventRole?.toLowerCase().replace(/\s+/g, "_");
+
+  if (role === "super_admin") return true;
+
+  if (normalizedRole) {
+    if (normalizedRole === "koordinator_acara") return true;
+    if (role === "koordinator_divisi") {
+      return normalizedRole !== "anggota_acara" && normalizedRole !== "sekretaris_acara";
+    }
+    return false;
+  }
+
   return isSuperAdmin(input) || isKoordinatorDivisi(input) || isKoordinatorAcara(input);
 }
 
@@ -138,3 +181,13 @@ export function isUserProfileComplete(profile: UserProfile | null | undefined) {
       typeof profile.is_active === "boolean",
   );
 }
+
+export function formatEventRole(role?: string): string {
+  if (!role) return "Anggota acara";
+  const lower = role.toLowerCase().replace(/\s+/g, "_");
+  if (lower === "koordinator_acara" || lower === "koordinator") return "Koordinator acara";
+  if (lower === "sekretaris_acara" || lower === "sekretaris") return "Sekretaris acara";
+  if (lower === "anggota_acara" || lower === "anggota") return "Anggota acara";
+  return role;
+}
+

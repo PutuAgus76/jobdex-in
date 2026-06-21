@@ -7,7 +7,7 @@ import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
 import { getDateInputValue } from "@/lib/firebase/events";
 import { NeoDatePicker } from "@/components/ui/neo-date-picker";
 import { X, Save } from "lucide-react";
-import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
+import type { Event, EventInput, EventStatus, UserProfile, EventMember } from "@/types";
 
 type EventFormDialogProps = {
   event: Event | null;
@@ -16,6 +16,8 @@ type EventFormDialogProps = {
   fallbackCoordinatorId: string;
   onClose: () => void;
   onSave: (input: EventInput, eventId?: string) => Promise<void>;
+  users: UserProfile[];
+  eventMembers: EventMember[];
 };
 
 const selectClassName =
@@ -35,6 +37,8 @@ function EventForm({
   fallbackCoordinatorId,
   onClose,
   onSave,
+  users,
+  eventMembers,
 }: EventFormDialogProps) {
   const [name, setName] = useState(event?.name ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
@@ -47,6 +51,29 @@ function EventForm({
   const [status, setStatus] = useState<EventStatus>(event?.status ?? "persiapan");
   const [whatsappGroupId, setWhatsappGroupId] = useState(event?.whatsapp_group_id ?? "");
   const [whatsappGroupName, setWhatsappGroupName] = useState(event?.whatsapp_group_name ?? "");
+  
+  const [secretaryId, setSecretaryId] = useState(() => {
+    if (!event || !eventMembers) return "";
+    const sec = eventMembers.find((m) => {
+      const r = m.role_in_event?.toLowerCase() || "";
+      return r === "sekretaris_acara" || r === "sekretaris acara" || r === "sekretaris";
+    });
+    return sec?.user_id ?? "";
+  });
+
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>(() => {
+    if (!event || !eventMembers) return [];
+    const coordId = event.coordinator_id;
+    const sec = eventMembers.find((m) => {
+      const r = m.role_in_event?.toLowerCase() || "";
+      return r === "sekretaris_acara" || r === "sekretaris acara" || r === "sekretaris";
+    });
+    const secId = sec?.user_id;
+    return eventMembers
+      .filter((m) => m.user_id !== coordId && m.user_id !== secId)
+      .map((m) => m.user_id);
+  });
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -81,6 +108,8 @@ function EventForm({
           status,
           whatsapp_group_id: whatsappGroupId.trim(),
           whatsapp_group_name: whatsappGroupName.trim(),
+          secretary_id: secretaryId,
+          initial_member_ids: selectedMemberIds,
         },
         event?.id,
       );
@@ -198,6 +227,61 @@ function EventForm({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="event-secretary"
+              className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Sekretaris acara
+            </label>
+            <select
+              id="event-secretary"
+              className={selectClassName}
+              value={secretaryId}
+              onChange={(item) => setSecretaryId(item.target.value)}
+            >
+              <option value="">Pilih sekretaris acara (opsional)</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name || u.email}
+                </option>
+              ))}
+            </select>
+            {coordinatorId === secretaryId && coordinatorId && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                Warning: Koordinator dan sekretaris sebaiknya orang berbeda.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Anggota acara
+            </label>
+            <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-[8px] bg-white dark:bg-slate-950 p-3 space-y-2">
+              {users.filter(u => u.id !== coordinatorId && u.id !== secretaryId).map((u) => {
+                const isChecked = selectedMemberIds.includes(u.id);
+                return (
+                  <label key={u.id} className="flex items-center gap-2 text-sm text-slate-900 dark:text-slate-100 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedMemberIds([...selectedMemberIds, u.id]);
+                        } else {
+                          setSelectedMemberIds(selectedMemberIds.filter(id => id !== u.id));
+                        }
+                      }}
+                      className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>{u.name || u.email}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
 
           <div className="border-t border-slate-100 dark:border-slate-800 pt-4">

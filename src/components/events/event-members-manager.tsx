@@ -7,6 +7,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { Plus, Trash2 } from "lucide-react";
 import type { EventMember, UserProfile } from "@/types";
+import { formatEventRole } from "@/lib/permissions";
+import { showSuccess, showError } from "@/lib/swal";
 
 type EventMembersManagerProps = {
   eventId: string;
@@ -16,6 +18,7 @@ type EventMembersManagerProps = {
   canManage: boolean;
   onAdd: (userId: string, roleInEvent: string) => Promise<void>;
   onRemove: (userId: string) => Promise<void>;
+  onUpdateRole?: (userId: string, roleInEvent: string) => Promise<void>;
 };
 
 export function EventMembersManager({
@@ -24,6 +27,7 @@ export function EventMembersManager({
   canManage,
   onAdd,
   onRemove,
+  onUpdateRole,
   eventName,
 }: EventMembersManagerProps) {
   const [addOpen, setAddOpen] = useState(false);
@@ -38,6 +42,9 @@ export function EventMembersManager({
           </h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Kelola anggota yang terlibat pada acara ini.
+          </p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+            Role akun adalah peran umum di sistem. Role acara adalah peran khusus pada acara ini.
           </p>
         </div>
         {canManage ? (
@@ -82,8 +89,29 @@ export function EventMembersManager({
                       <td className="px-4 py-4">
                         <RoleBadge role={user?.role} />
                       </td>
-                      <td className="px-4 py-4 text-slate-600 dark:text-slate-300">
-                        {member.role_in_event || "-"}
+                      <td className="px-4 py-4">
+                        {canManage && onUpdateRole ? (
+                          <select
+                            value={member.role_in_event || "anggota_acara"}
+                            onChange={async (e) => {
+                              try {
+                                await onUpdateRole(member.user_id, e.target.value);
+                                void showSuccess("Role acara berhasil diperbarui!");
+                              } catch {
+                                void showError("Gagal memperbarui role acara.");
+                              }
+                            }}
+                            className="h-9 rounded-[6px] border border-slate-200 bg-white px-2 text-xs text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none"
+                          >
+                            <option value="koordinator_acara">Koordinator acara</option>
+                            <option value="sekretaris_acara">Sekretaris acara</option>
+                            <option value="anggota_acara">Anggota acara</option>
+                          </select>
+                        ) : (
+                          <span className="text-slate-600 dark:text-slate-300">
+                            {formatEventRole(member.role_in_event)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-4">
                         {canManage ? (
@@ -126,7 +154,28 @@ export function EventMembersManager({
                     <RoleBadge role={user?.role} />
                     <span className="mx-0.5 opacity-30">|</span>
                     <span className="opacity-60">Role Acara:</span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">{member.role_in_event || "-"}</span>
+                    {canManage && onUpdateRole ? (
+                      <select
+                        value={member.role_in_event || "anggota_acara"}
+                        onChange={async (e) => {
+                          try {
+                            await onUpdateRole(member.user_id, e.target.value);
+                            void showSuccess("Role acara berhasil diperbarui!");
+                          } catch {
+                            void showError("Gagal memperbarui role acara.");
+                          }
+                        }}
+                        className="h-8 rounded-[6px] border border-slate-200 bg-white px-2 text-xs text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none"
+                      >
+                        <option value="koordinator_acara">Koordinator acara</option>
+                        <option value="sekretaris_acara">Sekretaris acara</option>
+                        <option value="anggota_acara">Anggota acara</option>
+                      </select>
+                    ) : (
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        {formatEventRole(member.role_in_event)}
+                      </span>
+                    )}
                   </div>
 
                   {canManage && (

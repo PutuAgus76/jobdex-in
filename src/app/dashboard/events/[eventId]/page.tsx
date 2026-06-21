@@ -10,11 +10,14 @@ import {
   addEventMember,
   getEventMembers,
   removeEventMember,
+  updateEventMemberRole,
 } from "@/lib/firebase/event-members";
+import { db } from "@/lib/firebase/client";
+import { doc, updateDoc } from "firebase/firestore";
 import { getEventById } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
 import { createTask, getTasksByEvent } from "@/lib/firebase/tasks";
-import { canManageEvent, isAnggota } from "@/lib/permissions";
+import { canManageEvent, isSuperAdmin, isKoordinatorDivisi } from "@/lib/permissions";
 import type { Event, EventMember, Task, TaskInput, UserProfile } from "@/types";
 
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
@@ -50,13 +53,12 @@ export default function EventDetailPage() {
       // Fetch event members first to get current user's role in the event
       const membersData = await getEventMembers(eventId);
       const currentUserMember = membersData.find((m) => m.user_id === userProfile.id);
-      const eventRole = currentUserMember?.role_in_event;
 
-      const isSecretary = eventRole?.toLowerCase() === "sekretaris_acara" ||
-                          eventRole?.toLowerCase() === "sekretaris acara" ||
-                          eventRole?.toLowerCase() === "sekretaris";
+      const isMember = !!currentUserMember;
+      const isDivCoordinator = isKoordinatorDivisi(userProfile);
+      const isAdmin = isSuperAdmin(userProfile);
 
-      if ((isAnggota(userProfile) && !isSecretary) || !canManageEvent(userProfile, eventData, eventRole)) {
+      if (!isAdmin && !isDivCoordinator && !isMember) {
         router.replace("/dashboard/unauthorized");
         return;
       }
@@ -139,6 +141,26 @@ export default function EventDetailPage() {
     }
   }
 
+  async function handleUpdateMemberRole(userId: string, roleInEvent: string) {
+    if (!event) {
+      return;
+    }
+
+    try {
+      await updateEventMemberRole(event.id, userId, roleInEvent);
+      // Sync event coordinator if role changed to koordinator_acara
+      if (roleInEvent === "koordinator_acara") {
+        await updateDoc(doc(db, "events", event.id), {
+          coordinator_id: userId,
+        });
+      }
+      void showSuccess("Role acara berhasil diperbarui!");
+      await loadDetail();
+    } catch {
+      void showError("Gagal memperbarui role acara.");
+    }
+  }
+
   if (loading) {
     return <LoadingState title="Memuat detail acara..." />;
   }
@@ -174,6 +196,7 @@ export default function EventDetailPage() {
       onAddMember={handleAddMember}
       onRemoveMember={handleRemoveMember}
       onCreateTask={handleCreateTask}
+      onUpdateRole={handleUpdateMemberRole}
     />
   );
 }

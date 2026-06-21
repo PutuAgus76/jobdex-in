@@ -21,6 +21,7 @@ type EventDetailProps = {
   onAddMember: (userId: string, roleInEvent: string) => Promise<void>;
   onRemoveMember: (userId: string) => Promise<void>;
   onCreateTask: (input: TaskInput) => Promise<void>;
+  onUpdateRole?: (userId: string, roleInEvent: string) => Promise<void>;
 };
 
 export function EventDetail({
@@ -32,6 +33,7 @@ export function EventDetail({
   onAddMember,
   onRemoveMember,
   onCreateTask,
+  onUpdateRole,
 }: EventDetailProps) {
   const { userProfile } = useAuth();
   const usersById = new Map(users.map((user) => [user.id, user]));
@@ -184,13 +186,14 @@ export function EventDetail({
         canManage={canManageMembers}
         onAdd={onAddMember}
         onRemove={onRemoveMember}
+        onUpdateRole={onUpdateRole}
       />
 
       <EventTasksSection
         event={event}
         tasks={tasks}
         users={users}
-        canManage={canManage}
+        canManage={canManage || isSecretary}
         onCreateTask={onCreateTask}
       />
     </div>

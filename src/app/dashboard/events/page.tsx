@@ -11,7 +11,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Plus } from "lucide-react";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
-import { getEventMembers } from "@/lib/firebase/event-members";
+import {
+  getEventMembers,
+  addEventMember,
+  removeEventMember,
+} from "@/lib/firebase/event-members";
 import {
   createEvent,
   getEventsForProfile,
@@ -19,7 +23,7 @@ import {
 } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
 import { canCreateEvent, isAnggota } from "@/lib/permissions";
-import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
+import type { Event, EventInput, EventStatus, UserProfile, EventMember } from "@/types";
 import { showSuccess, showError } from "@/lib/swal";
 
 export default function EventsPage() {
@@ -62,6 +66,7 @@ function EventsManagement() {
   const [dateFilter, setDateFilter] = useState<EventDateFilter>("all");
   const [formOpen, setFormOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEventMembers, setSelectedEventMembers] = useState<EventMember[]>([]);
 
   const loadEvents = useCallback(async () => {
     if (!userProfile) {
@@ -138,13 +143,92 @@ function EventsManagement() {
     }
 
     try {
+      let activeId = eventId;
       if (eventId) {
         await updateEvent(eventId, input, userProfile.id);
         void showSuccess("Acara berhasil diperbarui!");
       } else {
-        await createEvent(input, userProfile.id);
+        activeId = await createEvent(input, userProfile.id);
         void showSuccess("Acara baru berhasil ditambahkan!");
       }
+
+      if (activeId) {
+        // Sync members: coordinator, secretary, initial_member_ids
+        const existingMembers = eventId ? await getEventMembers(eventId) : [];
+        const existingMembersMap = new Map(existingMembers.map((m) => [m.user_id, m]));
+
+        // 1. Process Coordinator (koordinator_acara)
+        await addEventMember({
+          eventId: activeId,
+          userId: input.coordinator_id,
+          roleInEvent: "koordinator_acara",
+          addedBy: userProfile.id,
+        });
+
+        // 2. Process Secretary (sekretaris_acara)
+        const oldSec = existingMembers.find((m) => {
+          const r = m.role_in_event?.toLowerCase() || "";
+          return r === "sekretaris_acara" || r === "sekretaris acara" || r === "sekretaris";
+        });
+
+        if (input.secretary_id) {
+          await addEventMember({
+            eventId: activeId,
+            userId: input.secretary_id,
+            roleInEvent: "sekretaris_acara",
+            addedBy: userProfile.id,
+          });
+          // If secretary changed, change old secretary back to "anggota_acara"
+          if (oldSec && oldSec.user_id !== input.secretary_id && oldSec.user_id !== input.coordinator_id) {
+            await addEventMember({
+              eventId: activeId,
+              userId: oldSec.user_id,
+              roleInEvent: "anggota_acara",
+              addedBy: userProfile.id,
+            });
+          }
+        } else {
+          // If secretary cleared, change old secretary back to "anggota_acara"
+          if (oldSec && oldSec.user_id !== input.coordinator_id) {
+            await addEventMember({
+              eventId: activeId,
+              userId: oldSec.user_id,
+              roleInEvent: "anggota_acara",
+              addedBy: userProfile.id,
+            });
+          }
+        }
+
+        // 3. Process Initial Members
+        const currentCoordId = input.coordinator_id;
+        const currentSecId = input.secretary_id || "";
+        const targetMemberIds = input.initial_member_ids || [];
+
+        // Add/Update new members
+        for (const mId of targetMemberIds) {
+          if (mId === currentCoordId || mId === currentSecId) continue;
+          const exist = existingMembersMap.get(mId);
+          if (!exist || exist.role_in_event !== "anggota_acara") {
+            await addEventMember({
+              eventId: activeId,
+              userId: mId,
+              roleInEvent: "anggota_acara",
+              addedBy: userProfile.id,
+            });
+          }
+        }
+
+        // Remove unselected members (only if editing)
+        if (eventId) {
+          for (const ext of existingMembers) {
+            if (ext.user_id === currentCoordId || ext.user_id === currentSecId) continue;
+            if (!targetMemberIds.includes(ext.user_id)) {
+              await removeEventMember(activeId, ext.user_id);
+            }
+          }
+        }
+      }
+
       await loadEvents();
     } catch (err) {
       void showError("Gagal menyimpan acara.");
@@ -174,6 +258,7 @@ function EventsManagement() {
           size="sm"
           onClick={() => {
             setSelectedEvent(null);
+            setSelectedEventMembers([]);
             setFormOpen(true);
           }}
         >
@@ -209,6 +294,7 @@ function EventsManagement() {
               size="sm"
               onClick={() => {
                 setSelectedEvent(null);
+                setSelectedEventMembers([]);
                 setFormOpen(true);
               }}
             >
@@ -227,8 +313,14 @@ function EventsManagement() {
           events={filteredEvents}
           usersById={usersById}
           memberCounts={memberCounts}
-          onEdit={(event) => {
+          onEdit={async (event) => {
             setSelectedEvent(event);
+            try {
+              const members = await getEventMembers(event.id);
+              setSelectedEventMembers(members);
+            } catch {
+              setSelectedEventMembers([]);
+            }
             setFormOpen(true);
           }}
         />
@@ -241,6 +333,8 @@ function EventsManagement() {
         fallbackCoordinatorId={userProfile.id}
         onClose={() => setFormOpen(false)}
         onSave={handleSaveEvent}
+        users={users}
+        eventMembers={selectedEventMembers}
       />
     </div>
   );
