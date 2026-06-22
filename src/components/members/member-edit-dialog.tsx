@@ -9,13 +9,14 @@ import {
   isValidWhatsAppNumber,
   normalizeWhatsAppNumber,
 } from "@/lib/whatsapp";
-import type { MemberUpdateInput, UserProfile, UserRole } from "@/types";
+import type { MemberUpdateInput, UserProfile, UserRole, Division } from "@/types";
 
 type MemberEditDialogProps = {
   member: UserProfile | null;
   currentUserProfile: UserProfile;
   onClose: () => void;
   onSave: (memberId: string, input: MemberUpdateInput) => Promise<void>;
+  divisions?: Division[];
 };
 
 type MemberEditFormProps = {
@@ -23,6 +24,7 @@ type MemberEditFormProps = {
   currentUserProfile: UserProfile;
   onClose: () => void;
   onSave: (memberId: string, input: MemberUpdateInput) => Promise<void>;
+  divisions?: Division[];
 };
 
 const selectClassName =
@@ -33,6 +35,7 @@ export function MemberEditDialog({
   currentUserProfile,
   onClose,
   onSave,
+  divisions,
 }: MemberEditDialogProps) {
   if (!member) {
     return null;
@@ -45,6 +48,7 @@ export function MemberEditDialog({
       currentUserProfile={currentUserProfile}
       onClose={onClose}
       onSave={onSave}
+      divisions={divisions}
     />
   );
 }
@@ -54,6 +58,7 @@ function MemberEditForm({
   currentUserProfile,
   onClose,
   onSave,
+  divisions,
 }: MemberEditFormProps) {
   const [name, setName] = useState(member.name ?? "");
   const [whatsappNumber, setWhatsappNumber] = useState(
@@ -209,15 +214,26 @@ function MemberEditForm({
             <div>
               <label
                 htmlFor="member-division"
-                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-350"
               >
                 Divisi
               </label>
-              <Input
+              <select
                 id="member-division"
+                className={selectClassName}
                 value={divisionId}
                 onChange={(event) => setDivisionId(event.target.value)}
-              />
+              >
+                {divisions && divisions.length > 0 ? (
+                  divisions.map((div) => (
+                    <option key={div.id} value={div.id}>
+                      {div.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="humas_media_kreatif">Humas dan Media Kreatif</option>
+                )}
+              </select>
             </div>
           </div>
 

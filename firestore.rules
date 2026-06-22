@@ -81,7 +81,14 @@ service cloud.firestore {
 
     function canReadTaskData(data) {
       return isSuperAdmin() ||
-        isKoordinatorDivisi() ||
+        (
+          isKoordinatorDivisi() &&
+          (
+            !("division_id" in data) ||
+            data.division_id == "" ||
+            data.division_id == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id
+          )
+        ) ||
         (
           data.type == "acara" &&
           data.event_id != null &&
@@ -99,7 +106,8 @@ service cloud.firestore {
       return isSuperAdmin() ||
         (
           isKoordinatorDivisi() &&
-          (data.type != "acara" || getEventMemberRole(data.event_id) != "anggota_acara")
+          (data.type != "acara" || getEventMemberRole(data.event_id) != "anggota_acara") &&
+          (data.type != "divisi" || data.division_id == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id)
         ) ||
         (
           data.type == "acara" &&
@@ -117,7 +125,8 @@ service cloud.firestore {
       return isSuperAdmin() ||
         (
           isKoordinatorDivisi() &&
-          (resource.data.type != "acara" || getEventMemberRole(resource.data.event_id) != "anggota_acara")
+          (resource.data.type != "acara" || getEventMemberRole(resource.data.event_id) != "anggota_acara") &&
+          (resource.data.type != "divisi" || resource.data.division_id == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id)
         ) ||
         (
           resource.data.type == "acara" &&
@@ -264,7 +273,9 @@ service cloud.firestore {
 
       allow update: if isSelf(userId) && selfProfileUpdateIsSafe();
 
-      allow update: if isKoordinatorDivisi() && coordinatorMemberUpdateIsSafe();
+      allow update: if isKoordinatorDivisi() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id == resource.data.division_id &&
+        coordinatorMemberUpdateIsSafe();
 
       allow update: if isSuperAdmin();
       allow delete: if false;
@@ -361,7 +372,15 @@ service cloud.firestore {
 
       allow list: if isSignedIn() && (
         resource.data.pic_id == request.auth.uid ||
-        (isSuperAdmin() || isKoordinatorDivisi()) ||
+        isSuperAdmin() ||
+        (
+          isKoordinatorDivisi() &&
+          (
+            !("division_id" in resource.data) ||
+            resource.data.division_id == "" ||
+            resource.data.division_id == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id
+          )
+        ) ||
         (
           resource.data.event_id != null &&
           resource.data.event_id != "" &&

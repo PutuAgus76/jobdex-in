@@ -14,8 +14,9 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getMembers, updateMember } from "@/lib/firebase/members";
+import { getDivisions } from "@/lib/firebase/divisions";
 import { canManageMembers } from "@/lib/permissions";
-import type { MemberUpdateInput, UserProfile, UserRole } from "@/types";
+import type { MemberUpdateInput, UserProfile, UserRole, Division } from "@/types";
 
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 
@@ -39,13 +40,19 @@ function MembersManagement() {
   const [selectedDetail, setSelectedDetail] = useState<UserProfile | null>(null);
   const [selectedEdit, setSelectedEdit] = useState<UserProfile | null>(null);
 
+  const [divisionsList, setDivisionsList] = useState<Division[]>([]);
+
   async function loadMembers() {
     setLoading(true);
     setError("");
 
     try {
-      const data = await getMembers();
-      setMembers(data);
+      const [membersData, divsData] = await Promise.all([
+        getMembers(),
+        getDivisions(),
+      ]);
+      setMembers(membersData);
+      setDivisionsList(divsData);
     } catch {
       setError("Gagal mengambil daftar anggota. Periksa koneksi dan Firestore Rules.");
     } finally {
@@ -227,6 +234,7 @@ function MembersManagement() {
         currentUserProfile={userProfile}
         onClose={() => setSelectedEdit(null)}
         onSave={handleSaveMember}
+        divisions={divisionsList}
       />
     </div>
   );

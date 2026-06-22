@@ -84,6 +84,8 @@ export type Event = {
   design_kit_drive_reference_links?: ReferenceLink[];
   design_kit_previous_event_refs?: string[];
   design_kit_notes_for_team?: string;
+  // Fase 26B: Multi-division event host
+  division_id?: string;
 };
 
 export type EventMember = {
@@ -115,6 +117,8 @@ export type EventInput = {
   design_kit_drive_reference_links?: ReferenceLink[];
   design_kit_previous_event_refs?: string[];
   design_kit_notes_for_team?: string;
+  // Fase 26B: Multi-division event host
+  division_id?: string;
 };
 
 export type TaskType = "divisi" | "acara";
@@ -261,6 +265,7 @@ export type DesignReference = {
   scope?: "divisi" | "acara";
   category?: "divisi" | "acara" | "canva" | "drive" | "video" | "dokumen" | "lainnya";
   event_id?: string;
+  division_id?: string; // Fase 26B
   drive_links?: string[];
   canva_links?: string[];
   doc_links?: string[];
@@ -297,6 +302,7 @@ export type ReferenceListItem = {
   updated_at?: unknown;
   task_id?: string;
   event_id?: string;
+  division_id?: string;
   color_palette?: string[];
   file_inventory?: Array<{
     name: string;
@@ -323,6 +329,7 @@ export type DesignReferenceInput = {
   scope?: "divisi" | "acara";
   category?: "divisi" | "acara" | "canva" | "drive" | "video" | "dokumen" | "lainnya";
   event_id?: string;
+  division_id?: string; // Fase 26B
   drive_links?: string[];
   canva_links?: string[];
   doc_links?: string[];
@@ -423,6 +430,8 @@ export type Division = {
   organization_id: string;
   name: string;
   description: string;
+  slug: string; // Fase 26B
+  is_active: boolean; // Fase 26B
   coordinator_id: string;
   created_at?: unknown;
   updated_at?: unknown;

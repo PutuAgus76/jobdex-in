@@ -19,5 +19,7 @@ export const defaultDivision: Omit<Division, "created_at" | "updated_at"> = {
   organization_id: DEFAULT_ORGANIZATION_ID,
   name: "Humas dan Media Kreatif",
   description: "Divisi publikasi, dokumentasi, desain, dan media kreatif.",
+  slug: "humas_media_kreatif",
+  is_active: true,
   coordinator_id: "",
 };

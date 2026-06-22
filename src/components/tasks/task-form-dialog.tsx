@@ -97,7 +97,15 @@ function TaskForm({
   onClose,
   onSave,
 }: TaskFormDialogProps) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const [divisionId, setDivisionId] = useState(() => {
+    if (task?.division_id) return task.division_id;
+    if (userProfile?.role === "koordinator_divisi" || userProfile?.role === "anggota") {
+      return userProfile.division_id || "";
+    }
+    const activeDivs = divisions?.filter((d) => d.is_active !== false) || [];
+    return activeDivs[0]?.id || "";
+  });
   const [isDetecting, setIsDetecting] = useState(false);
   const [localSuggestion, setLocalSuggestion] = useState<{
     categoryKey: string;
@@ -263,27 +271,27 @@ function TaskForm({
           setDriveRefLinksText(formatLinksToTextarea(selectedEvent.design_kit_drive_reference_links));
         }
         setDesignKitSource("event");
-      } else if (type === "divisi") {
-        const defaultDivision = divisions?.[0];
-        if (!defaultDivision) return;
+      } else if (type === "divisi" && divisionId) {
+        const selectedDivision = divisions?.find((d) => d.id === divisionId);
+        if (!selectedDivision) return;
 
         const hasDivisionKit =
-          defaultDivision.design_kit_color_palette?.length ||
-          defaultDivision.design_kit_visual_direction;
+          selectedDivision.design_kit_color_palette?.length ||
+          selectedDivision.design_kit_visual_direction;
 
         if (!hasDivisionKit) return;
 
-        if (!colorPaletteManuallyEdited && defaultDivision.design_kit_color_palette?.length) {
-          setColorPalette(formatColorPalette(defaultDivision.design_kit_color_palette));
+        if (!colorPaletteManuallyEdited && selectedDivision.design_kit_color_palette?.length) {
+          setColorPalette(formatColorPalette(selectedDivision.design_kit_color_palette));
         }
-        if (!visualDirectionManuallyEdited && defaultDivision.design_kit_visual_direction) {
-          setVisualDirection(defaultDivision.design_kit_visual_direction);
+        if (!visualDirectionManuallyEdited && selectedDivision.design_kit_visual_direction) {
+          setVisualDirection(selectedDivision.design_kit_visual_direction);
         }
-        if (!designRefLinksText && defaultDivision.design_kit_design_reference_links?.length) {
-          setDesignRefLinksText(formatLinksToTextarea(defaultDivision.design_kit_design_reference_links));
+        if (!designRefLinksText && selectedDivision.design_kit_design_reference_links?.length) {
+          setDesignRefLinksText(formatLinksToTextarea(selectedDivision.design_kit_design_reference_links));
         }
-        if (!driveRefLinksText && defaultDivision.design_kit_drive_reference_links?.length) {
-          setDriveRefLinksText(formatLinksToTextarea(defaultDivision.design_kit_drive_reference_links));
+        if (!driveRefLinksText && selectedDivision.design_kit_drive_reference_links?.length) {
+          setDriveRefLinksText(formatLinksToTextarea(selectedDivision.design_kit_drive_reference_links));
         }
         setDesignKitSource("division");
       }
@@ -291,7 +299,7 @@ function TaskForm({
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, eventId]);
+  }, [type, eventId, divisionId]);
 
   // Helper: tandai sebagai "manual" jika user mengedit color/visual
   function handleColorPaletteChange(val: string) {
@@ -315,7 +323,7 @@ function TaskForm({
       return ev ? ev.name : "acara ini";
     }
     if (designKitSource === "division") {
-      const div = divisions?.[0];
+      const div = divisions?.find((d) => d.id === divisionId) || divisions?.[0];
       return div ? div.name : "divisi";
     }
     return null;
@@ -518,6 +526,7 @@ function TaskForm({
         {
           type,
           event_id: type === "acara" ? eventId : "",
+          division_id: type === "divisi" ? divisionId : "",
           name: name.trim(),
           description: description.trim(),
           pic_id: picId,
@@ -616,6 +625,42 @@ function TaskForm({
                     {event.name}
                   </option>
                 ))}
+              </select>
+              {(() => {
+                const selectedEvent = events.find((e) => e.id === eventId);
+                if (selectedEvent && selectedEvent.division_id) {
+                  const hostDiv = divisions?.find((d) => d.id === selectedEvent.division_id);
+                  if (hostDiv) {
+                    return (
+                      <p className="mt-1 text-xs text-sky-600 dark:text-sky-400 font-semibold">
+                        Divisi Penyelenggara: {hostDiv.name}
+                      </p>
+                    );
+                  }
+                }
+                return null;
+              })()}
+            </Field>
+          ) : null}
+
+          {type === "divisi" ? (
+            <Field label="Divisi">
+              <select
+                className={selectClassName}
+                value={divisionId}
+                disabled={userProfile?.role !== "super_admin"}
+                onChange={(event) => setDivisionId(event.target.value)}
+              >
+                <option value="">Pilih divisi</option>
+                {divisions && divisions.length > 0 ? (
+                  divisions.map((div) => (
+                    <option key={div.id} value={div.id}>
+                      {div.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="humas_media_kreatif">Humas dan Media Kreatif</option>
+                )}
               </select>
             </Field>
           ) : null}

@@ -21,6 +21,7 @@ import {
 } from "@/lib/firebase/design-references";
 import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
+import { getDivisions } from "@/lib/firebase/divisions";
 import { isKoordinator } from "@/lib/permissions";
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 import type {
@@ -29,6 +30,7 @@ import type {
   DesignType,
   UserProfile,
   Event,
+  Division,
   ReferenceListItem,
 } from "@/types";
 
@@ -37,6 +39,7 @@ export default function ReferencesPage() {
   const [references, setReferences] = useState<ReferenceListItem[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedReference, setSelectedReference] = useState<ReferenceListItem | null>(null);
   const [editingReference, setEditingReference] = useState<DesignReference | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -44,6 +47,9 @@ export default function ReferencesPage() {
   const [search, setSearch] = useState("");
   const [designType, setDesignType] = useState<"all" | DesignType>("all");
   const [scopeFilter, setScopeFilter] = useState<"all" | "divisi" | "acara">("all");
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<"all" | "manual" | "approved">("all");
+  const [selectedDivisionId, setSelectedDivisionId] = useState("all");
+  const [selectedEventId, setSelectedEventId] = useState("all");
   const [year, setYear] = useState("");
   const [eventName, setEventName] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -59,15 +65,17 @@ export default function ReferencesPage() {
     setError("");
 
     try {
-      const [referencesData, usersData, eventsData] = await Promise.all([
+      const [referencesData, usersData, eventsData, divisionsData] = await Promise.all([
         getCombinedReferencesForDashboard(userProfile),
         getMembers().catch(() => [userProfile]),
         getEventsForProfile(userProfile).catch(() => []),
+        getDivisions().catch(() => []),
       ]);
 
       setReferences(referencesData);
       setUsers(usersData.length ? usersData : [userProfile]);
       setEvents(eventsData);
+      setDivisions(divisionsData);
     } catch {
       setError("Gagal memuat arsip referensi. Periksa koneksi dan Firestore Rules.");
     } finally {
@@ -129,16 +137,46 @@ export default function ReferencesPage() {
         (scopeFilter === "divisi" && (!reference.scope || reference.scope === "divisi")) ||
         (scopeFilter === "acara" && reference.scope === "acara");
 
+      const matchesSource =
+        sourceTypeFilter === "all" ||
+        (sourceTypeFilter === "manual" && reference.source_type === "manual_reference") ||
+        (sourceTypeFilter === "approved" && reference.source_type === "approved_task");
+
+      const matchesSpecificDivision =
+        scopeFilter !== "divisi" ||
+        selectedDivisionId === "all" ||
+        reference.division_id === selectedDivisionId ||
+        (selectedDivisionId === "humas_media_kreatif" && !reference.division_id);
+
+      const matchesSpecificEvent =
+        scopeFilter !== "acara" ||
+        selectedEventId === "all" ||
+        reference.event_id === selectedEventId;
+
       return (
         matchesSearch &&
         matchesDesignType &&
         matchesYear &&
         matchesEvent &&
         matchesArchive &&
-        matchesScope
+        matchesScope &&
+        matchesSource &&
+        matchesSpecificDivision &&
+        matchesSpecificEvent
       );
     });
-  }, [designType, eventName, references, search, showArchived, year, scopeFilter]);
+  }, [
+    designType,
+    eventName,
+    references,
+    search,
+    showArchived,
+    year,
+    scopeFilter,
+    sourceTypeFilter,
+    selectedDivisionId,
+    selectedEventId,
+  ]);
 
   async function handleSave(input: DesignReferenceInput, referenceId?: string) {
     if (!userProfile) {
@@ -236,15 +274,23 @@ export default function ReferencesPage() {
         search={search}
         designType={designType}
         scopeFilter={scopeFilter}
+        sourceTypeFilter={sourceTypeFilter}
+        selectedDivisionId={selectedDivisionId}
+        selectedEventId={selectedEventId}
         year={year}
         eventName={eventName}
         eventNames={eventNames}
         years={years}
+        divisions={divisions}
+        events={events}
         showArchived={showArchived}
         canShowArchived={canShowArchived}
         onSearchChange={setSearch}
         onDesignTypeChange={setDesignType}
         onScopeFilterChange={setScopeFilter}
+        onSourceTypeChange={setSourceTypeFilter}
+        onDivisionChange={setSelectedDivisionId}
+        onEventChange={setSelectedEventId}
         onYearChange={setYear}
         onEventNameChange={setEventName}
         onShowArchivedChange={setShowArchived}
@@ -283,6 +329,7 @@ export default function ReferencesPage() {
         open={formOpen}
         reference={editingReference}
         events={events}
+        divisions={divisions}
         onClose={() => setFormOpen(false)}
         onSave={handleSave}
       />

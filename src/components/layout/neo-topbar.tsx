@@ -9,6 +9,7 @@ import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
 import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu } from "lucide-react";
+import { getDivisionById } from "@/lib/firebase/divisions";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
@@ -43,6 +44,7 @@ export function NeoTopbar(props: {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -50,6 +52,22 @@ export function NeoTopbar(props: {
     }, 0);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (userProfile?.role !== "super_admin" && userProfile?.division_id) {
+      getDivisionById(userProfile.division_id)
+        .then((div) => {
+          if (div) {
+            setFetchedDivisionName(div.name);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userProfile?.division_id, userProfile?.role]);
+
+  const divisionName = userProfile?.role === "super_admin"
+    ? "JobDex.in Workspace"
+    : (fetchedDivisionName || "Humas & Media Kreatif");
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -80,7 +98,7 @@ export function NeoTopbar(props: {
             {getPageTitle(pathname)}
           </span>
           <p className="hidden md:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
-            Humas & Media Kreatif
+            {divisionName}
           </p>
         </div>
 

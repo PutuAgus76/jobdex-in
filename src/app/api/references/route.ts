@@ -30,29 +30,45 @@ export async function GET(request: NextRequest) {
       manualReferences.push({ id: doc.id, ...doc.data() } as DesignReference);
     });
 
-    const normalizedManual: ReferenceListItem[] = manualReferences.map((ref) => ({
-      id: ref.id,
-      source_type: "manual_reference",
-      title: ref.title,
-      event_name: ref.event_name,
-      year: ref.year,
-      scope: ref.scope,
-      visual_type: ref.design_type,
-      category_label: ref.category,
-      thumbnail_url: ref.thumbnail_url,
-      file_url: ref.drive_url,
-      source_link: ref.canva_links?.[0] || ref.drive_links?.[0] || "",
-      source_link_type: ref.canva_links?.length ? "canva" : "other",
-      notes: ref.notes || ref.style_notes,
-      status: ref.is_archived ? "archived" : "active",
-      created_at: ref.created_at,
-      updated_at: ref.updated_at,
-      event_id: ref.event_id,
-      color_palette: ref.color_palette,
-      file_inventory: ref.file_inventory,
-      file_inventory_notes: ref.file_inventory_notes,
-      created_by: ref.created_by,
-    }));
+    const normalizedManual: ReferenceListItem[] = manualReferences.map((ref) => {
+      let eventName = ref.event_name;
+      if (ref.scope === "divisi" && ref.division_id) {
+        const divName = divisionsMap.get(ref.division_id);
+        eventName = divName ? `Divisi: ${divName}` : (ref.event_name || "Jobdesk Divisi");
+      } else if (ref.scope === "acara" && ref.event_id) {
+        const evName = eventsMap.get(ref.event_id);
+        eventName = evName ? `Acara: ${evName}` : (ref.event_name || "Jobdesk Acara");
+      } else if (ref.scope === "acara" && ref.event_name) {
+        eventName = ref.event_name.startsWith("Acara:") ? ref.event_name : `Acara: ${ref.event_name}`;
+      } else if (ref.scope === "divisi" && ref.event_name) {
+        eventName = ref.event_name.startsWith("Divisi:") ? ref.event_name : `Divisi: ${ref.event_name}`;
+      }
+
+      return {
+        id: ref.id,
+        source_type: "manual_reference",
+        title: ref.title,
+        event_name: eventName,
+        year: ref.year,
+        scope: ref.scope,
+        visual_type: ref.design_type,
+        category_label: ref.category,
+        thumbnail_url: ref.thumbnail_url,
+        file_url: ref.drive_url,
+        source_link: ref.canva_links?.[0] || ref.drive_links?.[0] || "",
+        source_link_type: ref.canva_links?.length ? "canva" : "other",
+        notes: ref.notes || ref.style_notes,
+        status: ref.is_archived ? "archived" : "active",
+        created_at: ref.created_at,
+        updated_at: ref.updated_at,
+        event_id: ref.event_id,
+        division_id: ref.division_id,
+        color_palette: ref.color_palette,
+        file_inventory: ref.file_inventory,
+        file_inventory_notes: ref.file_inventory_notes,
+        created_by: ref.created_by,
+      };
+    });
 
     // 3. Fetch approved tasks using Admin SDK
     const tasksRef = db.collection("tasks");
@@ -144,11 +160,12 @@ export async function GET(request: NextRequest) {
       // Fase 26A: Bedakan event_name untuk task acara vs divisi
       let eventName: string;
       if (task.type === "acara" && task.event_id) {
-        eventName = eventsMap.get(task.event_id) || "";
+        const evName = eventsMap.get(task.event_id) || "";
+        eventName = evName ? `Acara: ${evName}` : "Tanpa nama acara";
       } else if (task.type === "divisi") {
         // Jobdesk divisi: tampilkan nama divisi, bukan string kosong
         const divName = task.division_id ? divisionsMap.get(task.division_id) : null;
-        eventName = divName ? `Divisi ${divName}` : "Jobdesk Divisi";
+        eventName = divName ? `Divisi: ${divName}` : "Jobdesk Divisi";
       } else {
         eventName = "";
       }
@@ -173,6 +190,7 @@ export async function GET(request: NextRequest) {
         updated_at: task.approved_at || task.updated_at,
         task_id: task.id,
         event_id: task.event_id,
+        division_id: task.division_id,
         color_palette: task.color_palette || [],
         file_inventory: uploads.map((u) => ({
           name: u.file_name || `Hasil pengerjaan - v${u.version_number}`,

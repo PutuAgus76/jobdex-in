@@ -2,21 +2,29 @@
 
 import { Input } from "@/components/ui/input";
 import { DESIGN_TYPE_OPTIONS } from "@/lib/design-types";
-import type { DesignType } from "@/types";
+import type { DesignType, Division, Event } from "@/types";
 
 type ReferenceFiltersProps = {
   search: string;
   designType: "all" | DesignType;
   scopeFilter: "all" | "divisi" | "acara";
+  sourceTypeFilter: "all" | "manual" | "approved";
+  selectedDivisionId: string;
+  selectedEventId: string;
   year: string;
   eventName: string;
   eventNames: string[];
   years: number[];
+  divisions: Division[];
+  events: Event[];
   showArchived: boolean;
   canShowArchived: boolean;
   onSearchChange: (value: string) => void;
   onDesignTypeChange: (value: "all" | DesignType) => void;
   onScopeFilterChange: (value: "all" | "divisi" | "acara") => void;
+  onSourceTypeChange: (value: "all" | "manual" | "approved") => void;
+  onDivisionChange: (value: string) => void;
+  onEventChange: (value: string) => void;
   onYearChange: (value: string) => void;
   onEventNameChange: (value: string) => void;
   onShowArchivedChange: (value: boolean) => void;
@@ -29,21 +37,29 @@ export function ReferenceFilters({
   search,
   designType,
   scopeFilter,
+  sourceTypeFilter,
+  selectedDivisionId,
+  selectedEventId,
   year,
   eventName,
   eventNames,
   years,
+  divisions,
+  events,
   showArchived,
   canShowArchived,
   onSearchChange,
   onDesignTypeChange,
   onScopeFilterChange,
+  onSourceTypeChange,
+  onDivisionChange,
+  onEventChange,
   onYearChange,
   onEventNameChange,
   onShowArchivedChange,
 }: ReferenceFiltersProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 jd-neo-card p-4 lg:grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_auto]">
+    <div className="grid grid-cols-2 gap-3 jd-neo-card p-4 lg:grid-cols-[1.2fr_1fr_1fr_1fr_0.8fr_1fr_auto]">
       <div className="col-span-2 lg:col-span-1">
         <Input
           value={search}
@@ -51,6 +67,7 @@ export function ReferenceFilters({
           placeholder="Cari judul, acara, atau catatan"
         />
       </div>
+
       <select
         className={selectClassName}
         value={scopeFilter}
@@ -60,6 +77,59 @@ export function ReferenceFilters({
         <option value="divisi">Skope Divisi</option>
         <option value="acara">Skope Acara</option>
       </select>
+
+      {/* Dynamic Specific Division or Event selector */}
+      {scopeFilter === "divisi" ? (
+        <select
+          className={selectClassName}
+          value={selectedDivisionId}
+          onChange={(event) => onDivisionChange(event.target.value)}
+        >
+          <option value="all">Semua Divisi</option>
+          {divisions.map((div) => (
+            <option key={div.id} value={div.id}>
+              {div.name}
+            </option>
+          ))}
+        </select>
+      ) : scopeFilter === "acara" ? (
+        <select
+          className={selectClassName}
+          value={selectedEventId}
+          onChange={(event) => onEventChange(event.target.value)}
+        >
+          <option value="all">Semua Acara</option>
+          {events.map((ev) => (
+            <option key={ev.id} value={ev.id}>
+              {ev.name}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <select
+          className={selectClassName}
+          value={eventName}
+          onChange={(event) => onEventNameChange(event.target.value)}
+        >
+          <option value="">Semua Nama Acara/Divisi</option>
+          {eventNames.map((item) => (
+            <option key={item} value={item}>
+              {item}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <select
+        className={selectClassName}
+        value={sourceTypeFilter}
+        onChange={(event) => onSourceTypeChange(event.target.value as "all" | "manual" | "approved")}
+      >
+        <option value="all">Semua Sumber</option>
+        <option value="manual">Input Manual</option>
+        <option value="approved">Dari Jobdesk Approved</option>
+      </select>
+
       <select
         className={selectClassName}
         value={designType}
@@ -72,6 +142,7 @@ export function ReferenceFilters({
           </option>
         ))}
       </select>
+
       <select
         className={selectClassName}
         value={year}
@@ -84,18 +155,7 @@ export function ReferenceFilters({
           </option>
         ))}
       </select>
-      <select
-        className={selectClassName}
-        value={eventName}
-        onChange={(event) => onEventNameChange(event.target.value)}
-      >
-        <option value="">Semua acara</option>
-        {eventNames.map((item) => (
-          <option key={item} value={item}>
-            {item}
-          </option>
-        ))}
-      </select>
+
       {canShowArchived ? (
         <label className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-900 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-slate-350 shadow-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
           <input

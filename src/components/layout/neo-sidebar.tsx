@@ -19,6 +19,9 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+import { useState, useEffect } from "react";
+import { getDivisionById } from "@/lib/firebase/divisions";
+
 const sidebarIconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   "/dashboard": LayoutDashboard,
   "/dashboard/tasks": ClipboardList,
@@ -48,6 +51,23 @@ export function NeoSidebar({
   const pathname = usePathname();
   const { userProfile } = useAuth();
   const navItems = getDashboardNavigation(userProfile);
+  const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userProfile?.role !== "super_admin" && userProfile?.division_id) {
+      getDivisionById(userProfile.division_id)
+        .then((div) => {
+          if (div) {
+            setFetchedDivisionName(div.name);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [userProfile?.division_id, userProfile?.role]);
+
+  const divisionName = userProfile?.role === "super_admin"
+    ? "JobDex.in Workspace"
+    : (fetchedDivisionName || "Humas & Media Kreatif");
 
   const sidebarContent = (isMobile: boolean) => (
     <>
@@ -58,8 +78,8 @@ export function NeoSidebar({
             <Link href="/" className="text-2xl font-extrabold tracking-wider text-foreground hover:opacity-90 block">
               JobDex<span className="text-sky-600 dark:text-sky-400">.in</span>
             </Link>
-            <p className="mt-1 text-[10px] opacity-80 tracking-wide uppercase font-semibold text-slate-500 truncate">
-              Humas & Media Kreatif
+            <p className="mt-1 text-[10px] opacity-80 tracking-wide uppercase font-semibold text-slate-500 truncate" title={divisionName}>
+              {divisionName}
             </p>
           </div>
         ) : (

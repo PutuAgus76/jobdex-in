@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { getDashboardData, type DashboardData } from "@/lib/dashboard-data";
+import { getDivisions } from "@/lib/firebase/divisions";
+import type { Division } from "@/types";
 
 import { DashboardSummaryCards } from "@/components/dashboard/dashboard-summary-cards";
 import { DashboardDonutChart } from "@/components/dashboard/dashboard-donut-chart";
@@ -81,6 +83,19 @@ export function RoleDashboardContent() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [divisionsList, setDivisionsList] = useState<Division[]>([]);
+  const [selectedDivisionId, setSelectedDivisionId] = useState("all");
+
+  useEffect(() => {
+    if (!userProfile) return;
+    if (userProfile.role === "super_admin") {
+      getDivisions()
+        .then((divs) => {
+          setDivisionsList(divs.filter((d) => d.is_active !== false));
+        })
+        .catch(() => {});
+    }
+  }, [userProfile]);
 
   useEffect(() => {
     if (!userProfile) return;
@@ -89,7 +104,7 @@ export function RoleDashboardContent() {
     async function load() {
       setLoading(true);
       try {
-        const result = await getDashboardData(userProfile!);
+        const result = await getDashboardData(userProfile!, selectedDivisionId);
         if (mounted) setData(result);
       } catch (err) {
         console.error("[Dashboard] Load failed:", err);
@@ -100,7 +115,7 @@ export function RoleDashboardContent() {
 
     load();
     return () => { mounted = false; };
-  }, [userProfile, refreshKey]);
+  }, [userProfile, refreshKey, selectedDivisionId]);
 
   if (!userProfile) return null;
 
@@ -115,7 +130,7 @@ export function RoleDashboardContent() {
     <div className="space-y-5">
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <section className="flex items-start justify-between gap-4">
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <Badge variant="info">Dashboard</Badge>
@@ -128,27 +143,46 @@ export function RoleDashboardContent() {
             </span>
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Ringkasan koordinasi JobDex.in — diperbarui secara real-time.
+            {selectedDivisionId !== "all" && userProfile.role === "super_admin"
+              ? `Ringkasan koordinasi untuk Divisi ${divisionsList.find(d => d.id === selectedDivisionId)?.name || ""} — diperbarui secara real-time.`
+              : "Ringkasan koordinasi JobDex.in — diperbarui secara real-time."}
           </p>
         </div>
 
-        {/* Refresh button */}
-        <button
-          onClick={() => setRefreshKey((k) => k + 1)}
-          title="Refresh dashboard"
-          className="
-            flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
-            rounded-lg border border-slate-200 dark:border-slate-700
-            bg-white dark:bg-slate-900
-            text-slate-600 dark:text-slate-400
-            hover:bg-slate-50 dark:hover:bg-slate-800
-            transition-all duration-150
-            flex-none mt-1
-          "
-        >
-          <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
+        {/* Action controls */}
+        <div className="flex items-center gap-2 mt-1 shrink-0">
+          {userProfile.role === "super_admin" && (
+            <select
+              value={selectedDivisionId}
+              onChange={(e) => setSelectedDivisionId(e.target.value)}
+              className="h-9 px-3 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-355 outline-none focus:ring-2 focus:ring-sky-100 dark:focus:ring-sky-955/30"
+            >
+              <option value="all">Semua Divisi</option>
+              {divisionsList.map((div) => (
+                <option key={div.id} value={div.id}>
+                  {div.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            title="Refresh dashboard"
+            className="
+              flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+              rounded-lg border border-slate-200 dark:border-slate-700
+              bg-white dark:bg-slate-900
+              text-slate-600 dark:text-slate-400
+              hover:bg-slate-50 dark:hover:bg-slate-800
+              transition-all duration-150
+              shrink-0
+            "
+          >
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
       </section>
 
       {/* ── Loading or Content ───────────────────────────────────────────────── */}

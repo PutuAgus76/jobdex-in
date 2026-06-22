@@ -119,7 +119,10 @@ const DONUT_STATUSES: TaskStatus[] = [
 
 // ─── Main Fetcher ─────────────────────────────────────────────────────────────
 
-export async function getDashboardData(profile: UserProfile): Promise<DashboardData> {
+export async function getDashboardData(
+  profile: UserProfile,
+  filterDivisionId?: string
+): Promise<DashboardData> {
   const role = profile.role;
   const isStaff = role === "super_admin" || role === "koordinator_divisi";
 
@@ -140,6 +143,8 @@ export async function getDashboardData(profile: UserProfile): Promise<DashboardD
 
     if (role === "koordinator_divisi" && profile.division_id) {
       tasks = tasks.filter((t) => t.division_id === profile.division_id);
+    } else if (role === "super_admin" && filterDivisionId && filterDivisionId !== "all") {
+      tasks = tasks.filter((t) => t.division_id === filterDivisionId);
     }
   } else {
     // Non-staff (anggota)

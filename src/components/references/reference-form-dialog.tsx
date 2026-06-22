@@ -17,12 +17,14 @@ import type {
   DesignReferenceInput,
   DesignType,
   Event,
+  Division,
 } from "@/types";
 
 type ReferenceFormDialogProps = {
   open: boolean;
   reference: DesignReference | null;
   events?: Event[];
+  divisions?: Division[];
   onClose: () => void;
   onSave: (input: DesignReferenceInput, referenceId?: string) => Promise<void>;
 };
@@ -53,9 +55,11 @@ const formatMultipleLinks = (links: string[] | undefined): string => {
 function ReferenceForm({
   reference,
   events = [],
+  divisions = [],
   onClose,
   onSave,
 }: ReferenceFormDialogProps) {
+  const [selectedDivisionId, setSelectedDivisionId] = useState(reference?.division_id ?? "");
   const [title, setTitle] = useState(reference?.title ?? "");
   const [scope, setScope] = useState<"divisi" | "acara">(reference?.scope ?? "divisi");
   const [category, setCategory] = useState<
@@ -144,6 +148,11 @@ function ReferenceForm({
       if (foundEvent) {
         resolvedEventName = foundEvent.name;
       }
+    } else if (scope === "divisi" && selectedDivisionId) {
+      const foundDiv = divisions.find((d) => d.id === selectedDivisionId);
+      if (foundDiv) {
+        resolvedEventName = foundDiv.name;
+      }
     }
 
     try {
@@ -163,6 +172,7 @@ function ReferenceForm({
           scope,
           category,
           event_id: scope === "acara" ? selectedEventId : "",
+          division_id: scope === "divisi" ? selectedDivisionId : "",
           drive_links: driveLinks,
           canva_links: canvaLinks,
           doc_links: docLinks,
@@ -212,7 +222,7 @@ function ReferenceForm({
                   value={scope}
                   onChange={(event) => setScope(event.target.value as "divisi" | "acara")}
                 >
-                  <option value="divisi">Divisi (Humas & Medkreatif)</option>
+                  <option value="divisi">Divisi</option>
                   <option value="acara">Acara khusus</option>
                 </select>
               </Field>
@@ -262,12 +272,19 @@ function ReferenceForm({
                 </select>
               </Field>
             ) : (
-              <Field label="Nama Acara (Opsional)">
-                <Input
-                  value={scope === "divisi" ? "Divisi Humas & Media Kreatif" : ""}
-                  disabled
-                  placeholder="Skope divisi otomatis terisi"
-                />
+              <Field label="Pilih Divisi">
+                <select
+                  className={selectClassName}
+                  value={selectedDivisionId}
+                  onChange={(event) => setSelectedDivisionId(event.target.value)}
+                >
+                  <option value="">-- Pilih Divisi --</option>
+                  {divisions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
               </Field>
             )}
 
