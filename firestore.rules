@@ -6,15 +6,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function hasCurrentUserDoc() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
     function currentUserRole() {
-      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
-        : null;
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.is_active == true
+          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          : null;
     }
 
     function isSuperAdmin() {
@@ -41,12 +37,13 @@ service cloud.firestore {
 
     function canManageEvent(eventId) {
       return isSuperAdmin() ||
+        isEventCoordinator(eventId) ||
+        isEventSecretary(eventId) ||
         (
           isKoordinatorDivisi() &&
           getEventMemberRole(eventId) != "anggota_acara" &&
           getEventMemberRole(eventId) != "sekretaris_acara"
-        ) ||
-        isEventCoordinator(eventId);
+        );
     }
 
     function isEventMember(eventId) {
@@ -335,13 +332,7 @@ service cloud.firestore {
           request.resource.data.coordinator_id == request.auth.uid
         );
 
-      allow update: if isSuperAdmin() ||
-        (
-          isKoordinatorDivisi() &&
-          getEventMemberRole(eventId) != "anggota_acara" &&
-          getEventMemberRole(eventId) != "sekretaris_acara"
-        ) ||
-        isEventCoordinator(eventId);
+      allow update: if canManageEvent(eventId);
 
       allow delete: if false; // TODO: evaluasi delete acara setelah workflow task tersedia.
 

@@ -13,7 +13,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { DEFAULT_ORGANIZATION_ID } from "@/lib/seed-data";
+import { DEFAULT_ORGANIZATION_ID, DEFAULT_DIVISION_ID } from "@/lib/seed-data";
 import { isKoordinatorDivisi, isSuperAdmin } from "@/lib/permissions";
 import type { Event, EventInput, EventStatus, ReferenceLink, UserProfile } from "@/types";
 
@@ -99,6 +99,7 @@ export async function getEventById(eventId: string) {
 export async function createEvent(input: EventInput, createdBy: string) {
   const eventRef = await addDoc(collection(db, "events"), {
     organization_id: DEFAULT_ORGANIZATION_ID,
+    division_id: input.division_id || DEFAULT_DIVISION_ID,
     name: input.name,
     description: input.description,
     event_date: eventDateToTimestamp(input.event_date),
@@ -138,6 +139,7 @@ export async function updateEvent(eventId: string, input: EventInput, updatedBy?
     event_date: eventDateToTimestamp(input.event_date),
     coordinator_id: input.coordinator_id,
     status: input.status,
+    division_id: input.division_id ?? existingData?.division_id ?? DEFAULT_DIVISION_ID,
     updated_at: serverTimestamp(),
     // Fase 26A: Event Design Kit
     design_kit_color_palette: input.design_kit_color_palette ?? [],

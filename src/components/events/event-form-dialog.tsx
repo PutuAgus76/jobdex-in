@@ -155,8 +155,22 @@ function EventForm({
         event?.id,
       );
       onClose();
-    } catch {
-      setError("Gagal menyimpan acara. Periksa izin akses dan Firestore Rules.");
+    } catch (error) {
+      console.error("[events] Failed to save event", error);
+      const err = error as { code?: string; message?: string } | null | undefined;
+      const msg = err?.message || "";
+      const code = err?.code || "";
+      if (
+        code === "permission-denied" ||
+        msg.toLowerCase().includes("permission") ||
+        msg.toLowerCase().includes("tidak diizinkan")
+      ) {
+        setError(
+          "Gagal menyimpan acara karena izin Firestore. Pastikan role Anda super admin, koordinator acara, atau sekretaris acara."
+        );
+      } else {
+        setError("Gagal menyimpan acara. Silakan coba lagi.");
+      }
     } finally {
       setIsSubmitting(false);
     }
