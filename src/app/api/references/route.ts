@@ -69,6 +69,13 @@ export async function GET(request: NextRequest) {
       eventsMap.set(doc.id, doc.data().name || "");
     });
 
+    // Fetch all divisions to resolve names
+    const divisionsSnap = await db.collection("divisions").get();
+    const divisionsMap = new Map<string, string>();
+    divisionsSnap.forEach((doc) => {
+      divisionsMap.set(doc.id, doc.data().name || "");
+    });
+
     // Fetch uploads subcollection in parallel for tasks
     const tasksWithUploads = await Promise.all(
       approvedTasks.map(async (task) => {
@@ -112,9 +119,13 @@ export async function GET(request: NextRequest) {
       let taskYear: number = new Date().getFullYear();
       if (task.deadline) {
         const deadline = task.deadline as { toDate?: () => Date } | Date | string | number;
-        const d = (typeof deadline === "object" && deadline && "toDate" in deadline && typeof deadline.toDate === "function")
-          ? deadline.toDate()
-          : new Date(deadline as string | number | Date);
+        const d =
+          typeof deadline === "object" &&
+          deadline &&
+          "toDate" in deadline &&
+          typeof deadline.toDate === "function"
+            ? deadline.toDate()
+            : new Date(deadline as string | number | Date);
         if (!isNaN(d.getTime())) {
           taskYear = d.getFullYear();
         }
@@ -122,10 +133,25 @@ export async function GET(request: NextRequest) {
 
       const visualType = mapTaskSubcategoryToDesignType(task.subcategory_key);
       const fileUrl = finalUpload?.upload_url || task.result_design_url || "";
-      const thumbnail_url = finalUpload?.thumbnail_url || (fileUrl && fileUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? fileUrl : "");
+      const thumbnail_url =
+        finalUpload?.thumbnail_url ||
+        (fileUrl && fileUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? fileUrl : "");
       const sourceLink = finalUpload?.source_link || task.source_link || "";
-      const sourceLinkType = finalUpload?.source_link_type || (sourceLink.includes("canva.com") ? "canva" : "other");
-      const eventName = task.event_id ? (eventsMap.get(task.event_id) || "") : "";
+      const sourceLinkType =
+        finalUpload?.source_link_type ||
+        (sourceLink.includes("canva.com") ? "canva" : "other");
+
+      // Fase 26A: Bedakan event_name untuk task acara vs divisi
+      let eventName: string;
+      if (task.type === "acara" && task.event_id) {
+        eventName = eventsMap.get(task.event_id) || "";
+      } else if (task.type === "divisi") {
+        // Jobdesk divisi: tampilkan nama divisi, bukan string kosong
+        const divName = task.division_id ? divisionsMap.get(task.division_id) : null;
+        eventName = divName ? `Divisi ${divName}` : "Jobdesk Divisi";
+      } else {
+        eventName = "";
+      }
 
       filteredTaskReferences.push({
         id: `task_${task.id}`,

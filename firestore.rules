@@ -282,9 +282,26 @@ service cloud.firestore {
     match /divisions/{divisionId} {
       allow read: if isSignedIn();
 
-      allow create, update: if isSuperAdmin() &&
-        divisionId == "humas_media_kreatif" &&
+      allow create: if isSuperAdmin() &&
         request.resource.data.organization_id == "main_org";
+
+      // super_admin bisa update semua divisi
+      // koordinator_divisi hanya bisa update design_kit fields divisinya sendiri
+      allow update: if isSuperAdmin() ||
+        (
+          isKoordinatorDivisi() &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.division_id == divisionId &&
+          changedOnly([
+            "design_kit_color_palette",
+            "design_kit_visual_direction",
+            "design_kit_supergraphic_notes",
+            "design_kit_design_reference_links",
+            "design_kit_drive_reference_links",
+            "design_kit_archive_drive_links",
+            "design_kit_notes_for_members",
+            "updated_at"
+          ])
+        );
 
       allow delete: if false;
     }

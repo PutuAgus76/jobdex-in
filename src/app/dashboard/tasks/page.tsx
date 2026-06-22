@@ -14,6 +14,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useAuth } from "@/hooks/use-auth";
 import { getEventsForProfile } from "@/lib/firebase/events";
 import { getMembers } from "@/lib/firebase/members";
+import { getDivisions } from "@/lib/firebase/divisions";
 import {
   archiveTask,
   createTask,
@@ -22,7 +23,7 @@ import {
   updateTask,
 } from "@/lib/firebase/tasks";
 import { canCreateTask, canManageTask } from "@/lib/permissions";
-import type { Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
+import type { Division, Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
 import { showConfirm, showSuccess, showError } from "@/lib/swal";
 import { db } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
@@ -32,6 +33,7 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -77,13 +79,16 @@ export default function TasksPage() {
       }
 
       // 2. Fetch events and members as optional
-      const [eventsResult, usersResult] = await Promise.allSettled([
+      const [eventsResult, usersResult, divisionsResult] = await Promise.allSettled([
         getEventsForProfile(userProfile),
         getMembers(),
+        getDivisions(),
       ]);
 
       const eventData = eventsResult.status === "fulfilled" ? eventsResult.value : [];
       const userData = usersResult.status === "fulfilled" ? usersResult.value : [userProfile];
+      const divisionData = divisionsResult.status === "fulfilled" ? divisionsResult.value : [];
+      setDivisions(divisionData);
 
       // 3. Fetch event tasks for non-staff
       if (userProfile.role !== "super_admin" && userProfile.role !== "koordinator_divisi") {
@@ -347,6 +352,7 @@ export default function TasksPage() {
         task={selectedTask}
         users={users.filter((user) => user.is_active)}
         events={events}
+        divisions={divisions}
         fallbackCoordinatorId={userProfile.id}
         onClose={() => setFormOpen(false)}
         onSave={handleSaveTask}

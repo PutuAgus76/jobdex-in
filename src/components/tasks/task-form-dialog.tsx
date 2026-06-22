@@ -4,18 +4,32 @@ import Link from "next/link";
 import { useState, useEffect, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { X, FolderOpen, Save } from "lucide-react";
+import { X, FolderOpen, Save, Info } from "lucide-react";
 import { TASK_PRIORITY_OPTIONS } from "@/lib/task-priority";
 import { TASK_STATUS_OPTIONS } from "@/lib/task-status";
 import { getTaskDateInputValue } from "@/lib/firebase/tasks";
 import { NeoDatePicker } from "@/components/ui/neo-date-picker";
 import {
   formatColorPalette,
-  isValidHexColor,
   isValidUrl,
   parseColorPalette,
 } from "@/lib/task-utils";
-import type { Event, Task, TaskInput, TaskPriority, TaskStatus, TaskType, UserProfile } from "@/types";
+import {
+  parseLinksFromTextarea,
+  formatLinksToTextarea,
+  getInvalidUrlsFromTextarea,
+} from "@/lib/link-utils";
+import type {
+  Division,
+  Event,
+  ReferenceLink,
+  Task,
+  TaskInput,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+  UserProfile,
+} from "@/types";
 import {
   getMainCategories,
   getSubcategories,
@@ -25,13 +39,18 @@ import {
   inferJobdeskCategoryFromText,
 } from "@/lib/jobdesk-categories";
 import { useAuth } from "@/hooks/use-auth";
-import { runRuleBasedDetection, mapOutputToSensitivity, type DetectJobdeskCategoryResult } from "@/lib/jobdesk-category-detection";
+import {
+  runRuleBasedDetection,
+  mapOutputToSensitivity,
+  type DetectJobdeskCategoryResult,
+} from "@/lib/jobdesk-category-detection";
 
 function formatDetectionReason(result: DetectJobdeskCategoryResult): string {
   if (result.source === "rule_based") {
-    const subLabel = result.category_key && result.subcategory_key
-      ? getCategoryRule(result.category_key, result.subcategory_key)?.subcategoryLabel ?? ""
-      : "";
+    const subLabel =
+      result.category_key && result.subcategory_key
+        ? (getCategoryRule(result.category_key, result.subcategory_key)?.subcategoryLabel ?? "")
+        : "";
     const keyword = result.matched_keywords?.[0] || "";
     const confPercent = Math.round(result.confidence * 100);
     return `Terdeteksi sebagai ${subLabel} berdasarkan kata kunci "${keyword}" dengan confidence ${confPercent}%.`;
@@ -50,6 +69,7 @@ type TaskFormDialogProps = {
   task: Task | null;
   users: UserProfile[];
   events: Event[];
+  divisions?: Division[];
   fallbackCoordinatorId: string;
   defaultEventId?: string;
   onClose: () => void;
@@ -71,6 +91,7 @@ function TaskForm({
   task,
   users,
   events,
+  divisions,
   fallbackCoordinatorId,
   defaultEventId,
   onClose,
@@ -96,15 +117,46 @@ function TaskForm({
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? "belum_dimulai");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? "sedang");
   const [copywriting, setCopywriting] = useState(task?.copywriting ?? "");
-  const [copywritingDocsUrl, setCopywritingDocsUrl] = useState(task?.copywriting_docs_url ?? "");
-  const [designReferenceUrl, setDesignReferenceUrl] = useState(task?.design_reference_url ?? "");
-  const [driveReferenceUrl, setDriveReferenceUrl] = useState(task?.drive_reference_url ?? "");
+
+  // Color palette — bisa hex atau teks biasa
   const [colorPalette, setColorPalette] = useState(formatColorPalette(task?.color_palette ?? []));
   const [visualDirection, setVisualDirection] = useState(task?.visual_direction ?? "");
+  const [sourceLink, setSourceLink] = useState(task?.source_link ?? "");
+  const [archiveNotes, setArchiveNotes] = useState(task?.archive_notes ?? "");
+
+  // Fase 26A: Multi-link textarea state
+  // Saat edit: load dari field baru (design_ref_links dll) dengan fallback ke field lama
+  const [redactionLinksText, setRedactionLinksText] = useState(() => {
+    if (task?.redaction_links?.length) {
+      return formatLinksToTextarea(task.redaction_links);
+    }
+    return task?.copywriting_docs_url || "";
+  });
+  const [designRefLinksText, setDesignRefLinksText] = useState(() => {
+    if (task?.design_ref_links?.length) {
+      return formatLinksToTextarea(task.design_ref_links);
+    }
+    return task?.design_reference_url || "";
+  });
+  const [driveRefLinksText, setDriveRefLinksText] = useState(() => {
+    if (task?.drive_ref_links?.length) {
+      return formatLinksToTextarea(task.drive_ref_links);
+    }
+    return task?.drive_reference_url || "";
+  });
+
+  // Fase 26A: Design Kit inheritance tracking
+  // "event" | "division" | "manual" | null
+  const [designKitSource, setDesignKitSource] = useState<"event" | "division" | "manual" | null>(
+    task?.design_kit_source ?? null
+  );
+  const [colorPaletteManuallyEdited, setColorPaletteManuallyEdited] = useState(false);
+  const [visualDirectionManuallyEdited, setVisualDirectionManuallyEdited] = useState(false);
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Run category suggestion on initialization for existing task without category
+  // --- Category detection logic (unchanged) ---
   const initialSuggestion = (() => {
     if (task && !task.category_key) {
       const result = inferJobdeskCategoryFromText({
@@ -157,8 +209,6 @@ function TaskForm({
       ? (task?.requires_source_link ?? false)
       : (initialDefaults ? initialDefaults.requiresSourceLink : false)
   );
-  const [sourceLink, setSourceLink] = useState(task?.source_link ?? "");
-  const [archiveNotes, setArchiveNotes] = useState(task?.archive_notes ?? "");
   const [dataSensitivity, setDataSensitivity] = useState(
     task?.category_key
       ? (task?.data_sensitivity ?? "normal")
@@ -173,6 +223,107 @@ function TaskForm({
     reason: string;
   } | null>(initialSuggestion);
 
+  // =============================================
+  // Fase 26A: Design Kit Inheritance Effect
+  // Hanya dijalankan untuk task BARU (bukan edit)
+  // =============================================
+  useEffect(() => {
+    // Jangan timpa nilai yang sudah tersimpan di task (mode edit)
+    if (task) return;
+
+    // Jangan timpa jika user sudah edit manual keduanya
+    if (colorPaletteManuallyEdited && visualDirectionManuallyEdited) return;
+
+    // Bungkus dalam setTimeout agar tidak synchronous di dalam effect (lint rule)
+    const timer = setTimeout(() => {
+      if (type === "acara" && eventId) {
+        const selectedEvent = events.find((e) => e.id === eventId);
+        if (!selectedEvent) return;
+
+        const hasEventKit =
+          selectedEvent.design_kit_color_palette?.length ||
+          selectedEvent.design_kit_visual_direction ||
+          selectedEvent.design_kit_redaction_links?.length;
+
+        if (!hasEventKit) return;
+
+        if (!colorPaletteManuallyEdited && selectedEvent.design_kit_color_palette?.length) {
+          setColorPalette(formatColorPalette(selectedEvent.design_kit_color_palette));
+        }
+        if (!visualDirectionManuallyEdited && selectedEvent.design_kit_visual_direction) {
+          setVisualDirection(selectedEvent.design_kit_visual_direction);
+        }
+        if (!redactionLinksText && selectedEvent.design_kit_redaction_links?.length) {
+          setRedactionLinksText(formatLinksToTextarea(selectedEvent.design_kit_redaction_links));
+        }
+        if (!designRefLinksText && selectedEvent.design_kit_design_reference_links?.length) {
+          setDesignRefLinksText(formatLinksToTextarea(selectedEvent.design_kit_design_reference_links));
+        }
+        if (!driveRefLinksText && selectedEvent.design_kit_drive_reference_links?.length) {
+          setDriveRefLinksText(formatLinksToTextarea(selectedEvent.design_kit_drive_reference_links));
+        }
+        setDesignKitSource("event");
+      } else if (type === "divisi") {
+        const defaultDivision = divisions?.[0];
+        if (!defaultDivision) return;
+
+        const hasDivisionKit =
+          defaultDivision.design_kit_color_palette?.length ||
+          defaultDivision.design_kit_visual_direction;
+
+        if (!hasDivisionKit) return;
+
+        if (!colorPaletteManuallyEdited && defaultDivision.design_kit_color_palette?.length) {
+          setColorPalette(formatColorPalette(defaultDivision.design_kit_color_palette));
+        }
+        if (!visualDirectionManuallyEdited && defaultDivision.design_kit_visual_direction) {
+          setVisualDirection(defaultDivision.design_kit_visual_direction);
+        }
+        if (!designRefLinksText && defaultDivision.design_kit_design_reference_links?.length) {
+          setDesignRefLinksText(formatLinksToTextarea(defaultDivision.design_kit_design_reference_links));
+        }
+        if (!driveRefLinksText && defaultDivision.design_kit_drive_reference_links?.length) {
+          setDriveRefLinksText(formatLinksToTextarea(defaultDivision.design_kit_drive_reference_links));
+        }
+        setDesignKitSource("division");
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, eventId]);
+
+  // Helper: tandai sebagai "manual" jika user mengedit color/visual
+  function handleColorPaletteChange(val: string) {
+    setColorPalette(val);
+    setColorPaletteManuallyEdited(true);
+    setDesignKitSource("manual");
+  }
+
+  function handleVisualDirectionChange(val: string) {
+    setVisualDirection(val);
+    setVisualDirectionManuallyEdited(true);
+    setDesignKitSource("manual");
+  }
+
+  // --- Nama sumber Design Kit untuk indikator ---
+  function getDesignKitSourceLabel(): string | null {
+    if (!designKitSource) return null;
+    if (designKitSource === "manual") return null; // akan ditampilkan pesan berbeda
+    if (designKitSource === "event") {
+      const ev = events.find((e) => e.id === eventId);
+      return ev ? ev.name : "acara ini";
+    }
+    if (designKitSource === "division") {
+      const div = divisions?.[0];
+      return div ? div.name : "divisi";
+    }
+    return null;
+  }
+
+  const designKitSourceLabel = getDesignKitSourceLabel();
+
+  // --- Category detection handlers ---
   const handleManualDetect = async () => {
     if (!name.trim()) {
       setError("Nama task wajib diisi untuk mendeteksi kategori.");
@@ -227,23 +378,19 @@ function TaskForm({
             reason: formattedReason,
           });
 
-          // Populate the fields
           setCategoryKey(result.category_key);
           setSubcategoryKey(result.subcategory_key);
           setArchiveEnabled(result.archive_enabled);
           setReferenceCandidateEnabled(result.reference_candidate_enabled);
-          
-          // Map data sensitivity
+
           const mappedSensitivity = mapOutputToSensitivity(result.data_sensitivity);
           setDataSensitivity(mappedSensitivity);
 
-          // Get and set requiresFile, requiresSourceLink, and outputTypes using the client-side helper
           const defaults = getDefaultArchiveSettings(result.category_key, result.subcategory_key);
           setRequiresFile(defaults.requiresFile);
           setRequiresSourceLink(defaults.requiresSourceLink);
           setOutputTypes(defaults.outputTypes.join(", "));
         } else {
-          // If category/subcategory is null, reset suggestion and show feedback in suggestion state
           setSuggestion({
             categoryKey: "",
             subcategoryKey: "",
@@ -271,7 +418,6 @@ function TaskForm({
     const timer = setTimeout(() => {
       const result = runRuleBasedDetection(name, description);
       if (result && result.category_key && result.subcategory_key) {
-        // Only show suggestion if it's different from current manual selection
         if (
           result.category_key !== categoryKey ||
           result.subcategory_key !== subcategoryKey
@@ -339,15 +485,31 @@ function TaskForm({
       return;
     }
 
-    if (![copywritingDocsUrl, designReferenceUrl, driveReferenceUrl].every(isValidUrl)) {
-      setError("URL harus valid dan diawali http/https jika diisi.");
+    // Validasi source link saja (field tunggal yang masih require valid URL)
+    if (sourceLink && !isValidUrl(sourceLink)) {
+      setError("Link sumber/editable design harus valid (diawali http/https).");
       return;
     }
 
-    if (!colors.every(isValidHexColor)) {
-      setError("Color palette harus berupa hex color, contoh: #0f172a, #22c55e.");
+    // Validasi multi-link textarea (ringan — beri warning, tidak block)
+    const invalidRedaction = getInvalidUrlsFromTextarea(redactionLinksText);
+    const invalidDesignRef = getInvalidUrlsFromTextarea(designRefLinksText);
+    const invalidDriveRef = getInvalidUrlsFromTextarea(driveRefLinksText);
+    const allInvalid = [...invalidRedaction, ...invalidDesignRef, ...invalidDriveRef];
+    if (allInvalid.length > 0) {
+      setError(`URL berikut tidak valid: ${allInvalid.slice(0, 3).join(", ")}${allInvalid.length > 3 ? "..." : ""}`);
       return;
     }
+
+    // Parse multi-link textarea
+    const redactionLinks: ReferenceLink[] = parseLinksFromTextarea(redactionLinksText);
+    const designRefLinks: ReferenceLink[] = parseLinksFromTextarea(designRefLinksText);
+    const driveRefLinks: ReferenceLink[] = parseLinksFromTextarea(driveRefLinksText);
+
+    // Legacy single-URL: pakai URL pertama dari multi-link sebagai fallback
+    const firstRedactionUrl = redactionLinks[0]?.url || "";
+    const firstDesignRefUrl = designRefLinks[0]?.url || "";
+    const firstDriveRefUrl = driveRefLinks[0]?.url || "";
 
     setIsSubmitting(true);
 
@@ -364,16 +526,23 @@ function TaskForm({
           status,
           priority,
           copywriting,
-          copywriting_docs_url: copywritingDocsUrl.trim(),
-          design_reference_url: designReferenceUrl.trim(),
-          drive_reference_url: driveReferenceUrl.trim(),
+          // Legacy single-URL fields (backward compat)
+          copywriting_docs_url: firstRedactionUrl,
+          design_reference_url: firstDesignRefUrl,
+          drive_reference_url: firstDriveRefUrl,
           color_palette: colors,
           visual_direction: visualDirection.trim(),
           category_key: categoryKey,
           category_label: MAIN_CATEGORIES.find((c) => c.key === categoryKey)?.label ?? "",
           subcategory_key: subcategoryKey,
-          subcategory_label: categoryKey && subcategoryKey ? getCategoryRule(categoryKey, subcategoryKey)?.subcategoryLabel ?? "" : "",
-          output_types: outputTypes.split(",").map((t) => t.trim()).filter(Boolean),
+          subcategory_label:
+            categoryKey && subcategoryKey
+              ? (getCategoryRule(categoryKey, subcategoryKey)?.subcategoryLabel ?? "")
+              : "",
+          output_types: outputTypes
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
           archive_enabled: archiveEnabled,
           reference_candidate_enabled: referenceCandidateEnabled,
           requires_file: requiresFile,
@@ -381,6 +550,11 @@ function TaskForm({
           source_link: sourceLink.trim(),
           archive_notes: archiveNotes.trim(),
           data_sensitivity: dataSensitivity as "normal" | "internal" | "sensitive",
+          // Fase 26A: Multi-link fields
+          redaction_links: redactionLinks,
+          design_ref_links: designRefLinks,
+          drive_ref_links: driveRefLinks,
+          design_kit_source: designKitSource,
         },
         task?.id,
       );
@@ -418,7 +592,11 @@ function TaskForm({
               <Input value={name} onChange={(event) => setName(event.target.value)} />
             </Field>
             <Field label="Tipe task">
-              <select className={selectClassName} value={type} onChange={(event) => setType(event.target.value as TaskType)}>
+              <select
+                className={selectClassName}
+                value={type}
+                onChange={(event) => setType(event.target.value as TaskType)}
+              >
                 <option value="divisi">Divisi</option>
                 <option value="acara">Acara</option>
               </select>
@@ -427,10 +605,16 @@ function TaskForm({
 
           {type === "acara" ? (
             <Field label="Event">
-              <select className={selectClassName} value={eventId} onChange={(event) => setEventId(event.target.value)}>
+              <select
+                className={selectClassName}
+                value={eventId}
+                onChange={(event) => setEventId(event.target.value)}
+              >
                 <option value="">Pilih event</option>
                 {events.map((event) => (
-                  <option key={event.id} value={event.id}>{event.name}</option>
+                  <option key={event.id} value={event.id}>
+                    {event.name}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -438,18 +622,30 @@ function TaskForm({
 
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="PIC">
-              <select className={selectClassName} value={picId} onChange={(event) => setPicId(event.target.value)}>
+              <select
+                className={selectClassName}
+                value={picId}
+                onChange={(event) => setPicId(event.target.value)}
+              >
                 <option value="">Pilih PIC</option>
                 {users.map((user) => (
-                  <option key={user.id} value={user.id}>{user.name || user.email}</option>
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email}
+                  </option>
                 ))}
               </select>
             </Field>
             <Field label="Koordinator">
-              <select className={selectClassName} value={coordinatorId} onChange={(event) => setCoordinatorId(event.target.value)}>
+              <select
+                className={selectClassName}
+                value={coordinatorId}
+                onChange={(event) => setCoordinatorId(event.target.value)}
+              >
                 <option value="">Pilih koordinator</option>
                 {users.map((user) => (
-                  <option key={user.id} value={user.id}>{user.name || user.email}</option>
+                  <option key={user.id} value={user.id}>
+                    {user.name || user.email}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -460,16 +656,28 @@ function TaskForm({
               <NeoDatePicker value={deadline} onChange={setDeadline} />
             </Field>
             <Field label="Status">
-              <select className={selectClassName} value={status} onChange={(event) => setStatus(event.target.value as TaskStatus)}>
+              <select
+                className={selectClassName}
+                value={status}
+                onChange={(event) => setStatus(event.target.value as TaskStatus)}
+              >
                 {TASK_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </Field>
             <Field label="Prioritas">
-              <select className={selectClassName} value={priority} onChange={(event) => setPriority(event.target.value as TaskPriority)}>
+              <select
+                className={selectClassName}
+                value={priority}
+                onChange={(event) => setPriority(event.target.value as TaskPriority)}
+              >
                 {TASK_PRIORITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -478,18 +686,87 @@ function TaskForm({
           <TextArea label="Deskripsi" value={description} onChange={setDescription} />
           <TextArea label="Redaksi/copywriting" value={copywriting} onChange={setCopywriting} />
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Link Google Docs redaksi">
-              <Input value={copywritingDocsUrl} onChange={(event) => setCopywritingDocsUrl(event.target.value)} placeholder="https://..." />
-            </Field>
-            <Field label="Link referensi desain">
-              <Input value={designReferenceUrl} onChange={(event) => setDesignReferenceUrl(event.target.value)} placeholder="https://..." />
-            </Field>
-            <Field label="Link Google Drive referensi">
-              <Input value={driveReferenceUrl} onChange={(event) => setDriveReferenceUrl(event.target.value)} placeholder="https://..." />
-            </Field>
+          {/* ===================================================
+              Multi-link fields — Fase 26A
+              =================================================== */}
+
+          {/* Indikator Design Kit Source */}
+          {(designKitSource === "event" || designKitSource === "division") && designKitSourceLabel && (
+            <div className="flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50/70 dark:border-violet-800/40 dark:bg-violet-950/20 px-3 py-2.5 text-xs text-violet-700 dark:text-violet-300">
+              <Info className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+              <span>
+                Menggunakan default dari:{" "}
+                <strong>{designKitSourceLabel}</strong>
+              </span>
+            </div>
+          )}
+          {designKitSource === "manual" && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 dark:border-amber-800/40 dark:bg-amber-950/20 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+              <Info className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+              <span>Sudah disesuaikan manual untuk jobdesk ini.</span>
+            </div>
+          )}
+
+          {/* Link redaksi / brief — Multi-line */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+              Link redaksi / brief
+            </label>
+            <textarea
+              value={redactionLinksText}
+              onChange={(e) => {
+                setRedactionLinksText(e.target.value);
+                setDesignKitSource("manual");
+              }}
+              placeholder={"https://docs.google.com/document/d/...\nhttps://docs.google.com/spreadsheets/d/..."}
+              className="min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
+            />
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Satu link per baris. Isi link Google Docs berisi naskah, caption, redaksi, TOR, atau brief tugas.
+            </p>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Link referensi desain — Multi-line */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Link referensi desain
+              </label>
+              <textarea
+                value={designRefLinksText}
+                onChange={(e) => {
+                  setDesignRefLinksText(e.target.value);
+                  setDesignKitSource("manual");
+                }}
+                placeholder={"https://www.canva.com/design/...\nhttps://pinterest.com/..."}
+                className="min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
+              />
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Satu link per baris. Isi inspirasi desain dari Canva, Pinterest, Drive, Figma, atau referensi tahun sebelumnya.
+              </p>
+            </div>
+
+            {/* Folder Google Drive referensi — Multi-line */}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Folder Google Drive referensi
+              </label>
+              <textarea
+                value={driveRefLinksText}
+                onChange={(e) => {
+                  setDriveRefLinksText(e.target.value);
+                  setDesignKitSource("manual");
+                }}
+                placeholder={"https://drive.google.com/drive/folders/...\nhttps://drive.google.com/drive/folders/..."}
+                className="min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
+              />
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                Satu link per baris. Isi folder Drive berisi aset, logo, desain lama, dokumentasi, atau file pendukung.
+              </p>
+            </div>
+          </div>
+
+          {/* Referensi arsip */}
           <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -509,10 +786,22 @@ function TaskForm({
             </div>
           </div>
 
+          {/* Color palette + Visual direction */}
           <Field label="Color palette">
-            <Input value={colorPalette} onChange={(event) => setColorPalette(event.target.value)} placeholder="#0f172a, #22c55e" />
+            <Input
+              value={colorPalette}
+              onChange={(event) => handleColorPaletteChange(event.target.value)}
+              placeholder="#0f172a, #22c55e"
+            />
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+              Pisahkan dengan koma. Bisa hex (#0f172a) atau nama warna. Diwariskan dari Design Kit acara/divisi jika kosong.
+            </p>
           </Field>
-          <TextArea label="Arahan visual/supergrafis" value={visualDirection} onChange={setVisualDirection} />
+          <TextArea
+            label="Arahan visual/supergrafis"
+            value={visualDirection}
+            onChange={handleVisualDirectionChange}
+          />
 
           {/* Section: Pengarsipan & Referensi */}
           <div className="rounded-[8px] border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-5 space-y-4">
@@ -537,22 +826,24 @@ function TaskForm({
               </Button>
             </div>
 
-            {suggestion && categoryKey === suggestion.categoryKey && subcategoryKey === suggestion.subcategoryKey ? (
-              <div className={`flex items-start gap-2.5 rounded-lg border p-3 text-xs font-medium ${
-                suggestion.categoryKey
+            {suggestion &&
+              categoryKey === suggestion.categoryKey &&
+              subcategoryKey === suggestion.subcategoryKey ? (
+              <div
+                className={`flex items-start gap-2.5 rounded-lg border p-3 text-xs font-medium ${suggestion.categoryKey
                   ? "border-sky-100 bg-sky-50/50 text-sky-800 dark:border-sky-950/30 dark:bg-sky-950/20 dark:text-sky-350"
                   : "border-amber-100 bg-amber-50/50 text-amber-800 dark:border-amber-950/30 dark:bg-amber-950/20 dark:text-amber-350"
-              }`}>
-                <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                  suggestion.categoryKey
+                  }`}
+              >
+                <span
+                  className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${suggestion.categoryKey
                     ? "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300"
                     : "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
-                }`}>
+                    }`}
+                >
                   {suggestion.categoryKey ? "Kategori disarankan otomatis" : "Deteksi Kategori"}
                 </span>
-                <span className="font-medium">
-                  {suggestion.reason}
-                </span>
+                <span className="font-medium">{suggestion.reason}</span>
               </div>
             ) : null}
 
@@ -565,7 +856,9 @@ function TaskForm({
                 >
                   <option value="">Pilih kategori utama (opsional)</option>
                   {getMainCategories().map((cat) => (
-                    <option key={cat.key} value={cat.key}>{cat.label}</option>
+                    <option key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </option>
                   ))}
                 </select>
               </Field>
@@ -578,9 +871,12 @@ function TaskForm({
                   disabled={!categoryKey}
                 >
                   <option value="">Pilih subkategori</option>
-                  {categoryKey && getSubcategories(categoryKey).map((sub) => (
-                    <option key={sub.key} value={sub.key}>{sub.label}</option>
-                  ))}
+                  {categoryKey &&
+                    getSubcategories(categoryKey).map((sub) => (
+                      <option key={sub.key} value={sub.key}>
+                        {sub.label}
+                      </option>
+                    ))}
                 </select>
               </Field>
             </div>
@@ -593,7 +889,10 @@ function TaskForm({
                   onClick={() => {
                     setCategoryKey(localSuggestion.categoryKey);
                     setSubcategoryKey(localSuggestion.subcategoryKey);
-                    const defaults = getDefaultArchiveSettings(localSuggestion.categoryKey, localSuggestion.subcategoryKey);
+                    const defaults = getDefaultArchiveSettings(
+                      localSuggestion.categoryKey,
+                      localSuggestion.subcategoryKey,
+                    );
                     setArchiveEnabled(defaults.archiveEnabled);
                     setReferenceCandidateEnabled(defaults.referenceCandidateEnabled);
                     setRequiresFile(defaults.requiresFile);
@@ -623,7 +922,10 @@ function TaskForm({
                       onChange={(e) => setArchiveEnabled(e.target.checked)}
                       className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor="archiveEnabled" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                    <label
+                      htmlFor="archiveEnabled"
+                      className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer"
+                    >
                       Masuk Arsip Acara
                       <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
                         Direkomendasikan
@@ -639,13 +941,20 @@ function TaskForm({
                       onChange={(e) => setReferenceCandidateEnabled(e.target.checked)}
                       className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor="referenceCandidateEnabled" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                    <label
+                      htmlFor="referenceCandidateEnabled"
+                      className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer"
+                    >
                       Kandidat Referensi
                       <span className="block text-[10px] text-slate-500 font-medium">
                         {dataSensitivity === "sensitive" ? (
-                          <span className="text-rose-600 dark:text-rose-400 font-semibold">Sensitif (Tidak disarankan)</span>
+                          <span className="text-rose-600 dark:text-rose-400 font-semibold">
+                            Sensitif (Tidak disarankan)
+                          </span>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Direkomendasikan</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            Direkomendasikan
+                          </span>
                         )}
                       </span>
                     </label>
@@ -659,7 +968,10 @@ function TaskForm({
                       onChange={(e) => setRequiresFile(e.target.checked)}
                       className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor="requiresFile" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                    <label
+                      htmlFor="requiresFile"
+                      className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer"
+                    >
                       Wajib File Hasil
                       <span className="block text-[10px] text-slate-500 font-medium">
                         Soft warning saat upload
@@ -677,7 +989,10 @@ function TaskForm({
                       onChange={(e) => setRequiresSourceLink(e.target.checked)}
                       className="size-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <label htmlFor="requiresSourceLink" className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer">
+                    <label
+                      htmlFor="requiresSourceLink"
+                      className="text-xs font-semibold text-slate-900 dark:text-slate-100 select-none cursor-pointer"
+                    >
                       Wajib Link Sumber
                       <span className="block text-[10px] text-slate-500 font-medium">
                         Canva/Figma/Docs/Sheets
@@ -689,7 +1004,9 @@ function TaskForm({
                     <select
                       className="h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none"
                       value={dataSensitivity}
-                      onChange={(e) => setDataSensitivity(e.target.value as "normal" | "internal" | "sensitive")}
+                      onChange={(e) =>
+                        setDataSensitivity(e.target.value as "normal" | "internal" | "sensitive")
+                      }
                     >
                       <option value="normal">Normal (Public/Shareable)</option>
                       <option value="internal">Internal (Panitia saja)</option>
@@ -707,28 +1024,44 @@ function TaskForm({
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Field label="Link Sumber (Figma/Canva/Workspace/Drive)">
+                  {/* Label baru: "Link sumber/editable design" */}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Link sumber/editable design
+                    </label>
                     <Input
                       placeholder="https://..."
                       value={sourceLink}
                       onChange={(e) => setSourceLink(e.target.value)}
                     />
-                  </Field>
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      Isi link Canva, Figma, Google Docs, Google Sheets, atau file editable lain jika ada.
+                    </p>
+                  </div>
 
-                  <Field label="Catatan Arsip / Serah Terima">
+                  {/* Label baru: "Catatan arsip / catatan untuk penerus" */}
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Catatan arsip / catatan untuk penerus
+                    </label>
                     <Input
                       placeholder="Contoh: Upload format PDF..."
                       value={archiveNotes}
                       onChange={(e) => setArchiveNotes(e.target.value)}
                     />
-                  </Field>
+                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                      Tulis catatan penting agar koordinator atau penerus berikutnya paham konteks file ini.
+                    </p>
+                  </div>
                 </div>
               </>
             ) : null}
           </div>
 
           {error ? (
-            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">{error}</p>
+            <p className="rounded-[8px] bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+              {error}
+            </p>
           ) : null}
 
           <div className="flex justify-end gap-2">
@@ -750,7 +1083,9 @@ function TaskForm({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -767,7 +1102,9 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</span>
+      <span className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+        {label}
+      </span>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}

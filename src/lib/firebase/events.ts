@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase/client";
 import { DEFAULT_ORGANIZATION_ID } from "@/lib/seed-data";
 import { isKoordinatorDivisi, isSuperAdmin } from "@/lib/permissions";
-import type { Event, EventInput, EventStatus, UserProfile } from "@/types";
+import type { Event, EventInput, EventStatus, ReferenceLink, UserProfile } from "@/types";
 
 function eventDateToTimestamp(value: string) {
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
@@ -110,6 +110,15 @@ export async function createEvent(input: EventInput, createdBy: string) {
     whatsapp_group_verified: false,
     whatsapp_group_updated_at: serverTimestamp(),
     whatsapp_group_updated_by: createdBy,
+    // Fase 26A: Event Design Kit
+    design_kit_color_palette: input.design_kit_color_palette || [],
+    design_kit_visual_direction: input.design_kit_visual_direction || "",
+    design_kit_supergraphic_notes: input.design_kit_supergraphic_notes || "",
+    design_kit_redaction_links: input.design_kit_redaction_links || [],
+    design_kit_design_reference_links: input.design_kit_design_reference_links || [],
+    design_kit_drive_reference_links: input.design_kit_drive_reference_links || [],
+    design_kit_previous_event_refs: input.design_kit_previous_event_refs || [],
+    design_kit_notes_for_team: input.design_kit_notes_for_team || "",
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
@@ -130,6 +139,15 @@ export async function updateEvent(eventId: string, input: EventInput, updatedBy?
     coordinator_id: input.coordinator_id,
     status: input.status,
     updated_at: serverTimestamp(),
+    // Fase 26A: Event Design Kit
+    design_kit_color_palette: input.design_kit_color_palette ?? [],
+    design_kit_visual_direction: input.design_kit_visual_direction ?? "",
+    design_kit_supergraphic_notes: input.design_kit_supergraphic_notes ?? "",
+    design_kit_redaction_links: input.design_kit_redaction_links ?? [],
+    design_kit_design_reference_links: input.design_kit_design_reference_links ?? [],
+    design_kit_drive_reference_links: input.design_kit_drive_reference_links ?? [],
+    design_kit_previous_event_refs: input.design_kit_previous_event_refs ?? [],
+    design_kit_notes_for_team: input.design_kit_notes_for_team ?? "",
   };
 
   if (input.whatsapp_group_id !== undefined) {
@@ -159,6 +177,32 @@ export async function updateEventStatus(
 ) {
   await updateDoc(doc(db, "events", eventId), {
     status,
+    updated_at: serverTimestamp(),
+  });
+}
+
+export async function updateEventDesignKit(
+  eventId: string,
+  kit: {
+    color_palette?: string[];
+    visual_direction?: string;
+    supergraphic_notes?: string;
+    redaction_links?: ReferenceLink[];
+    design_reference_links?: ReferenceLink[];
+    drive_reference_links?: ReferenceLink[];
+    previous_event_refs?: string[];
+    notes_for_team?: string;
+  },
+) {
+  await updateDoc(doc(db, "events", eventId), {
+    design_kit_color_palette: kit.color_palette ?? [],
+    design_kit_visual_direction: kit.visual_direction ?? "",
+    design_kit_supergraphic_notes: kit.supergraphic_notes ?? "",
+    design_kit_redaction_links: kit.redaction_links ?? [],
+    design_kit_design_reference_links: kit.design_reference_links ?? [],
+    design_kit_drive_reference_links: kit.drive_reference_links ?? [],
+    design_kit_previous_event_refs: kit.previous_event_refs ?? [],
+    design_kit_notes_for_team: kit.notes_for_team ?? "",
     updated_at: serverTimestamp(),
   });
 }

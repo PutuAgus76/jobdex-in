@@ -3,6 +3,28 @@ export type DashboardNavItem = {
   href: string;
 };
 
+// =============================================
+// Design Kit — Multi-link types
+// =============================================
+
+export type ReferenceLinkType =
+  | "google_docs"
+  | "google_sheets"
+  | "google_drive"
+  | "canva"
+  | "figma"
+  | "pinterest"
+  | "website"
+  | "youtube"
+  | "other";
+
+export type ReferenceLink = {
+  id: string;
+  label?: string;
+  url: string;
+  type: ReferenceLinkType;
+};
+
 export type UserRole =
   | "super_admin"
   | "koordinator_divisi"
@@ -53,6 +75,15 @@ export type Event = {
   whatsapp_group_updated_at?: unknown;
   whatsapp_group_updated_by?: string;
   whatsapp_group_source?: "manual" | "webhook_detected" | "admin_input";
+  // Fase 26A: Event Design Kit
+  design_kit_color_palette?: string[];
+  design_kit_visual_direction?: string;
+  design_kit_supergraphic_notes?: string;
+  design_kit_redaction_links?: ReferenceLink[];
+  design_kit_design_reference_links?: ReferenceLink[];
+  design_kit_drive_reference_links?: ReferenceLink[];
+  design_kit_previous_event_refs?: string[];
+  design_kit_notes_for_team?: string;
 };
 
 export type EventMember = {
@@ -75,6 +106,15 @@ export type EventInput = {
   whatsapp_group_name?: string;
   secretary_id?: string;
   initial_member_ids?: string[];
+  // Fase 26A: Event Design Kit
+  design_kit_color_palette?: string[];
+  design_kit_visual_direction?: string;
+  design_kit_supergraphic_notes?: string;
+  design_kit_redaction_links?: ReferenceLink[];
+  design_kit_design_reference_links?: ReferenceLink[];
+  design_kit_drive_reference_links?: ReferenceLink[];
+  design_kit_previous_event_refs?: string[];
+  design_kit_notes_for_team?: string;
 };
 
 export type TaskType = "divisi" | "acara";
@@ -110,6 +150,7 @@ export type Task = {
   status: TaskStatus;
   priority: TaskPriority;
   copywriting: string;
+  // Legacy single-URL fields (dipertahankan untuk backward compat)
   copywriting_docs_url: string;
   design_reference_url: string;
   drive_reference_url: string;
@@ -147,6 +188,11 @@ export type Task = {
   source_link?: string;
   archive_notes?: string;
   data_sensitivity?: "normal" | "internal" | "sensitive";
+  // Fase 26A: Multi-link fields (additive)
+  redaction_links?: ReferenceLink[];
+  design_ref_links?: ReferenceLink[];
+  drive_ref_links?: ReferenceLink[];
+  design_kit_source?: "event" | "division" | "manual" | null;
 };
 
 export type TaskStatusLog = {
@@ -328,6 +374,7 @@ export type AILog = {
 export type TaskInput = {
   type: TaskType;
   event_id: string;
+  division_id?: string;
   name: string;
   description: string;
   pic_id: string;
@@ -336,6 +383,7 @@ export type TaskInput = {
   status: TaskStatus;
   priority: TaskPriority;
   copywriting: string;
+  // Legacy single-URL fields
   copywriting_docs_url: string;
   design_reference_url: string;
   drive_reference_url: string;
@@ -353,6 +401,11 @@ export type TaskInput = {
   source_link?: string;
   archive_notes?: string;
   data_sensitivity?: "normal" | "internal" | "sensitive";
+  // Fase 26A: Multi-link fields (additive)
+  redaction_links?: ReferenceLink[];
+  design_ref_links?: ReferenceLink[];
+  drive_ref_links?: ReferenceLink[];
+  design_kit_source?: "event" | "division" | "manual" | null;
 };
 
 export type Organization = {
@@ -373,6 +426,14 @@ export type Division = {
   coordinator_id: string;
   created_at?: unknown;
   updated_at?: unknown;
+  // Fase 26A: Division Design Kit
+  design_kit_color_palette?: string[];
+  design_kit_visual_direction?: string;
+  design_kit_supergraphic_notes?: string;
+  design_kit_design_reference_links?: ReferenceLink[];
+  design_kit_drive_reference_links?: ReferenceLink[];
+  design_kit_archive_drive_links?: ReferenceLink[];
+  design_kit_notes_for_members?: string;
 };
 
 export type NewUserProfileInput = Pick<

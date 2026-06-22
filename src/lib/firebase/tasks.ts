@@ -17,7 +17,7 @@ import {
   isKoordinatorDivisi,
   isSuperAdmin,
 } from "@/lib/permissions";
-import type { Task, TaskInput, UserProfile } from "@/types";
+import type { ReferenceLink, Task, TaskInput, UserProfile } from "@/types";
 
 function dateToTimestamp(value: string) {
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
@@ -162,10 +162,15 @@ export async function createTask(input: TaskInput, createdBy: string) {
     { id: "checklist_6", label: "Upload hasil ke JobDex.in / Drive", is_done: false },
   ];
 
+  // Backward compat: simpan field lama dari multi-link jika ada
+  const firstRedaction = (input.redaction_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+  const firstDesignRef = (input.design_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+  const firstDriveRef = (input.drive_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+
   const taskRef = await addDoc(collection(db, "tasks"), {
     organization_id: DEFAULT_ORGANIZATION_ID,
     type: input.type,
-    division_id: input.type === "divisi" ? DEFAULT_DIVISION_ID : "",
+    division_id: input.type === "divisi" ? (input.division_id || DEFAULT_DIVISION_ID) : "",
     event_id: input.type === "acara" ? input.event_id : "",
     name: input.name,
     description: input.description,
@@ -175,9 +180,10 @@ export async function createTask(input: TaskInput, createdBy: string) {
     status: input.status,
     priority: input.priority,
     copywriting: input.copywriting,
-    copywriting_docs_url: input.copywriting_docs_url,
-    design_reference_url: input.design_reference_url,
-    drive_reference_url: input.drive_reference_url,
+    // Legacy single-URL fields (backward compat)
+    copywriting_docs_url: input.copywriting_docs_url || firstRedaction,
+    design_reference_url: input.design_reference_url || firstDesignRef,
+    drive_reference_url: input.drive_reference_url || firstDriveRef,
     color_palette: input.color_palette,
     visual_direction: input.visual_direction,
     revision_notes: "",
@@ -201,6 +207,11 @@ export async function createTask(input: TaskInput, createdBy: string) {
     source_link: input.source_link || "",
     archive_notes: input.archive_notes || "",
     data_sensitivity: input.data_sensitivity || "normal",
+    // Fase 26A: Multi-link fields
+    redaction_links: input.redaction_links || [],
+    design_ref_links: input.design_ref_links || [],
+    drive_ref_links: input.drive_ref_links || [],
+    design_kit_source: input.design_kit_source || null,
   });
 
   if (input.type === "acara" && input.event_id) {
@@ -214,9 +225,14 @@ export async function updateTask(taskId: string, input: TaskInput) {
   const oldDoc = await getDoc(doc(db, "tasks", taskId));
   const oldData = oldDoc.exists() ? oldDoc.data() : null;
 
+  // Backward compat: simpan field lama dari multi-link jika ada
+  const firstRedaction = (input.redaction_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+  const firstDesignRef = (input.design_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+  const firstDriveRef = (input.drive_ref_links as ReferenceLink[] | undefined)?.[0]?.url || "";
+
   await updateDoc(doc(db, "tasks", taskId), {
     type: input.type,
-    division_id: input.type === "divisi" ? DEFAULT_DIVISION_ID : "",
+    division_id: input.type === "divisi" ? (input.division_id || DEFAULT_DIVISION_ID) : "",
     event_id: input.type === "acara" ? input.event_id : "",
     name: input.name,
     description: input.description,
@@ -226,9 +242,10 @@ export async function updateTask(taskId: string, input: TaskInput) {
     status: input.status,
     priority: input.priority,
     copywriting: input.copywriting,
-    copywriting_docs_url: input.copywriting_docs_url,
-    design_reference_url: input.design_reference_url,
-    drive_reference_url: input.drive_reference_url,
+    // Legacy single-URL fields (backward compat)
+    copywriting_docs_url: input.copywriting_docs_url || firstRedaction,
+    design_reference_url: input.design_reference_url || firstDesignRef,
+    drive_reference_url: input.drive_reference_url || firstDriveRef,
     color_palette: input.color_palette,
     visual_direction: input.visual_direction,
     updated_at: serverTimestamp(),
@@ -244,6 +261,11 @@ export async function updateTask(taskId: string, input: TaskInput) {
     source_link: input.source_link || "",
     archive_notes: input.archive_notes || "",
     data_sensitivity: input.data_sensitivity || "normal",
+    // Fase 26A: Multi-link fields
+    redaction_links: input.redaction_links || [],
+    design_ref_links: input.design_ref_links || [],
+    drive_ref_links: input.drive_ref_links || [],
+    design_kit_source: input.design_kit_source ?? null,
   });
 
   if (oldData && oldData.type === "acara" && oldData.event_id) {

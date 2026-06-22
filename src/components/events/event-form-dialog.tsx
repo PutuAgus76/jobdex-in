@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { EVENT_STATUS_OPTIONS } from "@/lib/event-status";
 import { getDateInputValue } from "@/lib/firebase/events";
 import { NeoDatePicker } from "@/components/ui/neo-date-picker";
-import { X, Save } from "lucide-react";
+import { X, Save, ChevronDown, ChevronUp, Palette } from "lucide-react";
+import { parseLinksFromTextarea, formatLinksToTextarea } from "@/lib/link-utils";
 import type { Event, EventInput, EventStatus, UserProfile, EventMember } from "@/types";
 
 type EventFormDialogProps = {
@@ -22,6 +23,9 @@ type EventFormDialogProps = {
 
 const selectClassName =
   "h-11 w-full rounded-[8px] border border-slate-200 bg-white px-3 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
+
+const textareaClassName =
+  "min-h-20 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800";
 
 export function EventFormDialog(props: EventFormDialogProps) {
   if (!props.open) {
@@ -51,7 +55,7 @@ function EventForm({
   const [status, setStatus] = useState<EventStatus>(event?.status ?? "persiapan");
   const [whatsappGroupId, setWhatsappGroupId] = useState(event?.whatsapp_group_id ?? "");
   const [whatsappGroupName, setWhatsappGroupName] = useState(event?.whatsapp_group_name ?? "");
-  
+
   const [secretaryId, setSecretaryId] = useState(() => {
     if (!event || !eventMembers) return "";
     const sec = eventMembers.find((m) => {
@@ -73,6 +77,28 @@ function EventForm({
       .filter((m) => m.user_id !== coordId && m.user_id !== secId)
       .map((m) => m.user_id);
   });
+
+  // Fase 26A: Event Design Kit state
+  const [showDesignKit, setShowDesignKit] = useState(
+    !!(event?.design_kit_color_palette?.length ||
+      event?.design_kit_visual_direction ||
+      event?.design_kit_redaction_links?.length)
+  );
+  const [dkColorPalette, setDkColorPalette] = useState(
+    event?.design_kit_color_palette?.join(", ") ?? ""
+  );
+  const [dkVisualDirection, setDkVisualDirection] = useState(event?.design_kit_visual_direction ?? "");
+  const [dkSupergraphicNotes, setDkSupergraphicNotes] = useState(event?.design_kit_supergraphic_notes ?? "");
+  const [dkRedactionLinks, setDkRedactionLinks] = useState(
+    formatLinksToTextarea(event?.design_kit_redaction_links)
+  );
+  const [dkDesignReferenceLinks, setDkDesignReferenceLinks] = useState(
+    formatLinksToTextarea(event?.design_kit_design_reference_links)
+  );
+  const [dkDriveReferenceLinks, setDkDriveReferenceLinks] = useState(
+    formatLinksToTextarea(event?.design_kit_drive_reference_links)
+  );
+  const [dkNotesForTeam, setDkNotesForTeam] = useState(event?.design_kit_notes_for_team ?? "");
 
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +125,12 @@ function EventForm({
     setIsSubmitting(true);
 
     try {
+      // Parse color palette — split by comma, trim, filter kosong
+      const colorPaletteArr = dkColorPalette
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+
       await onSave(
         {
           name: name.trim(),
@@ -110,6 +142,15 @@ function EventForm({
           whatsapp_group_name: whatsappGroupName.trim(),
           secretary_id: secretaryId,
           initial_member_ids: selectedMemberIds,
+          // Fase 26A: Event Design Kit
+          design_kit_color_palette: colorPaletteArr,
+          design_kit_visual_direction: dkVisualDirection.trim(),
+          design_kit_supergraphic_notes: dkSupergraphicNotes.trim(),
+          design_kit_redaction_links: parseLinksFromTextarea(dkRedactionLinks),
+          design_kit_design_reference_links: parseLinksFromTextarea(dkDesignReferenceLinks),
+          design_kit_drive_reference_links: parseLinksFromTextarea(dkDriveReferenceLinks),
+          design_kit_previous_event_refs: [],
+          design_kit_notes_for_team: dkNotesForTeam.trim(),
         },
         event?.id,
       );
@@ -122,8 +163,8 @@ function EventForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-8">
-      <div className="w-full max-w-2xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 px-4 py-8">
+      <div className="w-full max-w-3xl rounded-[8px] bg-white dark:bg-slate-900 shadow-xl my-auto">
         <div className="border-b border-slate-200 dark:border-slate-800 p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -141,7 +182,7 @@ function EventForm({
           </div>
         </div>
 
-        <form className="grid gap-4 p-5" onSubmit={handleSubmit}>
+        <form className="grid gap-4 p-5 max-h-[80vh] overflow-y-auto" onSubmit={handleSubmit}>
           <div>
             <label
               htmlFor="event-name"
@@ -167,7 +208,7 @@ function EventForm({
               id="event-description"
               value={description}
               onChange={(item) => setDescription(item.target.value)}
-              className="min-h-28 w-full rounded-[8px] border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 outline-none transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500 focus:ring-4 focus:ring-slate-100 dark:focus:ring-slate-800"
+              className={textareaClassName}
             />
           </div>
 
@@ -324,6 +365,138 @@ function EventForm({
                 />
               </div>
             </div>
+          </div>
+
+          {/* =====================================================
+              Fase 26A: Design Kit Acara
+              ===================================================== */}
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowDesignKit((prev) => !prev)}
+              className="w-full flex items-center justify-between gap-3 rounded-[8px] bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-950/30 dark:to-indigo-950/30 border border-violet-200 dark:border-violet-800/50 px-4 py-3 text-left transition-colors hover:from-violet-100 hover:to-indigo-100 dark:hover:from-violet-950/50 dark:hover:to-indigo-950/50"
+            >
+              <div className="flex items-center gap-2.5">
+                <Palette className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                <div>
+                  <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">
+                    Design Kit Acara
+                  </p>
+                  <p className="text-xs text-violet-600 dark:text-violet-400">
+                    Color palette, arahan visual, link referensi — diwariskan ke jobdesk acara ini
+                  </p>
+                </div>
+              </div>
+              {showDesignKit
+                ? <ChevronUp className="h-4 w-4 text-violet-500 shrink-0" />
+                : <ChevronDown className="h-4 w-4 text-violet-500 shrink-0" />}
+            </button>
+
+            {showDesignKit && (
+              <div className="mt-3 rounded-[8px] border border-violet-100 dark:border-violet-900/30 bg-white dark:bg-slate-950 p-4 space-y-4">
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Color palette
+                  </label>
+                  <Input
+                    value={dkColorPalette}
+                    onChange={(e) => setDkColorPalette(e.target.value)}
+                    placeholder="#0f172a, #22c55e, #f59e0b"
+                  />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Pisahkan dengan koma. Bisa hex (#0f172a) atau nama warna biasa.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Arahan visual / style guide
+                  </label>
+                  <textarea
+                    value={dkVisualDirection}
+                    onChange={(e) => setDkVisualDirection(e.target.value)}
+                    placeholder="Contoh: Gunakan font Poppins, nuansa gelap, dominasi ungu dan emas..."
+                    className={textareaClassName}
+                    style={{ minHeight: "80px" }}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Catatan supergrafis
+                  </label>
+                  <textarea
+                    value={dkSupergraphicNotes}
+                    onChange={(e) => setDkSupergraphicNotes(e.target.value)}
+                    placeholder="Catatan tentang supergrafis, pola grafis, atau elemen visual khas acara ini..."
+                    className={textareaClassName}
+                    style={{ minHeight: "70px" }}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Link redaksi / brief
+                  </label>
+                  <textarea
+                    value={dkRedactionLinks}
+                    onChange={(e) => setDkRedactionLinks(e.target.value)}
+                    placeholder={"https://docs.google.com/document/d/...\nhttps://docs.google.com/spreadsheets/d/..."}
+                    className={textareaClassName}
+                    style={{ minHeight: "70px" }}
+                  />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Satu link per baris. Bisa Google Docs, Sheets, TOR, atau brief acara.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Link referensi desain
+                  </label>
+                  <textarea
+                    value={dkDesignReferenceLinks}
+                    onChange={(e) => setDkDesignReferenceLinks(e.target.value)}
+                    placeholder={"https://www.canva.com/design/...\nhttps://pinterest.com/..."}
+                    className={textareaClassName}
+                    style={{ minHeight: "70px" }}
+                  />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Satu link per baris. Canva, Pinterest, Figma, atau referensi acara sebelumnya.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Folder Google Drive referensi
+                  </label>
+                  <textarea
+                    value={dkDriveReferenceLinks}
+                    onChange={(e) => setDkDriveReferenceLinks(e.target.value)}
+                    placeholder={"https://drive.google.com/drive/folders/...\nhttps://drive.google.com/drive/folders/..."}
+                    className={textareaClassName}
+                    style={{ minHeight: "70px" }}
+                  />
+                  <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                    Satu link per baris. Folder Drive berisi aset, logo, foto, atau desain lama.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Catatan untuk tim kreatif
+                  </label>
+                  <textarea
+                    value={dkNotesForTeam}
+                    onChange={(e) => setDkNotesForTeam(e.target.value)}
+                    placeholder="Catatan penting untuk tim desain acara ini..."
+                    className={textareaClassName}
+                    style={{ minHeight: "70px" }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {error ? (
