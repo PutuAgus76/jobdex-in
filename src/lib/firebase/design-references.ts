@@ -174,7 +174,9 @@ export async function getCombinedReferencesForDashboard(profile: UserProfile): P
 
   const res = await fetch("/api/references", { headers });
   if (!res.ok) {
-    throw new Error("Gagal mengambil referensi.");
+    const err = new Error(`Gagal mengambil referensi. (Status ${res.status})`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
 
   const data = await res.json();

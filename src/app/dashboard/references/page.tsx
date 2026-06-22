@@ -76,8 +76,15 @@ export default function ReferencesPage() {
       setUsers(usersData.length ? usersData : [userProfile]);
       setEvents(eventsData);
       setDivisions(divisionsData);
-    } catch {
-      setError("Gagal memuat arsip referensi. Periksa koneksi dan Firestore Rules.");
+    } catch (err) {
+      const errorStatus = (err as { status?: number })?.status;
+      if (errorStatus === 500) {
+        setError(
+          "Arsip referensi gagal dimuat dari server.\nSilakan coba muat ulang. Jika masih terjadi, cek log API /api/references."
+        );
+      } else {
+        setError("Gagal memuat arsip referensi. Periksa koneksi dan Firestore Rules.");
+      }
     } finally {
       setLoading(false);
     }
@@ -234,7 +241,17 @@ export default function ReferencesPage() {
   }
 
   if (error) {
-    return <EmptyState title="Arsip referensi gagal dimuat" description={error} />;
+    return (
+      <EmptyState
+        title="Arsip referensi gagal dimuat"
+        description={error}
+        action={
+          <Button onClick={() => void loadReferences()} className="jd-neo-button">
+            Muat ulang
+          </Button>
+        }
+      />
+    );
   }
 
   if (!userProfile) {
