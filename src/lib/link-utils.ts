@@ -71,11 +71,14 @@ export function detectLinkType(url: string): ReferenceLinkType {
  * Buat ReferenceLink dari satu URL.
  */
 export function buildReferenceLinkFromUrl(url: string, label?: string): ReferenceLink {
+  const normalizedUrl = url.trim();
+  const normalizedLabel = label?.trim();
+
   return {
     id: generateLinkId(),
-    url: url.trim(),
-    type: detectLinkType(url.trim()),
-    label: label?.trim() || undefined,
+    url: normalizedUrl,
+    type: detectLinkType(normalizedUrl),
+    ...(normalizedLabel ? { label: normalizedLabel } : {}),
   };
 }
 

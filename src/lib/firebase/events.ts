@@ -17,6 +17,71 @@ import { DEFAULT_ORGANIZATION_ID, DEFAULT_DIVISION_ID } from "@/lib/seed-data";
 import { isKoordinatorDivisi, isSuperAdmin } from "@/lib/permissions";
 import type { Event, EventInput, EventStatus, ReferenceLink, UserProfile } from "@/types";
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+export function removeUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item) => item !== undefined)
+      .map((item) => removeUndefinedDeep(item)) as T;
+  }
+
+  if (isPlainObject(value)) {
+    return Object.entries(value).reduce<Record<string, unknown>>(
+      (cleaned, [key, item]) => {
+        if (item !== undefined) {
+          cleaned[key] = removeUndefinedDeep(item);
+        }
+        return cleaned;
+      },
+      {},
+    ) as T;
+  }
+
+  return value;
+}
+
+export function findUndefinedPaths(value: unknown, prefix = ""): string[] {
+  if (value === undefined) {
+    return [prefix || "(root)"];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      findUndefinedPaths(item, `${prefix}[${index}]`),
+    );
+  }
+
+  if (isPlainObject(value)) {
+    return Object.entries(value).flatMap(([key, item]) =>
+      findUndefinedPaths(item, prefix ? `${prefix}.${key}` : key),
+    );
+  }
+
+  return [];
+}
+
+function sanitizeEventPayload<T>(payload: T, operation: string): T {
+  if (process.env.NODE_ENV !== "production") {
+    const undefinedPaths = findUndefinedPaths(payload);
+    if (undefinedPaths.length > 0) {
+      console.warn(
+        `[events] Undefined fields removed before ${operation}`,
+        undefinedPaths,
+      );
+    }
+  }
+
+  return removeUndefinedDeep(payload);
+}
+
 function eventDateToTimestamp(value: string) {
   return Timestamp.fromDate(new Date(`${value}T00:00:00`));
 }
@@ -97,7 +162,7 @@ export async function getEventById(eventId: string) {
 }
 
 export async function createEvent(input: EventInput, createdBy: string) {
-  const eventRef = await addDoc(collection(db, "events"), {
+  const rawPayload = {
     organization_id: DEFAULT_ORGANIZATION_ID,
     division_id: input.division_id || DEFAULT_DIVISION_ID,
     name: input.name,
@@ -123,7 +188,9 @@ export async function createEvent(input: EventInput, createdBy: string) {
     created_by: createdBy,
     created_at: serverTimestamp(),
     updated_at: serverTimestamp(),
-  });
+  };
+  const payload = sanitizeEventPayload(rawPayload, "create");
+  const eventRef = await addDoc(collection(db, "events"), payload);
 
   return eventRef.id;
 }
@@ -170,17 +237,19 @@ export async function updateEvent(eventId: string, input: EventInput, updatedBy?
     }
   }
 
-  await updateDoc(eventRef, updateData);
+  const payload = sanitizeEventPayload(updateData, "update");
+  await updateDoc(eventRef, payload);
 }
 
 export async function updateEventStatus(
   eventId: string,
   status: EventStatus,
 ) {
-  await updateDoc(doc(db, "events", eventId), {
+  const payload = sanitizeEventPayload({
     status,
     updated_at: serverTimestamp(),
-  });
+  }, "status update");
+  await updateDoc(doc(db, "events", eventId), payload);
 }
 
 export async function updateEventDesignKit(
@@ -196,7 +265,7 @@ export async function updateEventDesignKit(
     notes_for_team?: string;
   },
 ) {
-  await updateDoc(doc(db, "events", eventId), {
+  const rawPayload = {
     design_kit_color_palette: kit.color_palette ?? [],
     design_kit_visual_direction: kit.visual_direction ?? "",
     design_kit_supergraphic_notes: kit.supergraphic_notes ?? "",
@@ -206,7 +275,9 @@ export async function updateEventDesignKit(
     design_kit_previous_event_refs: kit.previous_event_refs ?? [],
     design_kit_notes_for_team: kit.notes_for_team ?? "",
     updated_at: serverTimestamp(),
-  });
+  };
+  const payload = sanitizeEventPayload(rawPayload, "design kit update");
+  await updateDoc(doc(db, "events", eventId), payload);
 }
 
 export function getDateInputValue(value: unknown) {

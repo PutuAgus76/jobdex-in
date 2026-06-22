@@ -130,6 +130,9 @@ function EventForm({
         .split(",")
         .map((c) => c.trim())
         .filter(Boolean);
+      const redactionLinks = parseLinksFromTextarea(dkRedactionLinks) ?? [];
+      const designReferenceLinks = parseLinksFromTextarea(dkDesignReferenceLinks) ?? [];
+      const driveReferenceLinks = parseLinksFromTextarea(dkDriveReferenceLinks) ?? [];
 
       await onSave(
         {
@@ -143,12 +146,12 @@ function EventForm({
           secretary_id: secretaryId,
           initial_member_ids: selectedMemberIds,
           // Fase 26A: Event Design Kit
-          design_kit_color_palette: colorPaletteArr,
+          design_kit_color_palette: colorPaletteArr ?? [],
           design_kit_visual_direction: dkVisualDirection.trim(),
           design_kit_supergraphic_notes: dkSupergraphicNotes.trim(),
-          design_kit_redaction_links: parseLinksFromTextarea(dkRedactionLinks),
-          design_kit_design_reference_links: parseLinksFromTextarea(dkDesignReferenceLinks),
-          design_kit_drive_reference_links: parseLinksFromTextarea(dkDriveReferenceLinks),
+          design_kit_redaction_links: redactionLinks,
+          design_kit_design_reference_links: designReferenceLinks,
+          design_kit_drive_reference_links: driveReferenceLinks,
           design_kit_previous_event_refs: [],
           design_kit_notes_for_team: dkNotesForTeam.trim(),
         },
@@ -169,7 +172,9 @@ function EventForm({
           "Gagal menyimpan acara karena izin Firestore. Pastikan role Anda super admin, koordinator acara, atau sekretaris acara."
         );
       } else {
-        setError("Gagal menyimpan acara. Silakan coba lagi.");
+        setError(
+          "Gagal menyimpan acara karena ada field kosong yang belum valid. Silakan coba lagi."
+        );
       }
     } finally {
       setIsSubmitting(false);
