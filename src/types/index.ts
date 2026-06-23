@@ -362,6 +362,8 @@ export type WhatsAppLog = {
   error_message?: string;
   retry_count: number;
   created_at?: unknown;
+  provider?: string;
+  target_type?: "group" | "phone";
 };
 
 export type AILog = {

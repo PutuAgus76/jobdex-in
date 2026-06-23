@@ -154,6 +154,7 @@ async function baseCreateWhatsAppLog({
   errorCode,
   cooldownUntil,
   rateLimitReason,
+  provider,
 }: {
   message: string;
   status: string;
@@ -164,6 +165,7 @@ async function baseCreateWhatsAppLog({
   errorCode?: string | number;
   cooldownUntil?: Date | null;
   rateLimitReason?: string;
+  provider?: string;
 }) {
   const logRef = getAdminDb().collection("whatsapp_logs").doc();
 
@@ -185,6 +187,8 @@ async function baseCreateWhatsAppLog({
     ...(response ? { wablas_response: response } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
+    provider: provider || process.env.WHATSAPP_PROVIDER || "wablas",
+    target_type: isGroup ? "group" : "phone",
   });
 }
 
@@ -373,7 +377,9 @@ export async function POST(request: NextRequest) {
   const question = extractJobDexQuestion(incoming.message);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
-    return baseSendWhatsAppMessage(message, customPhone, incoming.groupId);
+    const target = customPhone || incoming.groupId || getDefaultGroupId();
+    const type = customPhone ? "phone" : "group";
+    return baseSendWhatsAppMessage({ target, message, type });
   };
 
   const createWhatsAppLog = async (args: {
@@ -383,11 +389,13 @@ export async function POST(request: NextRequest) {
     errorMessage?: string;
     recipient?: string;
     isGroup?: boolean;
+    provider?: string;
   }) => {
     return baseCreateWhatsAppLog({
       ...args,
       recipient: args.recipient || incoming.groupId || getDefaultGroupId(),
       isGroup: args.isGroup ?? true,
+      provider: args.provider,
     });
   };
 
@@ -414,14 +422,23 @@ export async function POST(request: NextRequest) {
     const recipient = result.success
       ? await resolveTaskCommandReplyRecipient(result.taskId)
       : incoming.groupId || getDefaultGroupId();
-    const sendResult = await baseSendWhatsAppMessage(replyMessage, undefined, recipient);
+    
+    // Detect if recipient is a group ID or a phone number
+    const isGroup = recipient.includes("-") || recipient.startsWith("120363");
+    
+    const sendResult = await baseSendWhatsAppMessage({
+      target: recipient,
+      message: replyMessage,
+      type: isGroup ? "group" : "phone",
+    });
 
     await createWhatsAppLog({
       message: replyMessage,
       status: result.success ? "sent" : "failed",
       response: sendResult.responseText,
       recipient,
-      isGroup: true,
+      isGroup,
+      provider: sendResult.provider,
     });
   };
 

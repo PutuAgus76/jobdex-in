@@ -1,59 +1,25 @@
 import "server-only";
-import { getAdminDb, FieldValue } from "./firebase-admin";
-
-export class WhatsAppRateLimitError extends Error {
-  status: "skipped_min_interval" | "skipped_hourly_limit" | "skipped_cooldown" | "rate_limited" | "failed";
-  cooldownUntil: Date | null;
-
-  constructor(
-    status: "skipped_min_interval" | "skipped_hourly_limit" | "skipped_cooldown" | "rate_limited" | "failed",
-    message: string,
-    cooldownUntil: Date | null = null
-  ) {
-    super(message);
-    this.name = "WhatsAppRateLimitError";
-    this.status = status;
-    this.cooldownUntil = cooldownUntil;
-  }
-}
-
-type SendWhatsAppResult = {
-  responseText: string;
-};
-
-type SendWhatsAppOptions = {
-  mentions?: string[];
-};
+import { getAdminDb, FieldValue } from "../firebase-admin";
+import { WhatsAppRateLimitError } from "./index";
+import type { WhatsAppSendPayload, WhatsAppSendResult } from "./provider";
 
 function normalizeBaseUrl(value: string) {
   return value.replace(/\/$/, "");
 }
 
-export async function sendWhatsAppMessage(
-  message: string,
-  customPhone?: string,
-  customGroupId?: string,
-  options: SendWhatsAppOptions = {},
-) {
+export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
   const apiUrl = process.env.WABLAS_API_URL;
   const token = process.env.WABLAS_API_TOKEN;
   const secret = process.env.WABLAS_SECRET_KEY;
   const deviceId = process.env.WABLAS_DEVICE_ID;
-  
-  let recipient = "";
-  let sendToGroup = false;
 
-  if (customPhone) {
-    recipient = customPhone;
-    sendToGroup = false;
-  } else if (customGroupId) {
-    recipient = customGroupId;
-    sendToGroup = true;
-  } else {
-    recipient = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-    sendToGroup = isWhatsAppGroupRecipient();
+  if (process.env.WABLAS_ENABLED === "false") {
+    throw new Error("Wablas is disabled by WABLAS_ENABLED=false");
   }
-  
+
+  let recipient = payload.target;
+  const sendToGroup = payload.type === "group";
+
   // Safeguard: Redirect group messages to test group in development or testing environment
   if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
     if (sendToGroup) {
@@ -62,11 +28,11 @@ export async function sendWhatsAppMessage(
   }
 
   if (!recipient) {
-    throw new Error("Penerima WhatsApp belum diatur (groupId, customPhone, dan customGroupId kosong).");
+    throw new Error("Penerima WhatsApp belum diatur (target kosong).");
   }
 
   if (!apiUrl || !token || !secret) {
-    throw new Error("Konfigurasi Wablas belum lengkap.");
+    throw new Error("Konfigurasi Wablas belum lengkap (API URL, token, atau secret key kosong).");
   }
 
   // --- Rate Limit Guard ---
@@ -116,7 +82,7 @@ export async function sendWhatsAppMessage(
   const endpoint = apiUrl.includes("/send-message")
     ? apiUrl
     : `${normalizeBaseUrl(apiUrl)}/send-message`;
-  const mentions = Array.from(new Set(options.mentions ?? [])).filter(Boolean);
+  const mentions = Array.from(new Set(payload.mentions ?? [])).filter(Boolean);
   const mentionMetadataEnabled =
     process.env.WABLAS_SEND_MENTION_METADATA?.toLowerCase() === "true";
 
@@ -133,7 +99,7 @@ export async function sendWhatsAppMessage(
       },
       body: JSON.stringify({
         phone: recipient,
-        message,
+        message: payload.message,
         isGroup: sendToGroup ? "true" : "false",
         ...(sendToGroup && mentionMetadataEnabled && mentions.length
           ? { mentions }
@@ -145,7 +111,6 @@ export async function sendWhatsAppMessage(
     responseOk = response.ok;
     responseText = await response.text();
   } catch (fetchErr: unknown) {
-    // Network errors
     const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
     throw new Error(`Wablas network fetch error: ${errorMsg}`);
   }
@@ -188,18 +153,9 @@ export async function sendWhatsAppMessage(
   }, { merge: true });
 
   return {
+    ok: true,
+    provider: "wablas",
+    target: recipient,
     responseText: responseText.slice(0, 1000),
-  } satisfies SendWhatsAppResult;
-}
-
-export function getWhatsAppRecipient() {
-  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-}
-
-export function getWhatsAppRecipientType() {
-  return isWhatsAppGroupRecipient() ? "group" : "personal";
-}
-
-export function isWhatsAppGroupRecipient() {
-  return process.env.WABLAS_SEND_TO_GROUP?.toLowerCase() !== "false";
+  };
 }

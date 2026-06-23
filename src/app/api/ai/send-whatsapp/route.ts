@@ -40,7 +40,11 @@ export async function POST(request: NextRequest) {
     }
 
     message = ["[JobDex.in] Ringkasan AI Assistant", "", answer].join("\n");
-    const result = await sendWhatsAppMessage(message);
+    const result = await sendWhatsAppMessage({
+      target: getWhatsAppRecipient(),
+      message,
+      type: isWhatsAppGroupRecipient() ? "group" : "phone",
+    });
     const logRef = db.collection("whatsapp_logs").doc();
 
     await logRef.set({
@@ -55,6 +59,8 @@ export async function POST(request: NextRequest) {
       wablas_response: result.responseText,
       retry_count: 0,
       created_at: FieldValue.serverTimestamp(),
+      provider: result.provider,
+      target_type: isWhatsAppGroupRecipient() ? "group" : "phone",
     });
 
     return NextResponse.json({ ok: true, whatsappSent: true });
@@ -76,6 +82,8 @@ export async function POST(request: NextRequest) {
           : "Ringkasan AI gagal dikirim ke WhatsApp.",
       retry_count: 0,
       created_at: FieldValue.serverTimestamp(),
+      provider: process.env.WHATSAPP_PROVIDER || "wablas",
+      target_type: isWhatsAppGroupRecipient() ? "group" : "phone",
     });
 
     return NextResponse.json(

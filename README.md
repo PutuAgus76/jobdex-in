@@ -163,6 +163,29 @@ Untuk mencegah nomor WhatsApp terblokir atau dibatasi (Error 463), atur juga par
 - `WABLAS_RATE_LIMIT_COOLDOWN_MINUTES`: Durasi cooldown (dalam menit) penghentian pengiriman otomatis jika terdeteksi Error 463.
 - `WABLAS_MAX_SENDS_PER_HOUR`: Batas aman maksimum jumlah pengiriman pesan per jam.
 
+## WhatsApp Provider Setup
+
+JobDex.in supports multiple WhatsApp providers:
+- Wablas
+- FONNTE
+
+Use `WHATSAPP_PROVIDER=fonnte` to send via FONNTE.
+Use `WHATSAPP_PROVIDER=wablas` to send via Wablas.
+
+### FONNTE Setup
+1. Create FONNTE account.
+2. Get API token.
+3. Set environment variables in `.env.local` and Vercel.
+4. Test send with provided test API `POST /api/debug/whatsapp/send-test`.
+
+### Troubleshooting
+- Check `WHATSAPP_ENABLED`
+- Check `WHATSAPP_PROVIDER`
+- Check provider token
+- Check target/group id
+- Check `whatsapp_logs`
+- Check cron logs
+
 ## Wablas Webhook Setup
 
 Webhook inbound AI bot tersedia di:

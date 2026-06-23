@@ -838,6 +838,7 @@ export async function logWhatsAppDigestDispatch(data: {
   errorMessage?: string;
   cooldownUntil?: Date | null;
   rateLimitReason?: string;
+  provider?: string;
 }) {
   const db = getAdminDb();
   const logRef = db.collection("whatsapp_logs").doc();
@@ -865,6 +866,8 @@ export async function logWhatsAppDigestDispatch(data: {
     ...(data.wablasResponse ? { wablas_response: data.wablasResponse } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
+    provider: data.provider || process.env.WHATSAPP_PROVIDER || "wablas",
+    target_type: "group",
   });
 
   return logRef.id;
@@ -933,6 +936,7 @@ export async function logWhatsAppDispatch(data: {
   errorCode?: string | number;
   cooldownUntil?: Date | null;
   rateLimitReason?: string;
+  provider?: string;
 }): Promise<string> {
   const db = getAdminDb();
   const logRef = db.collection("whatsapp_logs").doc();
@@ -956,15 +960,20 @@ export async function logWhatsAppDispatch(data: {
     ...(data.wablasResponse ? { wablas_response: data.wablasResponse } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
+    provider: data.provider || process.env.WHATSAPP_PROVIDER || "wablas",
+    target_type: data.recipientType === "personal" ? "phone" : "group",
   });
 
   return logRef.id;
 }
 
 export async function processSmartFollowupReminders(
-  sendWhatsAppMessage: (message: string, phone?: string, groupId?: string) => Promise<unknown>
+  sendWhatsAppMessage: (payload: { target: string; message: string; type?: "phone" | "group" }) => Promise<{ provider: string; responseText?: string }>
 ) {
   const db = getAdminDb();
+  let sent = 0;
+  let failed = 0;
+  const errors: { target: string; reason: string }[] = [];
   
   // 1. Fetch active tasks (is_archived == false)
   const tasksSnap = await db.collection("tasks").where("is_archived", "==", false).get();
@@ -1034,10 +1043,32 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          await sendWhatsAppMessage(msg, picPhone);
-          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg });
+          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone" });
+          const whatsappLogId = await logWhatsAppDispatch({
+            task,
+            recipient: picPhone,
+            recipientType: "personal",
+            messageContent: msg,
+            status: "sent",
+            wablasResponse: result.responseText,
+            provider: result.provider
+          });
+          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg, whatsappLogId });
+          sent++;
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+          failed++;
+          errors.push({ target: picPhone, reason: errMsg });
+          await logWhatsAppDispatch({
+            task,
+            recipient: picPhone,
+            recipientType: "personal",
+            messageContent: msg,
+            status: "failed",
+            errorMessage: errMsg,
+            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+          });
         }
       }
     }
@@ -1062,10 +1093,32 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          await sendWhatsAppMessage(msg, picPhone);
-          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg });
+          const result = await sendWhatsAppMessage({ target: picPhone, message: msg, type: "phone" });
+          const whatsappLogId = await logWhatsAppDispatch({
+            task,
+            recipient: picPhone,
+            recipientType: "personal",
+            messageContent: msg,
+            status: "sent",
+            wablasResponse: result.responseText,
+            provider: result.provider
+          });
+          await createTaskReminderLog({ task, reminderType: type, channel: "personal", recipient: picPhone, messageContent: msg, whatsappLogId });
+          sent++;
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`Failed to send personal reminder PIC ${picPhone}:`, err);
+          failed++;
+          errors.push({ target: picPhone, reason: errMsg });
+          await logWhatsAppDispatch({
+            task,
+            recipient: picPhone,
+            recipientType: "personal",
+            messageContent: msg,
+            status: "failed",
+            errorMessage: errMsg,
+            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+          });
         }
       }
     }
@@ -1091,10 +1144,32 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          await sendWhatsAppMessage(msg, undefined, targetGroupId);
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const whatsappLogId = await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "sent",
+            wablasResponse: result.responseText,
+            provider: result.provider
+          });
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          sent++;
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`Failed to send group stuck alert:`, err);
+          failed++;
+          errors.push({ target: targetGroupId, reason: errMsg });
+          await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "failed",
+            errorMessage: errMsg,
+            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+          });
         }
       }
     }
@@ -1116,10 +1191,32 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          await sendWhatsAppMessage(msg, undefined, targetGroupId);
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const whatsappLogId = await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "sent",
+            wablasResponse: result.responseText,
+            provider: result.provider
+          });
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          sent++;
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`Failed to send group waiting material alert:`, err);
+          failed++;
+          errors.push({ target: targetGroupId, reason: errMsg });
+          await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "failed",
+            errorMessage: errMsg,
+            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+          });
         }
       }
     }
@@ -1142,12 +1239,36 @@ export async function processSmartFollowupReminders(
         ].join("\n");
         
         try {
-          await sendWhatsAppMessage(msg, undefined, targetGroupId);
-          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg });
+          const result = await sendWhatsAppMessage({ target: targetGroupId, message: msg, type: "group" });
+          const whatsappLogId = await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "sent",
+            wablasResponse: result.responseText,
+            provider: result.provider
+          });
+          await createTaskReminderLog({ task, reminderType: type, channel: "group", recipient: targetGroupId, messageContent: msg, whatsappLogId });
+          sent++;
         } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
           console.error(`Failed to send group waiting approval alert:`, err);
+          failed++;
+          errors.push({ target: targetGroupId, reason: errMsg });
+          await logWhatsAppDispatch({
+            task,
+            recipient: targetGroupId,
+            recipientType: "group",
+            messageContent: msg,
+            status: "failed",
+            errorMessage: errMsg,
+            provider: process.env.WHATSAPP_PROVIDER || "wablas"
+          });
         }
       }
     }
   }
+
+  return { sent, failed, errors };
 }

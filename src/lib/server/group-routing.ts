@@ -30,6 +30,10 @@ export type GroupRouteTarget = {
 };
 
 function getDefaultGroupId() {
+  const provider = process.env.WHATSAPP_PROVIDER || "wablas";
+  if (provider === "fonnte") {
+    return process.env.FONNTE_DEFAULT_GROUP_ID || "";
+  }
   return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
 }
 

@@ -134,11 +134,21 @@ async function handleCron(request: Request) {
     const taskGroups = await groupTasksByTarget(activeTasks, eventsCache, divisionsMap);
 
     // Process smart individual and escalation reminders
+    let smartSent = 0;
+    let smartFailed = 0;
+    let smartErrors: { target: string; reason: string }[] = [];
+
     try {
-      await processSmartFollowupReminders(sendWhatsAppMessage);
+      const smartResult = await processSmartFollowupReminders(sendWhatsAppMessage);
+      smartSent = smartResult.sent;
+      smartFailed = smartResult.failed;
+      smartErrors = smartResult.errors;
     } catch (err) {
       console.error("Failed to process smart follow-up reminders:", err);
-      errors.push(`Smart Reminders: ${err instanceof Error ? err.message : "unknown error"}`);
+      const errMsg = err instanceof Error ? err.message : "unknown error";
+      smartFailed++;
+      smartErrors.push({ target: "smart-reminders-engine", reason: errMsg });
+      errors.push(`Smart Reminders: ${errMsg}`);
     }
 
     const digestDateKey = getDigestDateKey();
@@ -196,6 +206,10 @@ async function handleCron(request: Request) {
 
     eligibleTasksCount = eligibleTaskIds.size;
 
+    let digestSentCount = 0;
+    let digestFailedCount = 0;
+    const digestErrors: { target: string; reason: string }[] = [];
+
     // Send group digests
     for (const { targetGroupId, target, digest } of groupDigests) {
       // Check globally across all digest types today (anti-spam)
@@ -215,12 +229,12 @@ async function handleCron(request: Request) {
       const messageContent = buildDigestReminderMessage(digest);
 
       try {
-        const dispatchResult = await sendWhatsAppMessage(
-          messageContent,
-          undefined,
-          targetGroupId,
-          { mentions: digest.mentionedPhones },
-        );
+        const dispatchResult = await sendWhatsAppMessage({
+          target: targetGroupId,
+          message: messageContent,
+          type: "group",
+          mentions: digest.mentionedPhones,
+        });
 
         const whatsappLogId = await logWhatsAppDigestDispatch({
           organizationId: digest.tasks[0]?.task.organization_id ?? "main_org",
@@ -231,6 +245,7 @@ async function handleCron(request: Request) {
           categories: digest.categories,
           mentionedPhones: digest.mentionedPhones,
           wablasResponse: dispatchResult.responseText,
+          provider: dispatchResult.provider,
         });
 
         await createTaskReminderDigestLog({
@@ -253,6 +268,7 @@ async function handleCron(request: Request) {
         });
 
         digestSent = true;
+        digestSentCount++;
         digestTaskCount += digest.taskIds.length;
         newTaskIdsInDigest += newTaskIds.length;
         for (const phone of digest.mentionedPhones) {
@@ -264,6 +280,9 @@ async function handleCron(request: Request) {
         let rateLimitReason: string | undefined;
         const errorMessage =
           error instanceof Error ? error.message : "Gagal mengirim digest.";
+
+        digestFailedCount++;
+        digestErrors.push({ target: targetGroupId, reason: errorMessage });
 
         if (error instanceof WhatsAppRateLimitError) {
           status = error.status;
@@ -285,6 +304,7 @@ async function handleCron(request: Request) {
           errorMessage,
           cooldownUntil,
           rateLimitReason,
+          provider: process.env.WHATSAPP_PROVIDER || "wablas",
         });
 
         await createTaskReminderDigestLog({
@@ -308,9 +328,14 @@ async function handleCron(request: Request) {
       }
     }
 
-    // Skip output if all checked groups were skipped
-    if (!digestSent && alreadyInDigestToday > 0) {
+    // Skip output if all checked groups were skipped and no smart messages sent
+    if (!digestSent && alreadyInDigestToday > 0 && smartSent === 0) {
       return NextResponse.json({
+        ok: true,
+        provider: process.env.WHATSAPP_PROVIDER || "wablas",
+        sent: smartSent,
+        failed: smartFailed,
+        errors: smartErrors,
         digestSent: false,
         digestSkippedReason: "already_sent_today_no_new_tasks",
         alreadyInDigestToday,
@@ -319,8 +344,16 @@ async function handleCron(request: Request) {
 
     skipped.alreadyInDigestToday = alreadyInDigestToday;
 
+    const totalSent = smartSent + digestSentCount;
+    const totalFailed = smartFailed + digestFailedCount;
+    const allErrors = [...smartErrors, ...digestErrors];
+
     return NextResponse.json({
       ok: true,
+      provider: process.env.WHATSAPP_PROVIDER || "wablas",
+      sent: totalSent,
+      failed: totalFailed,
+      errors: allErrors,
       checkedTasks,
       eligibleTasks: eligibleTasksCount,
       groupsChecked: Object.keys(taskGroups).length || taskGroups.size,
@@ -330,7 +363,6 @@ async function handleCron(request: Request) {
       categories: categoriesSum,
       skipped,
       mentionedPhones: Array.from(sentMentionedPhones),
-      errors,
     });
   } catch (error: unknown) {
     const errorMessage =
@@ -340,7 +372,10 @@ async function handleCron(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Internal Server Error in Cron processing.",
+        provider: process.env.WHATSAPP_PROVIDER || "wablas",
+        sent: 0,
+        failed: 1,
+        errors: [{ target: "cron-engine", reason: errorMessage }],
         checkedTasks: 0,
         eligibleTasks: 0,
         groupsChecked: 0,
@@ -350,7 +385,6 @@ async function handleCron(request: Request) {
         categories: null,
         skipped,
         mentionedPhones: [],
-        errors,
       },
       { status: 500 },
     );

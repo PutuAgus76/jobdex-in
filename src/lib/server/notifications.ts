@@ -46,6 +46,7 @@ async function createWhatsAppLog({
   message,
   status,
   target,
+  provider,
   wablasResponse,
   errorMessage,
 }: {
@@ -54,6 +55,7 @@ async function createWhatsAppLog({
   message: string;
   status: WhatsAppLogStatus;
   target?: TaskNotificationTarget | null;
+  provider?: string;
   wablasResponse?: string;
   errorMessage?: string;
 }) {
@@ -78,6 +80,8 @@ async function createWhatsAppLog({
     ...(errorMessage ? { error_message: errorMessage } : {}),
     retry_count: 0,
     created_at: FieldValue.serverTimestamp(),
+    provider: provider || process.env.WHATSAPP_PROVIDER || "wablas",
+    target_type: target?.targetType === "personal" ? "phone" : "group",
   });
 }
 
@@ -119,11 +123,11 @@ export async function notifyTaskEvent(input: NotifyTaskEventInput) {
       throw new Error("Target WhatsApp untuk notifikasi task tidak ditemukan.");
     }
 
-    const result = await sendWhatsAppMessage(
+    const result = await sendWhatsAppMessage({
+      target: target.recipient,
       message,
-      target.targetType === "personal" ? target.recipient : undefined,
-      target.targetType === "personal" ? undefined : target.recipient,
-    );
+      type: target.targetType === "personal" ? "phone" : "group",
+    });
 
     await createWhatsAppLog({
       task,
@@ -131,6 +135,7 @@ export async function notifyTaskEvent(input: NotifyTaskEventInput) {
       message,
       status: "sent",
       target,
+      provider: result.provider,
       wablasResponse: result.responseText,
     });
 
@@ -142,6 +147,7 @@ export async function notifyTaskEvent(input: NotifyTaskEventInput) {
       message,
       status: "failed",
       target,
+      provider: process.env.WHATSAPP_PROVIDER || "wablas",
       errorMessage:
         error instanceof Error
           ? error.message
