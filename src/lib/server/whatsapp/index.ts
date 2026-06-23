@@ -21,6 +21,49 @@ export class WhatsAppRateLimitError extends Error {
 
 export type { WhatsAppProviderName, WhatsAppSendTarget, WhatsAppSendPayload, WhatsAppSendResult };
 
+export function isGroupRecipient(target: string): boolean {
+  if (!target) return false;
+  return target.endsWith("@g.us") || target.includes("-") || target.startsWith("120363");
+}
+
+export function normalizeWhatsAppGroupId(groupId: string, provider: "fonnte" | "wablas"): string {
+  const trimmed = groupId.trim();
+
+  if (!trimmed) return "";
+
+  if (provider === "fonnte") {
+    if (trimmed.endsWith("@g.us")) return trimmed;
+    return `${trimmed}@g.us`;
+  }
+
+  if (provider === "wablas") {
+    return trimmed.replace(/@g\.us$/i, "");
+  }
+
+  return trimmed;
+}
+
+export function getAllowedGroupIds(): string[] {
+  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
+  const allowedStr =
+    process.env.WHATSAPP_ALLOWED_GROUP_IDS ||
+    process.env.FONNTE_ALLOWED_GROUP_IDS ||
+    process.env.WABLAS_ALLOWED_GROUP_IDS ||
+    "";
+    
+  const allowed = allowedStr
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .map((id) => normalizeWhatsAppGroupId(id, provider));
+
+  const defaultId = getWhatsAppRecipient();
+  if (defaultId && !allowed.includes(defaultId)) {
+    allowed.push(defaultId);
+  }
+  return allowed;
+}
+
 export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
   const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as WhatsAppProviderName;
 
@@ -42,22 +85,42 @@ export async function sendWhatsAppMessage(payload: WhatsAppSendPayload): Promise
   throw new Error(`Unsupported WhatsApp provider: ${provider}`);
 }
 
-export function getWhatsAppRecipient() {
-  const provider = process.env.WHATSAPP_PROVIDER || "wablas";
+export function getWhatsAppRecipient(): string {
+  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
+  let rawRecipient = "";
+
   if (provider === "fonnte") {
-    return process.env.FONNTE_DEFAULT_GROUP_ID || process.env.FONNTE_DEFAULT_TARGET || "";
+    rawRecipient = 
+      process.env.FONNTE_DEFAULT_GROUP_ID || 
+      process.env.WHATSAPP_DEFAULT_GROUP_ID || 
+      process.env.FONNTE_DEFAULT_TARGET || 
+      "";
+  } else {
+    rawRecipient = 
+      process.env.WABLAS_DEFAULT_GROUP_ID || 
+      process.env.WABLAS_GROUP_ID || 
+      process.env.WHATSAPP_DEFAULT_GROUP_ID || 
+      "";
   }
-  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+
+  const isGroup = isGroupRecipient(rawRecipient);
+
+  if (isGroup) {
+    return normalizeWhatsAppGroupId(rawRecipient, provider);
+  }
+
+  return rawRecipient;
 }
 
-export function getWhatsAppRecipientType() {
+export function getWhatsAppRecipientType(): string {
   return isWhatsAppGroupRecipient() ? "group" : "personal";
 }
 
-export function isWhatsAppGroupRecipient() {
+export function isWhatsAppGroupRecipient(): boolean {
   const provider = process.env.WHATSAPP_PROVIDER || "wablas";
   if (provider === "fonnte") {
-    return Boolean(process.env.FONNTE_DEFAULT_GROUP_ID);
+    const rawRecipient = process.env.FONNTE_DEFAULT_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "";
+    return isGroupRecipient(rawRecipient);
   }
   return process.env.WABLAS_SEND_TO_GROUP?.toLowerCase() !== "false";
 }

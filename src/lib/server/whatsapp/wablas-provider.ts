@@ -1,6 +1,6 @@
 import "server-only";
 import { getAdminDb, FieldValue } from "../firebase-admin";
-import { WhatsAppRateLimitError } from "./index";
+import { WhatsAppRateLimitError, normalizeWhatsAppGroupId, isGroupRecipient } from "./index";
 import type { WhatsAppSendPayload, WhatsAppSendResult } from "./provider";
 
 function normalizeBaseUrl(value: string) {
@@ -18,17 +18,28 @@ export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<Whats
   }
 
   let recipient = payload.target;
-  const sendToGroup = payload.type === "group";
+
+  if (!recipient) {
+    if (payload.type === "group") {
+      recipient = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "";
+    }
+  }
+
+  const isGroup = payload.type === "group" || isGroupRecipient(recipient);
 
   // Safeguard: Redirect group messages to test group in development or testing environment
   if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
-    if (sendToGroup) {
+    if (isGroup) {
       recipient = "120363406824082148";
     }
   }
 
   if (!recipient) {
     throw new Error("Penerima WhatsApp belum diatur (target kosong).");
+  }
+
+  if (isGroup) {
+    recipient = normalizeWhatsAppGroupId(recipient, "wablas");
   }
 
   if (!apiUrl || !token || !secret) {
@@ -100,8 +111,8 @@ export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<Whats
       body: JSON.stringify({
         phone: recipient,
         message: payload.message,
-        isGroup: sendToGroup ? "true" : "false",
-        ...(sendToGroup && mentionMetadataEnabled && mentions.length
+        isGroup: isGroup ? "true" : "false",
+        ...(isGroup && mentionMetadataEnabled && mentions.length
           ? { mentions }
           : {}),
         ...(deviceId ? { device_id: deviceId } : {}),

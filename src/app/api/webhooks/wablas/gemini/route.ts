@@ -18,6 +18,8 @@ import {
   isWhatsAppGroupRecipient,
   sendWhatsAppMessage as baseSendWhatsAppMessage,
   WhatsAppRateLimitError,
+  getAllowedGroupIds,
+  getWhatsAppRecipient as getDefaultGroupId,
 } from "@/lib/server/whatsapp";
 import {
   extractJobDexQuestion,
@@ -92,23 +94,7 @@ function getWebhookSecret() {
   return process.env.WABLAS_WEBHOOK_SECRET ?? "";
 }
 
-function getAllowedGroupIds(): string[] {
-  const allowedStr = process.env.WABLAS_ALLOWED_GROUP_IDS || "";
-  const allowed = allowedStr
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
 
-  const defaultId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-  if (defaultId && !allowed.includes(defaultId)) {
-    allowed.push(defaultId);
-  }
-  return allowed;
-}
-
-function getDefaultGroupId(): string {
-  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
-}
 
 async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
   if (!groupId) return false;

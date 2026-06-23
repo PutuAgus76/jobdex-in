@@ -2,6 +2,7 @@ import "server-only";
 
 import { getAdminDb } from "@/lib/server/firebase-admin";
 import type { Task, Event } from "@/types";
+import { normalizeWhatsAppGroupId } from "@/lib/server/whatsapp";
 
 type DivisionWithWhatsApp = {
   id?: string;
@@ -30,11 +31,14 @@ export type GroupRouteTarget = {
 };
 
 function getDefaultGroupId() {
-  const provider = process.env.WHATSAPP_PROVIDER || "wablas";
+  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
+  let rawGroupId = "";
   if (provider === "fonnte") {
-    return process.env.FONNTE_DEFAULT_GROUP_ID || "";
+    rawGroupId = process.env.FONNTE_DEFAULT_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "";
+  } else {
+    rawGroupId = process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "";
   }
-  return process.env.WABLAS_DEFAULT_GROUP_ID || process.env.WABLAS_GROUP_ID || "";
+  return normalizeWhatsAppGroupId(rawGroupId, provider);
 }
 
 async function getEventForTask(task: Task, eventsCache?: Map<string, Event>) {
@@ -103,6 +107,7 @@ export async function resolveTaskNotificationTarget(
   eventsCache?: Map<string, Event>,
   divisionsCache?: Map<string, DivisionWithWhatsApp>,
 ): Promise<TaskNotificationTarget | null> {
+  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
   const defaultGroupId = getDefaultGroupId();
   const isEventTask = Boolean(task.event_id || task.type === "acara");
   const event = await getEventForTask(task, eventsCache);
@@ -110,7 +115,7 @@ export async function resolveTaskNotificationTarget(
   if (isEventTask && event?.whatsapp_group_id && event.whatsapp_group_verified === true) {
     const target = {
       targetType: "event_group",
-      recipient: event.whatsapp_group_id,
+      recipient: normalizeWhatsAppGroupId(event.whatsapp_group_id, provider),
       reason: "event whatsapp group verified",
       eventId: event.id,
       divisionId: task.division_id,
@@ -125,7 +130,7 @@ export async function resolveTaskNotificationTarget(
   if (division?.whatsapp_group_id && division.whatsapp_group_verified !== false) {
     const target = {
       targetType: "division_group",
-      recipient: division.whatsapp_group_id,
+      recipient: normalizeWhatsAppGroupId(division.whatsapp_group_id, provider),
       reason: isEventTask
         ? event?.whatsapp_group_id
           ? "event whatsapp group not verified"

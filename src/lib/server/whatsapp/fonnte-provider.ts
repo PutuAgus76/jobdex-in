@@ -1,5 +1,6 @@
 import "server-only";
 import type { WhatsAppSendPayload, WhatsAppSendResult } from "./provider";
+import { normalizeWhatsAppGroupId, isGroupRecipient } from "./index";
 
 export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<WhatsAppSendResult> {
   const token = process.env.FONNTE_API_TOKEN;
@@ -11,11 +12,10 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
   }
 
   let recipient = payload.target;
-  const sendToGroup = payload.type === "group";
 
   if (!recipient) {
-    if (sendToGroup) {
-      recipient = process.env.FONNTE_DEFAULT_GROUP_ID || "";
+    if (payload.type === "group") {
+      recipient = process.env.FONNTE_DEFAULT_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "";
     } else {
       recipient = process.env.FONNTE_DEFAULT_TARGET || "";
     }
@@ -24,8 +24,8 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
   // Safeguard: Redirect group messages to test group in development or testing environment
   if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
     // If test target is configured, route there, otherwise route to a default test group ID
-    if (sendToGroup) {
-      recipient = process.env.FONNTE_DEFAULT_GROUP_ID || "120363406824082148";
+    if (payload.type === "group" || isGroupRecipient(recipient)) {
+      recipient = process.env.FONNTE_DEFAULT_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "120363406824082148";
     } else {
       recipient = process.env.FONNTE_TEST_TARGET || recipient;
     }
@@ -33,6 +33,14 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
 
   if (!recipient) {
     throw new Error("Penerima WhatsApp belum diatur (target kosong).");
+  }
+
+  // Normalize group/personal target
+  const isGroup = payload.type === "group" || isGroupRecipient(recipient);
+  if (isGroup) {
+    recipient = normalizeWhatsAppGroupId(recipient, "fonnte");
+  } else {
+    recipient = recipient.replace(/[^\d]/g, "").replace(/^0/, "62");
   }
 
   let responseStatus = 200;

@@ -172,6 +172,11 @@ JobDex.in supports multiple WhatsApp providers:
 Use `WHATSAPP_PROVIDER=fonnte` to send via FONNTE.
 Use `WHATSAPP_PROVIDER=wablas` to send via Wablas.
 
+### Group Configuration
+We support provider-neutral group ID format and allowlist:
+- `WHATSAPP_ALLOWED_GROUP_IDS`: Comma-separated list of allowed group IDs. For FONNTE, they are automatically normalized to suffix `@g.us` (e.g. `120363...@g.us`). For Wablas, they are format-stripped to numbers-only automatically.
+- `WHATSAPP_DEFAULT_GROUP_ID`: The default group ID to route general notifications and daily digests.
+
 ### FONNTE Setup
 1. Create FONNTE account.
 2. Get API token.
