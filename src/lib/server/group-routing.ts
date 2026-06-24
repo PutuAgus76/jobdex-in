@@ -251,16 +251,32 @@ export async function findEventByGroupId(groupId: string): Promise<Event | null>
   if (!groupId) return null;
 
   const db = getAdminDb();
-  const snapshot = await db
+  const comparableNumberOnly = groupId.trim().replace(/@g\.us$/i, "");
+  const comparableWithSuffix = comparableNumberOnly + "@g.us";
+
+  const snapshotNumberOnly = await db
     .collection("events")
-    .where("whatsapp_group_id", "==", groupId)
+    .where("whatsapp_group_id", "==", comparableNumberOnly)
     .limit(1)
     .get();
 
-  if (snapshot.empty) return null;
+  if (!snapshotNumberOnly.empty) {
+    const doc = snapshotNumberOnly.docs[0];
+    return { id: doc.id, ...doc.data() } as Event;
+  }
 
-  const doc = snapshot.docs[0];
-  return { id: doc.id, ...doc.data() } as Event;
+  const snapshotWithSuffix = await db
+    .collection("events")
+    .where("whatsapp_group_id", "==", comparableWithSuffix)
+    .limit(1)
+    .get();
+
+  if (!snapshotWithSuffix.empty) {
+    const doc = snapshotWithSuffix.docs[0];
+    return { id: doc.id, ...doc.data() } as Event;
+  }
+
+  return null;
 }
 
 /**

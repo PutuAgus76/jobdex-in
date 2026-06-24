@@ -224,6 +224,25 @@ Di Wablas Device Setting:
 
 Pesan tanpa prefix `!jobdex` akan diabaikan.
 
+## FONNTE Inbound Webhook Setup
+
+Set webhook URL in FONNTE dashboard:
+
+```txt
+https://jobdex-in.vercel.app/api/webhooks/fonnte/gemini
+```
+
+Required env:
+```env
+FONNTE_WEBHOOK_ENABLED=true
+FONNTE_WEBHOOK_SECRET=...
+```
+
+Catatan:
+* FONNTE group ID memakai suffix `@g.us` (contoh: `120363427255190681@g.us`).
+* Database lama yang menyimpan angka-only (contoh: `120363427255190681`) tetap kompatibel karena sistem akan melakukan normalisasi otomatis sebelum validasi.
+* Untuk outbound group, pastikan setting `WHATSAPP_DEFAULT_GROUP_ID` / `FONNTE_DEFAULT_GROUP_ID` menggunakan format `@g.us`.
+
 ## Gemini AI Setup
 
 1. Isi `GEMINI_API_KEY`.

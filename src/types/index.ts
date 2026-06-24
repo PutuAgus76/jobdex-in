@@ -507,3 +507,14 @@ export type TaskEditPreview = {
   raw_message_sanitized: string;
 };
 
+export type NormalizedIncomingWhatsAppMessage = {
+  provider: "fonnte" | "wablas";
+  message: string;
+  sender: string;
+  senderName?: string;
+  groupId?: string;
+  isGroup: boolean;
+  rawMessageId?: string;
+};
+
+
