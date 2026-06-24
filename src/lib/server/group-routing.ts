@@ -245,39 +245,46 @@ export async function getEventsWithGroupId(): Promise<Event[]> {
 }
 
 /**
+ * Helper to generate all variants of a WhatsApp group ID
+ */
+export function getGroupIdVariants(groupId: string): string[] {
+  const trimmed = groupId.trim();
+  const numberOnly = trimmed.replace(/@g\.us$/i, "");
+
+  return Array.from(
+    new Set([
+      trimmed,
+      numberOnly,
+      `${numberOnly}@g.us`,
+    ].filter(Boolean))
+  );
+}
+
+/**
  * Find event linked to a specific WhatsApp group ID
  */
 export async function findEventByGroupId(groupId: string): Promise<Event | null> {
   if (!groupId) return null;
 
   const db = getAdminDb();
-  const comparableNumberOnly = groupId.trim().replace(/@g\.us$/i, "");
-  const comparableWithSuffix = comparableNumberOnly + "@g.us";
+  const variants = getGroupIdVariants(groupId);
 
-  const snapshotNumberOnly = await db
-    .collection("events")
-    .where("whatsapp_group_id", "==", comparableNumberOnly)
-    .limit(1)
-    .get();
+  for (const variant of variants) {
+    const snapshot = await db
+      .collection("events")
+      .where("whatsapp_group_id", "==", variant)
+      .limit(1)
+      .get();
 
-  if (!snapshotNumberOnly.empty) {
-    const doc = snapshotNumberOnly.docs[0];
-    return { id: doc.id, ...doc.data() } as Event;
-  }
-
-  const snapshotWithSuffix = await db
-    .collection("events")
-    .where("whatsapp_group_id", "==", comparableWithSuffix)
-    .limit(1)
-    .get();
-
-  if (!snapshotWithSuffix.empty) {
-    const doc = snapshotWithSuffix.docs[0];
-    return { id: doc.id, ...doc.data() } as Event;
+    if (!snapshot.empty) {
+      const doc = snapshot.docs[0];
+      return { id: doc.id, ...doc.data() } as Event;
+    }
   }
 
   return null;
 }
+
 
 /**
  * Link a WhatsApp group to an event

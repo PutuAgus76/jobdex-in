@@ -10,6 +10,7 @@ import {
   getEventsWithGroupId,
   linkGroupToEvent,
   resolveTaskNotificationTarget,
+  getGroupIdVariants,
 } from "@/lib/server/group-routing";
 import {
   getWhatsAppRecipient,
@@ -19,7 +20,6 @@ import {
   WhatsAppRateLimitError,
   getAllowedGroupIds,
   getWhatsAppRecipient as getDefaultGroupId,
-  normalizeWhatsAppGroupId,
   isGroupRecipient,
 } from "@/lib/server/whatsapp";
 import {
@@ -60,51 +60,41 @@ import {
   searchDesignReferencesFromQuestion,
 } from "@/lib/server/reference-search";
 
+function isGroupAllowedByVariants(incomingGroupId: string, allowedGroupIds: string[]): boolean {
+  if (!incomingGroupId) return false;
+  const incomingVariants = getGroupIdVariants(incomingGroupId);
+  const allowedVariants = allowedGroupIds.flatMap(getGroupIdVariants);
+
+  return incomingVariants.some((id) => allowedVariants.includes(id));
+}
+
 async function isGroupAllowedForJobDex(groupId: string): Promise<boolean> {
   if (!groupId) return false;
-  
-  const provider = (process.env.WHATSAPP_PROVIDER || "wablas") as "fonnte" | "wablas";
-  const normalizedGroupId = normalizeWhatsAppGroupId(groupId, provider);
-  const comparableNumberOnly = normalizedGroupId.replace(/@g\.us$/i, "");
-  const comparableWithSuffix = comparableNumberOnly + "@g.us";
 
   const allowed = getAllowedGroupIds();
-  // Check if either format is in the allowed list
-  if (
-    allowed.includes(comparableNumberOnly) ||
-    allowed.includes(comparableWithSuffix) ||
-    allowed.includes(groupId) ||
-    allowed.includes(normalizedGroupId)
-  ) {
+  if (isGroupAllowedByVariants(groupId, allowed)) {
     return true;
   }
 
   try {
     const db = getAdminDb();
-    // Check in events collection under both formats
-    const snapshotNumberOnly = await db
-      .collection("events")
-      .where("whatsapp_group_id", "==", comparableNumberOnly)
-      .where("whatsapp_group_verified", "==", true)
-      .limit(1)
-      .get();
-      
-    if (!snapshotNumberOnly.empty) {
-      return true;
+    const variants = getGroupIdVariants(groupId);
+    for (const variant of variants) {
+      const snapshot = await db
+        .collection("events")
+        .where("whatsapp_group_id", "==", variant)
+        .where("whatsapp_group_verified", "==", true)
+        .limit(1)
+        .get();
+
+      if (!snapshot.empty) {
+        return true;
+      }
     }
-
-    const snapshotWithSuffix = await db
-      .collection("events")
-      .where("whatsapp_group_id", "==", comparableWithSuffix)
-      .where("whatsapp_group_verified", "==", true)
-      .limit(1)
-      .get();
-
-    return !snapshotWithSuffix.empty;
   } catch (err) {
     console.error("Error in isGroupAllowedForJobDex:", err);
-    return false;
   }
+  return false;
 }
 
 function getBotProfile() {
@@ -324,6 +314,14 @@ export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
 ): Promise<NextResponse> {
+  console.log("[whatsapp command] incoming", {
+    provider: incoming.provider,
+    isGroup: incoming.isGroup,
+    groupId: incoming.groupId,
+    hasSender: Boolean(incoming.sender),
+    messagePreview: incoming.message?.slice(0, 40),
+  });
+
   const message = incoming.message || "";
   if (!message.trim().toLowerCase().startsWith("!jobdex")) {
     return NextResponse.json({
@@ -343,13 +341,49 @@ export async function executeWhatsAppWebhook(
   }
   const intent = parsedCommand.intent;
 
+  console.log("[whatsapp command] command detected", {
+    command: intent,
+    provider: incoming.provider,
+    groupId: incoming.groupId,
+  });
+
   const question = extractJobDexQuestion(incoming.message);
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
     const target = customPhone || incoming.groupId || getDefaultGroupId();
     const isGroup = isGroupRecipient(target);
     const type = isGroup ? "group" : "phone";
-    return baseSendWhatsAppMessage({ target, message, type });
+
+    console.log("[whatsapp command] reply target", {
+      target,
+      type,
+      provider: process.env.WHATSAPP_PROVIDER,
+    });
+
+    try {
+      const result = await baseSendWhatsAppMessage({ target, message, type });
+      console.log("[whatsapp command] reply send result", {
+        ok: result.ok,
+        provider: result.provider,
+        target: result.target,
+        error: result.error || null,
+      });
+      return result;
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[whatsapp command] failed to send reply", {
+        provider: process.env.WHATSAPP_PROVIDER,
+        target,
+        error: errMsg,
+      });
+      console.log("[whatsapp command] reply send result", {
+        ok: false,
+        provider: process.env.WHATSAPP_PROVIDER,
+        target,
+        error: errMsg,
+      });
+      throw err;
+    }
   };
 
   const createWhatsAppLog = async (args: {
@@ -397,21 +431,51 @@ export async function executeWhatsAppWebhook(
     
     // Detect if recipient is a group ID or a phone number
     const isGroup = isGroupRecipient(recipient);
-    
-    const sendResult = await baseSendWhatsAppMessage({
+    const type = isGroup ? "group" : "phone";
+
+    console.log("[whatsapp command] reply target", {
       target: recipient,
-      message: replyMessage,
-      type: isGroup ? "group" : "phone",
+      type,
+      provider: process.env.WHATSAPP_PROVIDER,
     });
 
-    await createWhatsAppLog({
-      message: replyMessage,
-      status: result.success ? "sent" : "failed",
-      response: sendResult.responseText,
-      recipient,
-      isGroup,
-      provider: sendResult.provider,
-    });
+    try {
+      const sendResult = await baseSendWhatsAppMessage({
+        target: recipient,
+        message: replyMessage,
+        type,
+      });
+
+      console.log("[whatsapp command] reply send result", {
+        ok: sendResult.ok,
+        provider: sendResult.provider,
+        target: sendResult.target,
+        error: sendResult.error || null,
+      });
+
+      await createWhatsAppLog({
+        message: replyMessage,
+        status: result.success ? "sent" : "failed",
+        response: sendResult.responseText,
+        recipient,
+        isGroup,
+        provider: sendResult.provider,
+      });
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[whatsapp command] failed to send reply", {
+        provider: process.env.WHATSAPP_PROVIDER,
+        target: recipient,
+        error: errMsg,
+      });
+      console.log("[whatsapp command] reply send result", {
+        ok: false,
+        provider: process.env.WHATSAPP_PROVIDER,
+        target: recipient,
+        error: errMsg,
+      });
+      throw err;
+    }
   };
 
   interface EvaluatedCandidate {
@@ -627,6 +691,28 @@ export async function executeWhatsAppWebhook(
   const isSenderAllowed = await isGroupAllowedForJobDex(incoming.sender);
   const isGroupOrSenderAllowed = isGroupIdAllowed || isSenderAllowed;
 
+  const groupVariants = getGroupIdVariants(incoming.groupId || "");
+  const matchedEvent = await findEventByGroupId(incoming.groupId || "");
+
+  console.log("[whatsapp command] sender auth", {
+    senderMasked: incoming.sender ? `${incoming.sender.slice(0, 4)}***` : null,
+    hasMatchedUser: Boolean(senderUserProfile),
+    role: senderUserProfile?.role || null,
+  });
+
+  console.log("[whatsapp command] group validation", {
+    incomingGroupId: incoming.groupId,
+    allowed: isGroupOrSenderAllowed,
+    allowedCount: allowedGroupIds.length,
+  });
+
+  console.log("[whatsapp command] event lookup", {
+    incomingGroupId: incoming.groupId,
+    groupVariants,
+    matchedEventId: matchedEvent?.id || null,
+    matchedEventName: matchedEvent?.name || null,
+  });
+
   // WRITE DEEP DEBUG TO FIRESTORE COLLECTION "wablas_incoming_debug" (scrub PIN!)
   let debugRefId = "";
   try {
@@ -686,6 +772,55 @@ export async function executeWhatsAppWebhook(
     // - hubungkan_grup_acara
     if (intent !== "cek_grup" && intent !== "hubungkan_grup_acara") {
       return NextResponse.json({ ok: true, ignored: true, reason: "unauthorized_group_or_sender" });
+    }
+  }
+
+  // --- Event & Division Context Verification (Fase 27A.2.4 REVISED) ---
+  if (incoming.isGroup) {
+    const isHelperCommand = [
+      "cek_grup",
+      "hubungkan_grup_acara",
+      "cek_pengirim",
+      "cek_role",
+      "event_grup",
+      "bantuan_task",
+      "template_help",
+      "progress_question",
+      "confirm_command",
+      "cancel_command",
+      "confirm_edit",
+      "cancel_edit",
+      "confirm_archive",
+    ].includes(intent);
+
+    if (!isHelperCommand) {
+      let matchedDivision = null;
+      const divisionsSnap = await getAdminDb().collection("divisions").get();
+      for (const doc of divisionsSnap.docs) {
+        const d = doc.data();
+        if (d.whatsapp_group_id && incoming.groupId) {
+          const dVariants = getGroupIdVariants(d.whatsapp_group_id);
+          if (dVariants.some(dv => groupVariants.includes(dv))) {
+            matchedDivision = { id: doc.id, ...d };
+            break;
+          }
+        }
+      }
+
+      if (!matchedEvent && !matchedDivision) {
+        const warningReply = [
+          "Grup ini sudah terhubung ke JobDex.in, tapi belum cocok dengan event mana pun.",
+          "Coba cek ID WhatsApp Group Acara di dashboard."
+        ].join("\n");
+
+        const sendResult = await sendWhatsAppMessage(warningReply);
+        await createWhatsAppLog({
+          message: warningReply,
+          status: "sent",
+          response: sendResult.responseText,
+        });
+        return NextResponse.json({ ok: true });
+      }
     }
   }
 
@@ -904,9 +1039,9 @@ export async function executeWhatsAppWebhook(
       for (const doc of divisionsSnap.docs) {
         const d = doc.data();
         if (d.whatsapp_group_id && incoming.groupId) {
-          const dNorm = d.whatsapp_group_id.trim().replace(/@g\.us$/i, "");
-          const incNorm = incoming.groupId.trim().replace(/@g\.us$/i, "");
-          if (dNorm === incNorm) {
+          const dVariants = getGroupIdVariants(d.whatsapp_group_id);
+          const incVariants = getGroupIdVariants(incoming.groupId);
+          if (dVariants.some(dv => incVariants.includes(dv))) {
             linkedDivisionName = d.name || "-";
             break;
           }
