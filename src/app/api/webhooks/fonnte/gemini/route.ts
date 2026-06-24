@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import crypto from "crypto";
 import { normalizeFonnteWebhookPayload } from "@/lib/server/fonnte-webhook-parser";
 import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
+import { getAdminDb, FieldValue } from "@/lib/server/firebase-admin";
 
 export const runtime = "nodejs";
 
@@ -84,6 +86,13 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  console.log("[fonnte webhook] request received", {
+    timestamp: incoming.timestamp || "",
+    groupId: incoming.groupId || "personal",
+    sender: incoming.sender ? `${incoming.sender.slice(0, 4)}***` : null,
+    messagePreview: incoming.message?.slice(0, 40),
+  });
+
   console.log("[fonnte webhook] normalized", {
     isGroup: incoming.isGroup,
     groupId: incoming.groupId,
@@ -100,6 +109,65 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // --- Route-Level Atomic Deduplication (Fase 27A.2.6) ---
+  const dedupeKeySource = [
+    incoming.provider,
+    incoming.groupId || "personal",
+    incoming.sender || "unknown",
+    incoming.timestamp || "",
+    incoming.message || "",
+  ].join("|");
+
+  const dedupeKey = crypto
+    .createHash("sha256")
+    .update(dedupeKeySource)
+    .digest("hex");
+
+  const db = getAdminDb();
+  const docRef = db.collection("whatsapp_inbound_logs").doc(dedupeKey);
+
+  try {
+    // Atomic create
+    await docRef.create({
+      dedupe_key: dedupeKey,
+      provider: incoming.provider,
+      group_id: incoming.groupId || "",
+      sender: incoming.sender || "",
+      message_preview: incoming.message.slice(0, 80),
+      status: "processing",
+      created_at: FieldValue.serverTimestamp(),
+    });
+    console.log("[whatsapp inbound dedupe] lock created", {
+      dedupeKeyPreview: dedupeKey.slice(0, 32),
+    });
+  } catch (error: unknown) {
+    const errObj = error as Record<string, unknown> | null;
+    if (errObj && (errObj.code === 6 || (typeof errObj.message === "string" && errObj.message.includes("already exists")))) {
+      console.log("[whatsapp inbound dedupe] duplicate ignored", {
+        dedupeKeyPreview: dedupeKey.slice(0, 32),
+      });
+      return NextResponse.json({
+        ok: true,
+        deduped: true,
+      });
+    }
+    console.error("Deduplication error:", error);
+  }
+
   // Forward to shared command execution engine
-  return executeWhatsAppWebhook(incoming, payload);
+  const response = await executeWhatsAppWebhook(incoming, payload);
+
+  try {
+    await docRef.update({
+      status: response.ok ? "processed" : "failed",
+      processed_at: FieldValue.serverTimestamp(),
+      reply_provider: incoming.provider,
+      reply_target: incoming.groupId || incoming.sender,
+      error: response.ok ? null : `Status ${response.status}`,
+    });
+  } catch (updateErr) {
+    console.error("Failed to update dedupe log status:", updateErr);
+  }
+
+  return response;
 }

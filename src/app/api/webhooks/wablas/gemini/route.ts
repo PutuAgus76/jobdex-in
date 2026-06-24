@@ -46,6 +46,16 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = await parseRequestBody(request);
+
+  if (payload && typeof payload === "object" && ("device" in payload || "member" in payload)) {
+    console.log("[wablas webhook] ignored fonnte payload on wablas route");
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: "fonnte_payload_on_wablas_route"
+    });
+  }
+
   const incoming = parseWablasIncomingPayload(payload);
 
   const normalizedIncoming: NormalizedIncomingWhatsAppMessage = {

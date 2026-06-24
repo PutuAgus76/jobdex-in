@@ -514,11 +514,20 @@ export async function executeWhatsAppWebhook(
   });
 
   const question = extractJobDexQuestion(incoming.message);
+  const db = getAdminDb();
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
     const target = customPhone || incoming.groupId || getDefaultGroupId();
     const isGroup = isGroupRecipient(target);
     const type = isGroup ? "group" : "phone";
+    const cleanCmd = incoming.message.replace(/^!jobdex/i, "").trim().toLowerCase();
+
+    console.log("[whatsapp command] before send", {
+      sendReason: "standard_reply",
+      target,
+      type,
+      commandType: cleanCmd || "unknown",
+    });
 
     console.log("[whatsapp command] reply target", {
       target,
@@ -599,6 +608,13 @@ export async function executeWhatsAppWebhook(
     const isGroup = isGroupRecipient(recipient);
     const type = isGroup ? "group" : "phone";
 
+    console.log("[whatsapp command] before send", {
+      sendReason: "task_command_reply",
+      target: recipient,
+      type,
+      commandType: intent,
+    });
+
     console.log("[whatsapp command] reply target", {
       target: recipient,
       type,
@@ -644,48 +660,6 @@ export async function executeWhatsAppWebhook(
     }
   };
 
-  // --- Deduplication Check (Fase 27A.2.5) ---
-  const rawDedupeKey = [
-    incoming.provider,
-    incoming.groupId || "personal",
-    incoming.sender || "unknown",
-    incoming.rawMessageId || "",
-    incoming.timestamp || "",
-    incoming.message
-  ].join(":");
-  const dedupeKey = rawDedupeKey.replace(/[\/\\]/g, "_");
-
-  const db = getAdminDb();
-  try {
-    const docRef = db.collection("whatsapp_inbound_logs").doc(dedupeKey);
-    const docSnap = await docRef.get();
-    
-    if (docSnap.exists) {
-      console.log("[whatsapp command] dedupe", {
-        dedupeKeyPreview: dedupeKey.slice(0, 24),
-        alreadyProcessed: true,
-      });
-      return NextResponse.json({ ok: true, deduped: true });
-    }
-
-    console.log("[whatsapp command] dedupe", {
-      dedupeKeyPreview: dedupeKey.slice(0, 24),
-      alreadyProcessed: false,
-    });
-
-    await docRef.set({
-      dedupe_key: dedupeKey,
-      provider: incoming.provider,
-      group_id: incoming.groupId || "personal",
-      sender: incoming.sender || "unknown",
-      message_preview: incoming.message?.slice(0, 100) || "",
-      status: "processed",
-      created_at: FieldValue.serverTimestamp(),
-    });
-  } catch (err) {
-    console.error("Deduplication check/write failed:", err);
-  }
-
   // --- Bare & Help Command Handling (Fase 27A.2.5) ---
   const cleanQuery = message.replace(/^!jobdex/i, "").trim().toLowerCase();
 
@@ -713,6 +687,12 @@ export async function executeWhatsAppWebhook(
       commandType: "help_menu",
       contextType: incoming.isGroup ? "group" : "personal",
       groupId: incoming.groupId || null,
+    });
+
+    console.log("[whatsapp command] handled", {
+      commandType: "help_menu",
+      handled: true,
+      stopFurtherProcessing: true,
     });
 
     const sendResult = await sendWhatsAppMessage(helpMenuReply);
@@ -792,6 +772,13 @@ export async function executeWhatsAppWebhook(
     }
 
     const replyText = await handleJobdeskSummary(incoming, senderUserProfile, matchedEvent, matchedDivision);
+    
+    console.log("[whatsapp command] handled", {
+      commandType: "jobdesk_summary",
+      handled: true,
+      stopFurtherProcessing: true,
+    });
+
     const sendResult = await sendWhatsAppMessage(replyText);
     await createWhatsAppLog({
       message: replyText,
@@ -1112,6 +1099,11 @@ export async function executeWhatsAppWebhook(
   }
 
   if (!incoming.message || !question) {
+    console.log("[whatsapp command] handled", {
+      commandType: "empty_or_no_question",
+      handled: true,
+      stopFurtherProcessing: true,
+    });
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -1120,6 +1112,11 @@ export async function executeWhatsAppWebhook(
     // - cek_grup
     // - hubungkan_grup_acara
     if (intent !== "cek_grup" && intent !== "hubungkan_grup_acara") {
+      console.log("[whatsapp command] handled", {
+        commandType: "unauthorized_group_or_sender",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true, ignored: true, reason: "unauthorized_group_or_sender" });
     }
   }
@@ -1173,6 +1170,11 @@ export async function executeWhatsAppWebhook(
           message: warningReply,
           status: "sent",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "unlinked_group_warning",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -1230,6 +1232,11 @@ export async function executeWhatsAppWebhook(
         status: "sent",
         response: sendResult.responseText,
       });
+      console.log("[whatsapp command] handled", {
+        commandType: "cek_pengirim",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1250,6 +1257,11 @@ export async function executeWhatsAppWebhook(
         message: replyMessage,
         status: "sent",
         response: sendResult.responseText,
+      });
+      console.log("[whatsapp command] handled", {
+        commandType: "cek_role",
+        handled: true,
+        stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
     }
@@ -1293,6 +1305,11 @@ export async function executeWhatsAppWebhook(
         message: replyMessage,
         status: "failed",
         response: sendResult.responseText,
+      });
+      console.log("[whatsapp command] handled", {
+        commandType: "auth_failed",
+        handled: true,
+        stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
     }
@@ -1380,6 +1397,11 @@ export async function executeWhatsAppWebhook(
         status: "sent",
         response: sendResult.responseText,
       });
+      console.log("[whatsapp command] handled", {
+        commandType: "bantuan_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1438,6 +1460,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "cek_grup",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1485,6 +1512,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "event_grup",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1504,6 +1536,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "hubungkan_grup_acara_not_group",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -1532,6 +1569,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "hubungkan_grup_acara_event_not_found",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -1599,6 +1641,11 @@ export async function executeWhatsAppWebhook(
           });
         }
 
+        console.log("[whatsapp command] handled", {
+          commandType: "hubungkan_grup_acara_unauthorized",
+          handled: true,
+          stopFurtherProcessing: true,
+        });
         return NextResponse.json({ ok: true });
       }
 
@@ -1643,6 +1690,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "hubungkan_grup_acara",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1659,6 +1711,11 @@ export async function executeWhatsAppWebhook(
         message: replyMessage,
         status: "sent",
         response: sendResult.responseText,
+      });
+      console.log("[whatsapp command] handled", {
+        commandType: "deadline_query",
+        handled: true,
+        stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
     }
@@ -1717,6 +1774,11 @@ export async function executeWhatsAppWebhook(
       await updateDebugIntent("task_help", "template_help");
       const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({ message: replyMessage, status: "sent", response: sendResult.responseText });
+      console.log("[whatsapp command] handled", {
+        commandType: "template_help",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1745,6 +1807,11 @@ export async function executeWhatsAppWebhook(
       await updateDebugIntent("task_help", "progress_question");
       const sendResult = await sendWhatsAppMessage(replyMessage);
       await createWhatsAppLog({ message: replyMessage, status: "sent", response: sendResult.responseText });
+      console.log("[whatsapp command] handled", {
+        commandType: "progress_question",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1762,6 +1829,11 @@ export async function executeWhatsAppWebhook(
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
+      console.log("[whatsapp command] handled", {
+        commandType: "tugas_saya",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1776,6 +1848,11 @@ export async function executeWhatsAppWebhook(
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
       });
+      console.log("[whatsapp command] handled", {
+        commandType: "briefing",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1789,6 +1866,11 @@ export async function executeWhatsAppWebhook(
         message: replyMessage,
         status: result.success ? "sent" : "failed",
         response: sendResult.responseText,
+      });
+      console.log("[whatsapp command] handled", {
+        commandType: "siapa_belum_update",
+        handled: true,
+        stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
     }
@@ -1829,6 +1911,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "detail_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1865,6 +1952,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "upload_hasil",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1900,6 +1992,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "minta_revisi",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1939,6 +2036,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "cek_checklist",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -1979,6 +2081,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "tambah_catatan",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2019,6 +2126,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "ganti_pic",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2043,6 +2155,11 @@ export async function executeWhatsAppWebhook(
         response: sendResult.responseText,
       });
 
+      console.log("[whatsapp command] handled", {
+        commandType: intent,
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2089,6 +2206,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: intent,
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2124,6 +2246,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "approve_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2151,6 +2278,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "update_status_incomplete",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -2187,6 +2319,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "update_status",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2213,6 +2350,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "edit_task_incomplete",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -2254,6 +2396,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "edit_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2279,6 +2426,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "archive_task_incomplete",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -2315,6 +2467,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "archive_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2341,6 +2498,11 @@ export async function executeWhatsAppWebhook(
           message: replyMessage,
           status: "failed",
           response: sendResult.responseText,
+        });
+        console.log("[whatsapp command] handled", {
+          commandType: "checklist_task_incomplete",
+          handled: true,
+          stopFurtherProcessing: true,
         });
         return NextResponse.json({ ok: true });
       }
@@ -2377,6 +2539,11 @@ export async function executeWhatsAppWebhook(
         });
       }
 
+      console.log("[whatsapp command] handled", {
+        commandType: "checklist_task",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2398,6 +2565,11 @@ export async function executeWhatsAppWebhook(
         message: replyMessage,
         status: "failed",
         response: sendResult.responseText,
+      });
+      console.log("[whatsapp command] handled", {
+        commandType: "task_command_like_error",
+        handled: true,
+        stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
     }
@@ -2486,6 +2658,12 @@ export async function executeWhatsAppWebhook(
       });
 
       await updateDebugIntent("task_command", parsedCommand.intent);
+      console.log("[whatsapp command] handled", {
+        commandType: parsedCommand.intent,
+        handled: true,
+        stopFurtherProcessing: true,
+      });
+      return NextResponse.json({ ok: true });
     }
 
     // --- Fase 14A: Reference Search Intent Detection ---
@@ -2516,6 +2694,11 @@ export async function executeWhatsAppWebhook(
       });
 
       await updateDebugIntent("reference_search", null, question);
+      console.log("[whatsapp command] handled", {
+        commandType: "reference_search",
+        handled: true,
+        stopFurtherProcessing: true,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2572,6 +2755,11 @@ export async function executeWhatsAppWebhook(
     });
 
     await updateDebugIntent("gemini_fallback", null);
+    console.log("[whatsapp command] handled", {
+      commandType: "ai_fallback",
+      handled: true,
+      stopFurtherProcessing: true,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof WhatsAppRateLimitError) {
