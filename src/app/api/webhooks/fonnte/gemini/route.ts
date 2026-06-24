@@ -4,6 +4,14 @@ import { executeWhatsAppWebhook } from "@/lib/server/whatsapp/command-handler";
 
 export const runtime = "nodejs";
 
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    provider: "fonnte",
+    message: "FONNTE webhook endpoint is active",
+  });
+}
+
 export async function POST(request: NextRequest) {
   // Check if FONNTE Webhook is enabled
   if (process.env.FONNTE_WEBHOOK_ENABLED === "false") {
