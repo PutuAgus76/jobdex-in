@@ -515,6 +515,7 @@ export type NormalizedIncomingWhatsAppMessage = {
   groupId?: string;
   isGroup: boolean;
   rawMessageId?: string;
+  timestamp?: string | number;
 };
 
 

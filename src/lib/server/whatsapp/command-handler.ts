@@ -5,6 +5,7 @@ import { buildAIContext } from "@/lib/server/ai-context";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import { GEMINI_EMPTY_ANSWER_FALLBACK } from "@/lib/server/gemini";
 import { generateText } from "@/lib/server/ai-provider";
+import { getTaskDeadlineDiffDays } from "@/lib/task-risk";
 import {
   findEventByGroupId,
   getEventsWithGroupId,
@@ -310,6 +311,171 @@ function scrubPinFromPayload(obj: unknown): unknown {
   return scrubbed;
 }
 
+async function handleJobdeskSummary(
+  incoming: NormalizedIncomingWhatsAppMessage,
+  senderUserProfile: UserProfile | null,
+  matchedEvent: Event | null,
+  matchedDivision: { id: string; name?: string } | null
+): Promise<string> {
+  const db = getAdminDb();
+  let tasksQuery = db.collection("tasks").where("is_archived", "==", false);
+  let contextName = "";
+  let isEventContext = false;
+
+  if (matchedEvent) {
+    tasksQuery = tasksQuery.where("event_id", "==", matchedEvent.id);
+    contextName = matchedEvent.name;
+    isEventContext = true;
+  } else if (matchedDivision) {
+    tasksQuery = tasksQuery.where("division_id", "==", matchedDivision.id);
+    contextName = matchedDivision.name || "Divisi";
+  } else {
+    // Default/fallback
+    if (senderUserProfile) {
+      if (senderUserProfile.role === "koordinator_divisi") {
+        tasksQuery = tasksQuery.where("division_id", "==", senderUserProfile.division_id);
+        contextName = `Divisi (${senderUserProfile.division_id})`;
+      } else if (senderUserProfile.role === "koordinator_acara") {
+        tasksQuery = tasksQuery.where("coordinator_id", "==", senderUserProfile.id);
+        contextName = "Acara Saya";
+      } else {
+        tasksQuery = tasksQuery.where("pic_id", "==", senderUserProfile.id);
+        contextName = "Tugas Saya";
+      }
+    } else {
+      contextName = "Global / Umum";
+    }
+  }
+
+  const tasksSnap = await tasksQuery.get();
+  
+  const picIds = new Set<string>();
+  let totalTasks = 0;
+  let approvedCount = 0;
+  let belumDimulaiCount = 0;
+  let revisiCount = 0;
+  let overdueCount = 0;
+  let inProgressCount = 0;
+
+  const priorityTasks: Task[] = [];
+
+  tasksSnap.forEach((doc) => {
+    const task = { id: doc.id, ...doc.data() } as Task;
+    totalTasks++;
+    if (task.pic_id) {
+      picIds.add(task.pic_id);
+    }
+
+    if (task.status === "approved") {
+      approvedCount++;
+    } else {
+      const diffDays = getTaskDeadlineDiffDays(task);
+      if (diffDays < 0) {
+        overdueCount++;
+      }
+      
+      if (task.status === "belum_dimulai") {
+        belumDimulaiCount++;
+      } else if (task.status === "perlu_revisi" || task.status === "revisi_dikerjakan") {
+        revisiCount++;
+      } else {
+        inProgressCount++;
+      }
+
+      if (task.priority === "tinggi" || task.priority === "kritis" || diffDays < 0) {
+        priorityTasks.push(task);
+      }
+    }
+  });
+
+  const progressPercent = totalTasks > 0 ? Math.round((approvedCount / totalTasks) * 100) : 0;
+  const lines: string[] = [];
+
+  if (isEventContext) {
+    lines.push(`[*JobDex.in* Ringkasan Job Desk ${contextName}]`, "");
+    lines.push(`Progress acara: ${progressPercent}%`);
+    lines.push(`Total anggota: ${picIds.size}`);
+    lines.push("");
+    lines.push("Ringkasan task:");
+    lines.push(`• Approved: ${approvedCount}`);
+    lines.push(`• Belum dimulai: ${belumDimulaiCount}`);
+    if (revisiCount > 0) lines.push(`• Revisi: ${revisiCount}`);
+    if (overdueCount > 0) lines.push(`• Overdue: ${overdueCount}`);
+    lines.push(`• In Progress: ${inProgressCount}`);
+    lines.push("");
+
+    if (priorityTasks.length > 0) {
+      lines.push("Task yang perlu perhatian:");
+      const sortedPriorityTasks = priorityTasks.sort((a, b) => getTaskDeadlineDiffDays(a) - getTaskDeadlineDiffDays(b));
+      
+      const usersSnap = await db.collection("users").get();
+      const usersMap = new Map<string, string>();
+      usersSnap.forEach(d => usersMap.set(d.id, d.data().name || "-"));
+
+      sortedPriorityTasks.slice(0, 3).forEach((task, idx) => {
+        const picName = task.pic_id ? (usersMap.get(task.pic_id) || "-") : "-";
+        let deadlineStr = "-";
+        if (task.deadline) {
+          const deadlineDate = task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline
+            ? (task.deadline as { toDate: () => Date }).toDate()
+            : task.deadline instanceof Date
+            ? task.deadline
+            : null;
+          if (deadlineDate) {
+            deadlineStr = deadlineDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+          }
+        }
+        lines.push(`${idx + 1}. ${task.name} — PIC: ${picName} — Deadline: ${deadlineStr}`);
+      });
+      lines.push("");
+    }
+
+    lines.push("Ketik:");
+    lines.push("!jobdex detail jobdesk");
+    lines.push("untuk melihat daftar lebih lengkap.");
+  } else {
+    lines.push(`[*JobDex.in* Ringkasan Job Desk ${contextName}]`, "");
+    lines.push(`Total tugas: ${totalTasks}`);
+    lines.push(`Total PIC: ${picIds.size}`);
+    lines.push("");
+    lines.push("Ringkasan task:");
+    lines.push(`• Approved: ${approvedCount}`);
+    lines.push(`• Belum dimulai: ${belumDimulaiCount}`);
+    if (revisiCount > 0) lines.push(`• Revisi: ${revisiCount}`);
+    if (overdueCount > 0) lines.push(`• Overdue: ${overdueCount}`);
+    lines.push(`• In Progress: ${inProgressCount}`);
+    lines.push("");
+
+    if (priorityTasks.length > 0) {
+      lines.push("Task yang perlu perhatian:");
+      const sortedPriorityTasks = priorityTasks.sort((a, b) => getTaskDeadlineDiffDays(a) - getTaskDeadlineDiffDays(b));
+      
+      const usersSnap = await db.collection("users").get();
+      const usersMap = new Map<string, string>();
+      usersSnap.forEach(d => usersMap.set(d.id, d.data().name || "-"));
+
+      sortedPriorityTasks.slice(0, 3).forEach((task, idx) => {
+        const picName = task.pic_id ? (usersMap.get(task.pic_id) || "-") : "-";
+        let deadlineStr = "-";
+        if (task.deadline) {
+          const deadlineDate = task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline
+            ? (task.deadline as { toDate: () => Date }).toDate()
+            : task.deadline instanceof Date
+            ? task.deadline
+            : null;
+          if (deadlineDate) {
+            deadlineStr = deadlineDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+          }
+        }
+        lines.push(`${idx + 1}. ${task.name} — PIC: ${picName} — Deadline: ${deadlineStr}`);
+      });
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export async function executeWhatsAppWebhook(
   incoming: NormalizedIncomingWhatsAppMessage,
   payload: unknown
@@ -477,6 +643,189 @@ export async function executeWhatsAppWebhook(
       throw err;
     }
   };
+
+  // --- Deduplication Check (Fase 27A.2.5) ---
+  const rawDedupeKey = [
+    incoming.provider,
+    incoming.groupId || "personal",
+    incoming.sender || "unknown",
+    incoming.rawMessageId || "",
+    incoming.timestamp || "",
+    incoming.message
+  ].join(":");
+  const dedupeKey = rawDedupeKey.replace(/[\/\\]/g, "_");
+
+  const db = getAdminDb();
+  try {
+    const docRef = db.collection("whatsapp_inbound_logs").doc(dedupeKey);
+    const docSnap = await docRef.get();
+    
+    if (docSnap.exists) {
+      console.log("[whatsapp command] dedupe", {
+        dedupeKeyPreview: dedupeKey.slice(0, 24),
+        alreadyProcessed: true,
+      });
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+
+    console.log("[whatsapp command] dedupe", {
+      dedupeKeyPreview: dedupeKey.slice(0, 24),
+      alreadyProcessed: false,
+    });
+
+    await docRef.set({
+      dedupe_key: dedupeKey,
+      provider: incoming.provider,
+      group_id: incoming.groupId || "personal",
+      sender: incoming.sender || "unknown",
+      message_preview: incoming.message?.slice(0, 100) || "",
+      status: "processed",
+      created_at: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("Deduplication check/write failed:", err);
+  }
+
+  // --- Bare & Help Command Handling (Fase 27A.2.5) ---
+  const cleanQuery = message.replace(/^!jobdex/i, "").trim().toLowerCase();
+
+  const helpMenuReply = [
+    "[*JobDex.in Bot*]",
+    "",
+    "Halo! Saya siap bantu cek informasi JobDex.in.",
+    "",
+    "Contoh perintah:",
+    "• !jobdex progress",
+    "• !jobdex jobdesk",
+    "• !jobdex tugas saya",
+    "• !jobdex acara",
+    "• !jobdex anggota",
+    "• !jobdex referensi nametag",
+    "• !jobdex bantuan",
+    "",
+    "Untuk grup acara, saya akan memakai konteks acara ini jika grup sudah terhubung ke event."
+  ].join("\n");
+
+  if (cleanQuery === "" || cleanQuery === "help" || cleanQuery === "menu" || cleanQuery === "bantuan") {
+    console.log("[whatsapp command] resolved command", {
+      rawQuery: message,
+      normalizedQuery: cleanQuery,
+      commandType: "help_menu",
+      contextType: incoming.isGroup ? "group" : "personal",
+      groupId: incoming.groupId || null,
+    });
+
+    const sendResult = await sendWhatsAppMessage(helpMenuReply);
+    await createWhatsAppLog({
+      message: helpMenuReply,
+      status: "sent",
+      response: sendResult.responseText,
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- Jobdesk Summary Aliases (Fase 27A.2.5) ---
+  const JOBDESK_ALIASES = [
+    "jobdesc",
+    "jobdesk",
+    "job desk",
+    "job desc",
+    "tugas",
+    "task",
+    "tasks",
+    "daftar tugas",
+    "info jobdesc",
+    "info jobdesk",
+    "info tugas"
+  ];
+
+  if (JOBDESK_ALIASES.includes(cleanQuery)) {
+    // Resolve context event or division
+    const matchedEvent = await findEventByGroupId(incoming.groupId || "");
+    
+    let matchedDivision = null;
+    if (!matchedEvent && incoming.groupId) {
+      const groupVariants = getGroupIdVariants(incoming.groupId);
+      const divisionsSnap = await db.collection("divisions").get();
+      for (const doc of divisionsSnap.docs) {
+        const d = doc.data();
+        if (d.whatsapp_group_id) {
+          const dVariants = getGroupIdVariants(d.whatsapp_group_id);
+          if (dVariants.some(dv => groupVariants.includes(dv))) {
+            matchedDivision = { id: doc.id, ...d };
+            break;
+          }
+        }
+      }
+    }
+
+    console.log("[whatsapp command] resolved command", {
+      rawQuery: message,
+      normalizedQuery: cleanQuery,
+      commandType: "jobdesk_summary",
+      contextType: incoming.isGroup ? (matchedEvent ? "event" : (matchedDivision ? "division" : "default")) : "personal",
+      groupId: incoming.groupId || null,
+    });
+
+    let senderUserProfile: UserProfile | null = null;
+    const resolvedSenderNumber = incoming.sender ? incoming.sender.replace(/@s\.whatsapp\.net$/i, "").replace(/@c\.us$/i, "") : "";
+    if (resolvedSenderNumber) {
+      const usersSnap = await db.collection("users").get();
+      for (const doc of usersSnap.docs) {
+        const u = doc.data() as UserProfile;
+        const fieldsToCheck = [
+          (u as Record<string, unknown>).whatsapp,
+          u.whatsapp_number,
+          (u as Record<string, unknown>).phone,
+          (u as Record<string, unknown>).phone_number
+        ];
+        let matched = false;
+        for (const f of fieldsToCheck) {
+          if (f && f.toString().replace(/\D/g, "") === resolvedSenderNumber.replace(/\D/g, "")) {
+            senderUserProfile = { ...u, id: doc.id };
+            matched = true;
+            break;
+          }
+        }
+        if (matched) break;
+      }
+    }
+
+    const replyText = await handleJobdeskSummary(incoming, senderUserProfile, matchedEvent, matchedDivision);
+    const sendResult = await sendWhatsAppMessage(replyText);
+    await createWhatsAppLog({
+      message: replyText,
+      status: "sent",
+      response: sendResult.responseText,
+    });
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- Log resolved command for all other intents ---
+  const matchedEventForLog = await findEventByGroupId(incoming.groupId || "");
+  let matchedDivisionForLog = null;
+  if (!matchedEventForLog && incoming.groupId) {
+    const groupVariantsForLog = getGroupIdVariants(incoming.groupId);
+    const divisionsSnapForLog = await db.collection("divisions").get();
+    for (const doc of divisionsSnapForLog.docs) {
+      const d = doc.data();
+      if (d.whatsapp_group_id) {
+        const dVariants = getGroupIdVariants(d.whatsapp_group_id);
+        if (dVariants.some(dv => groupVariantsForLog.includes(dv))) {
+          matchedDivisionForLog = { id: doc.id, ...d };
+          break;
+        }
+      }
+    }
+  }
+
+  console.log("[whatsapp command] resolved command", {
+    rawQuery: message,
+    normalizedQuery: cleanQuery,
+    commandType: intent,
+    contextType: incoming.isGroup ? (matchedEventForLog ? "event" : (matchedDivisionForLog ? "division" : "default")) : "personal",
+    groupId: incoming.groupId || null,
+  });
 
   interface EvaluatedCandidate {
     source: string;
@@ -807,7 +1156,13 @@ export async function executeWhatsAppWebhook(
         }
       }
 
-      if (!matchedEvent && !matchedDivision) {
+      const isRequestingSpecificEventContext = 
+        cleanQuery.includes("acara") || 
+        cleanQuery.includes("event") || 
+        cleanQuery.includes("raker") || 
+        cleanQuery.includes("panitia");
+
+      if (isRequestingSpecificEventContext && !matchedEvent && !matchedDivision) {
         const warningReply = [
           "Grup ini sudah terhubung ke JobDex.in, tapi belum cocok dengan event mana pun.",
           "Coba cek ID WhatsApp Group Acara di dashboard."

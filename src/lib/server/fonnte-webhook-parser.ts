@@ -126,6 +126,8 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     root.id
   );
 
+  const timestamp = data.timestamp || root.timestamp;
+
   const keys = Object.keys(root);
   if (!message) {
     console.warn("[fonnte webhook] ignored payload without message", { keys });
@@ -140,5 +142,6 @@ export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncom
     groupId: finalGroupId,
     isGroup,
     rawMessageId: rawMessageId || undefined,
+    timestamp: (typeof timestamp === "string" || typeof timestamp === "number") ? timestamp : undefined,
   } satisfies NormalizedIncomingWhatsAppMessage;
 }
