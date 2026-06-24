@@ -1,69 +1,144 @@
 import "server-only";
 import type { NormalizedIncomingWhatsAppMessage } from "@/types";
+import { normalizeWhatsAppGroupId } from "@/lib/server/whatsapp";
 
-type UnknownRecord = Record<string, unknown>;
 
-function asRecord(value: unknown): UnknownRecord {
-  return value && typeof value === "object" ? (value as UnknownRecord) : {};
-}
-
-function stringValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value.trim();
-  }
-  if (typeof value === "number") {
-    return String(value).trim();
+function pickString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number") return String(value).trim();
   }
   return "";
 }
 
 /**
  * Normalizes the incoming webhook payload from Fonnte.
- * Fonnte webhook parameters for messages:
- * - sender: contains the Group ID (e.g. 120xxx@g.us) if sent in a group, or the sender's phone number if personal chat.
- * - member: contains the sender's phone number if sent in a group, empty/absent otherwise.
- * - name: contains the sender's display name.
- * - message: contains the message content.
+ * Supports root-level fields, choices[0] array structure, and multiple field names.
  */
 export function normalizeFonnteWebhookPayload(payload: unknown): NormalizedIncomingWhatsAppMessage | null {
   if (!payload || typeof payload !== "object") return null;
 
-  const root = asRecord(payload);
-  
-  const message = stringValue(root.message);
-  const senderField = stringValue(root.sender);
-  const memberField = stringValue(root.member);
-  const nameField = stringValue(root.name);
+  const root = payload as Record<string, unknown>;
+  const firstChoice = Array.isArray(root.choices) && root.choices[0]
+    ? root.choices[0] as Record<string, unknown>
+    : {};
+  const data = Object.keys(firstChoice).length ? firstChoice : root;
 
-  // If sender is empty, it's not a valid message event (could be a status update)
-  if (!senderField) {
-    return null;
-  }
+  // Read message content
+  const message = pickString(
+    data.message,
+    data.text,
+    data.body,
+    data.chat,
+    data.content,
+    data.pesan,
+    root.message,
+    root.text,
+    root.body,
+    root.pesan
+  );
+
+  // Read group ID
+  const rawGroupId = pickString(
+    data.group_id,
+    data.groupId,
+    data.group,
+    data.remoteJid,
+    data.from,
+    data.sender,
+    root.group_id,
+    root.groupId,
+    root.group,
+    root.remoteJid,
+    root.from,
+    root.sender
+  );
+
+  // Read sender phone / member
+  const sender = pickString(
+    data.member,
+    data.participant,
+    data.phone,
+    data.number,
+    data.sender_number,
+    data.senderNumber,
+    data.from_number,
+    data.fromNumber,
+    data.pengirim,
+    root.member,
+    root.participant,
+    root.phone,
+    root.number,
+    root.pengirim
+  );
 
   // Determine if it is a group message
-  // Fonnte sends Group ID in the 'sender' field for group chats, ending with @g.us
-  const isGroup = senderField.endsWith("@g.us") || senderField.includes("-") || !!memberField;
+  const isGroupVal = pickString(data.is_group, data.isGroup, data.isgroup, root.is_group, root.isGroup, root.isgroup);
+  const isGroupBool = 
+    rawGroupId.includes("@g.us") ||
+    rawGroupId.startsWith("120363") ||
+    isGroupVal === "true" ||
+    isGroupVal === "1" ||
+    isGroupVal === "yes" ||
+    isGroupVal === "group" ||
+    (typeof data.isGroup === "boolean" && data.isGroup) ||
+    (typeof data.isgroup === "boolean" && data.isgroup) ||
+    (typeof root.isGroup === "boolean" && root.isGroup) ||
+    (typeof root.isgroup === "boolean" && root.isgroup);
 
-  let sender = "";
-  let groupId: string | undefined = undefined;
+  const isGroup = Boolean(isGroupBool);
 
-  if (isGroup) {
-    groupId = senderField;
-    // In a group, Fonnte puts the sender's individual phone number in 'member'
-    sender = memberField || senderField;
+  let finalGroupId: string | undefined = undefined;
+  let finalSender = sender;
+
+  if (isGroup && rawGroupId) {
+    finalGroupId = normalizeWhatsAppGroupId(rawGroupId, "fonnte");
+    // If the sender is empty, fallback to rawGroupId
+    if (!finalSender) {
+      finalSender = rawGroupId;
+    }
   } else {
-    sender = senderField;
+    // Personal chat: sender is rawGroupId (or sender if populated)
+    finalSender = finalSender || rawGroupId;
   }
 
-  // Ensure sender is clean of any suffix just in case
-  sender = sender.replace(/@s\.whatsapp\.net$/i, "").replace(/@c\.us$/i, "");
+  // Clean the sender phone number from any suffix
+  finalSender = finalSender.replace(/@s\.whatsapp\.net$/i, "").replace(/@c\.us$/i, "");
+
+  // Read sender display name
+  const senderName = pickString(
+    data.name,
+    data.pushname,
+    data.username,
+    data.pushName,
+    data.sender_name,
+    root.name,
+    root.pushname,
+    root.pushName,
+    root.username
+  );
+
+  // Read raw message ID
+  const rawMessageId = pickString(
+    data.inboxid,
+    data.id,
+    root.inboxid,
+    root.id
+  );
+
+  const keys = Object.keys(root);
+  if (!message) {
+    console.warn("[fonnte webhook] ignored payload without message", { keys });
+    return null;
+  }
 
   return {
     provider: "fonnte",
     message,
-    sender,
-    senderName: nameField || undefined,
-    groupId,
+    sender: finalSender,
+    senderName: senderName || undefined,
+    groupId: finalGroupId,
     isGroup,
+    rawMessageId: rawMessageId || undefined,
   } satisfies NormalizedIncomingWhatsAppMessage;
 }

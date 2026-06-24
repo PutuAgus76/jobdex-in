@@ -34,7 +34,26 @@ export async function POST(request: NextRequest) {
   const payloadObj = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>) : {};
 
   // Securely log payload structure (keys only, no values to avoid printing tokens or phone numbers)
-  console.log("[fonnte webhook] payload keys", Object.keys(payloadObj));
+  const choices = Array.isArray(payloadObj.choices) ? payloadObj.choices : null;
+  const firstChoice = choices && choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>) : null;
+
+  console.log("[fonnte webhook] payload summary", {
+    keys: Object.keys(payloadObj),
+    choicesType: choices ? "array" : typeof payloadObj.choices,
+    choicesLength: choices ? choices.length : null,
+    firstChoiceKeys: firstChoice ? Object.keys(firstChoice) : null,
+    device: payloadObj.device ? "***" : null,
+    extension: payloadObj.extension ? "***" : null,
+  });
+
+  if (firstChoice) {
+    console.log("[fonnte webhook] first choice summary", {
+      keys: Object.keys(firstChoice),
+      hasMessage: Boolean(firstChoice.message || firstChoice.text || firstChoice.body || firstChoice.pesan),
+      hasSender: Boolean(firstChoice.sender || firstChoice.from || firstChoice.member || firstChoice.pengirim),
+      hasGroup: Boolean(firstChoice.group || firstChoice.group_id || firstChoice.remoteJid || firstChoice.sender),
+    });
+  }
 
   // Validate Secret Key if configured in env
   const configuredSecret = process.env.FONNTE_WEBHOOK_SECRET ?? "";
@@ -64,6 +83,13 @@ export async function POST(request: NextRequest) {
       reason: "invalid_or_non_message_payload",
     });
   }
+
+  console.log("[fonnte webhook] normalized", {
+    isGroup: incoming.isGroup,
+    groupId: incoming.groupId,
+    hasSender: Boolean(incoming.sender),
+    messagePreview: incoming.message.slice(0, 30),
+  });
 
   // Guard against malformed messages
   if (!incoming.message || !incoming.sender) {

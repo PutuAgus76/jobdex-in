@@ -347,7 +347,8 @@ export async function executeWhatsAppWebhook(
 
   const sendWhatsAppMessage = async (message: string, customPhone?: string) => {
     const target = customPhone || incoming.groupId || getDefaultGroupId();
-    const type = customPhone ? "phone" : "group";
+    const isGroup = isGroupRecipient(target);
+    const type = isGroup ? "group" : "phone";
     return baseSendWhatsAppMessage({ target, message, type });
   };
 
@@ -360,10 +361,12 @@ export async function executeWhatsAppWebhook(
     isGroup?: boolean;
     provider?: string;
   }) => {
+    const recipient = args.recipient || incoming.groupId || getDefaultGroupId();
+    const isGroup = args.isGroup ?? isGroupRecipient(recipient);
     return baseCreateWhatsAppLog({
       ...args,
-      recipient: args.recipient || incoming.groupId || getDefaultGroupId(),
-      isGroup: args.isGroup ?? true,
+      recipient,
+      isGroup,
       provider: args.provider,
     });
   };
