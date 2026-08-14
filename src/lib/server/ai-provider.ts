@@ -33,28 +33,42 @@ export interface AIProviderResult {
 // ─── Config Helpers ──────────────────────────────────────────────────────────
 
 function getProvider(): AIProviderName {
-  const val = (process.env.AI_PROVIDER || "gemini").toLowerCase();
-  if (val === "deepseek") return "deepseek";
-  if (val === "mock") return "mock";
+  const explicit = (
+    process.env.DEFAULT_AI_PROVIDER ||
+    process.env.AI_PROVIDER ||
+    ""
+  ).toLowerCase();
+
+  if (explicit === "deepseek") return "deepseek";
+  if (explicit === "gemini") return "gemini";
+  if (explicit === "mock") return "mock";
+
+  // Auto-detect based on available keys: DeepSeek preferred if key is set
+  if (process.env.DEEPSEEK_API_KEY) {
+    return "deepseek";
+  }
+
   return "gemini";
 }
 
 function getDeepSeekConfig(tier: "fast" | "pro" = "fast") {
   return {
     apiKey: process.env.DEEPSEEK_API_KEY || "",
-    baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-    model: tier === "pro"
-      ? (process.env.DEEPSEEK_MODEL_PRO || "deepseek-chat")
-      : (process.env.DEEPSEEK_MODEL_FAST || "deepseek-chat"),
-    maxTokens: tier === "pro"
-      ? parseInt(process.env.DEEPSEEK_MAX_TOKENS_PRO || "1000", 10)
-      : parseInt(process.env.DEEPSEEK_MAX_TOKENS_FAST || "400", 10),
+    baseUrl: (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, ""),
+    model:
+      tier === "pro"
+        ? process.env.DEEPSEEK_MODEL_PRO || "deepseek-chat"
+        : process.env.DEEPSEEK_MODEL_FAST || "deepseek-chat",
+    maxTokens:
+      tier === "pro"
+        ? parseInt(process.env.DEEPSEEK_MAX_TOKENS_PRO || "1000", 10)
+        : parseInt(process.env.DEEPSEEK_MAX_TOKENS_FAST || "600", 10),
     temperature: parseFloat(process.env.DEEPSEEK_TEMPERATURE || "0.2"),
   };
 }
 
 function getMaxContextChars(): number {
-  return parseInt(process.env.AI_MAX_CONTEXT_CHARS || "8000", 10);
+  return parseInt(process.env.AI_MAX_CONTEXT_CHARS || "12000", 10);
 }
 
 function truncateContext(text: string): string {
@@ -64,7 +78,6 @@ function truncateContext(text: string): string {
 }
 
 function estimateTokens(text: string): number {
-  // Rough estimate: ~4 chars per token for mixed-language content
   return Math.ceil(text.length / 4);
 }
 
@@ -84,6 +97,7 @@ interface DeepSeekResponse {
   error?: {
     message?: string;
     type?: string;
+    code?: string | number;
   };
 }
 
@@ -106,7 +120,14 @@ async function callDeepSeek(params: AIProviderParams): Promise<AIProviderResult>
 
   messages.push({ role: "user", content: truncatedPrompt });
 
-  const response = await fetch(`${config.baseUrl}/v1/chat/completions`, {
+  // Handle both https://api.deepseek.com and https://api.deepseek.com/v1 gracefully
+  const endpoint = config.baseUrl.endsWith("/v1")
+    ? `${config.baseUrl}/chat/completions`
+    : `${config.baseUrl}/chat/completions`;
+
+  console.info(`[AI Provider: DeepSeek] Requesting model "${config.model}" at ${endpoint}...`);
+
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -125,14 +146,19 @@ async function callDeepSeek(params: AIProviderParams): Promise<AIProviderResult>
   const data = (await response.json()) as DeepSeekResponse;
 
   if (!response.ok || data.error) {
-    const errorMsg = data.error?.message || `DeepSeek API error (${response.status})`;
+    const errorMsg = data.error?.message || `DeepSeek API error status ${response.status}`;
+    console.error(`[AI Provider: DeepSeek] API Error (${response.status}):`, data.error || errorMsg);
     throw new Error(errorMsg);
   }
 
   const text = data.choices?.[0]?.message?.content?.trim() || "";
 
+  if (!text) {
+    throw new Error("DeepSeek mengembalikan respon kosong.");
+  }
+
   return {
-    text: text || GEMINI_EMPTY_ANSWER_FALLBACK,
+    text,
     provider: "deepseek",
     model: config.model,
     inputChars: truncatedPrompt.length + (params.systemPrompt?.length || 0),
@@ -147,10 +173,16 @@ async function callDeepSeek(params: AIProviderParams): Promise<AIProviderResult>
 async function callGemini(params: AIProviderParams): Promise<AIProviderResult> {
   const truncatedPrompt = truncateContext(params.prompt);
 
+  console.info(`[AI Provider: Gemini] Requesting Gemini with model "${GEMINI_MODEL}"...`);
+
   const text = await askGemini({
     systemPrompt: params.systemPrompt || "",
     prompt: truncatedPrompt,
   });
+
+  if (!text || text === GEMINI_EMPTY_ANSWER_FALLBACK) {
+    throw new Error("Gemini mengembalikan jawaban kosong.");
+  }
 
   return {
     text,
@@ -181,7 +213,12 @@ function callMock(params: AIProviderParams): AIProviderResult {
 
 // ─── Usage Logging ───────────────────────────────────────────────────────────
 
-async function logAIUsage(result: AIProviderResult, feature: string, status: "success" | "error" | "cache_hit", errorMessage?: string) {
+async function logAIUsage(
+  result: AIProviderResult,
+  feature: string,
+  status: "success" | "error" | "cache_hit",
+  errorMessage?: string
+) {
   try {
     const db = getAdminDb();
     const logRef = db.collection("ai_usage_logs").doc();
@@ -199,21 +236,21 @@ async function logAIUsage(result: AIProviderResult, feature: string, status: "su
       created_at: FieldValue.serverTimestamp(),
     });
   } catch (err) {
-    console.error("[AI Usage Log] Failed:", err);
+    console.error("[AI Usage Log] Failed to log usage:", err);
   }
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Generate text using the configured AI provider.
- * Supports caching, fallback, and usage logging.
+ * Generate text using configured AI provider with seamless bidirectional fallback:
+ * Primary (DeepSeek / Gemini) -> Secondary (Gemini / DeepSeek) -> Safe Log
  */
 export async function generateText(params: AIProviderParams): Promise<AIProviderResult> {
   const useCache = params.useCache !== false;
   const resolvedProvider = params.provider ?? getProvider();
 
-  // Check cache first
+  // 1. Check cache first
   if (useCache) {
     const cached = await getCachedResponse(params.prompt, params.feature);
     if (cached) {
@@ -231,104 +268,90 @@ export async function generateText(params: AIProviderParams): Promise<AIProvider
     }
   }
 
-  const provider = resolvedProvider;
-  let result: AIProviderResult;
+  let result: AIProviderResult | null = null;
+  let primaryError: Error | null = null;
 
-  try {
-    switch (provider) {
-      case "deepseek":
-        try {
-          result = await callDeepSeek(params);
-        } catch (deepseekErr) {
-          console.warn("[AI Provider] DeepSeek failed, falling back to Gemini:", deepseekErr);
-          // Fallback to Gemini
-          try {
-            result = await callGemini(params);
-          } catch {
-            // Both failed, use mock
-            result = callMock(params);
-          }
-        }
-        break;
+  // 2. Try Primary Provider
+  if (resolvedProvider === "deepseek") {
+    try {
+      result = await callDeepSeek(params);
+    } catch (err) {
+      primaryError = err instanceof Error ? err : new Error(String(err));
+      console.warn("[AI Provider] Primary provider DeepSeek failed:", primaryError.message);
+      console.info("[AI Provider] Attempting automatic fallback to Gemini...");
 
-      case "gemini":
+      try {
         result = await callGemini(params);
-        break;
-
-      case "mock":
-      default:
-        result = callMock(params);
-        break;
+        console.info("[AI Provider] Fallback to Gemini SUCCESS.");
+      } catch (geminiErr) {
+        const gErr = geminiErr instanceof Error ? geminiErr.message : String(geminiErr);
+        console.error("[AI Provider] Both DeepSeek & Gemini failed:", {
+          deepseek: primaryError.message,
+          gemini: gErr,
+        });
+      }
     }
+  } else if (resolvedProvider === "gemini") {
+    try {
+      result = await callGemini(params);
+    } catch (err) {
+      primaryError = err instanceof Error ? err : new Error(String(err));
+      console.warn("[AI Provider] Primary provider Gemini failed:", primaryError.message);
+      console.info("[AI Provider] Attempting automatic fallback to DeepSeek...");
 
-    // Cache the result
-    if (useCache && result.text && !result.cacheHit) {
+      try {
+        result = await callDeepSeek(params);
+        console.info("[AI Provider] Fallback to DeepSeek SUCCESS.");
+      } catch (deepseekErr) {
+        const dErr = deepseekErr instanceof Error ? deepseekErr.message : String(deepseekErr);
+        console.error("[AI Provider] Both Gemini & DeepSeek failed:", {
+          gemini: primaryError.message,
+          deepseek: dErr,
+        });
+      }
+    }
+  } else {
+    result = callMock(params);
+  }
+
+  // 3. Handle success or final fallback
+  if (result && result.text) {
+    if (useCache && !result.cacheHit) {
       await setCachedResponse(params.prompt, params.feature, result.text);
     }
-
     await logAIUsage(result, params.feature, "success");
     return result;
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Unknown AI error";
-    console.error(`[AI Provider] Error (${provider}):`, errorMessage);
-
-    // Return a safe fallback
-    const fallbackResult: AIProviderResult = {
-      text: GEMINI_EMPTY_ANSWER_FALLBACK,
-      provider: "mock",
-      model: "fallback",
-      inputChars: params.prompt.length,
-      outputChars: GEMINI_EMPTY_ANSWER_FALLBACK.length,
-      estimatedTokens: 0,
-      cacheHit: false,
-    };
-
-    await logAIUsage(fallbackResult, params.feature, "error", errorMessage);
-    return fallbackResult;
   }
+
+  // If all providers failed, construct actionable fallback
+  const lastErrorMessage = primaryError?.message || "Semua AI Provider (DeepSeek & Gemini) gagal merespons.";
+  const fallbackResult: AIProviderResult = {
+    text: GEMINI_EMPTY_ANSWER_FALLBACK,
+    provider: "mock",
+    model: "fallback",
+    inputChars: params.prompt.length,
+    outputChars: GEMINI_EMPTY_ANSWER_FALLBACK.length,
+    estimatedTokens: 0,
+    cacheHit: false,
+  };
+
+  await logAIUsage(fallbackResult, params.feature, "error", lastErrorMessage);
+  return fallbackResult;
 }
 
 /**
  * Generate a short summary of text using AI (with small token budget)
  */
-export async function summarize(text: string, maxLength = 300, feature = "summarize"): Promise<AIProviderResult> {
+export async function summarize(
+  text: string,
+  maxLength = 300,
+  feature = "summarize"
+): Promise<AIProviderResult> {
   const truncated = text.substring(0, 2000);
   return generateText({
     prompt: `Ringkas teks berikut dalam ${maxLength} karakter atau kurang, dalam Bahasa Indonesia:\n\n${truncated}`,
     systemPrompt: "Kamu adalah asisten ringkasan. Jawab singkat dan padat.",
     maxTokens: 200,
     feature,
-    modelTier: "fast",
   });
-}
-
-/**
- * Get the currently configured provider name for display
- */
-export function getActiveProvider(): AIProviderName {
-  return getProvider();
-}
-
-/**
- * Get provider display info
- */
-export function getProviderInfo(): { name: AIProviderName; model: string; available: boolean } {
-  const provider = getProvider();
-
-  switch (provider) {
-    case "deepseek":
-      return {
-        name: "deepseek",
-        model: process.env.DEEPSEEK_MODEL_FAST || "deepseek-chat",
-        available: !!process.env.DEEPSEEK_API_KEY,
-      };
-    case "gemini":
-      return {
-        name: "gemini",
-        model: GEMINI_MODEL,
-        available: !!process.env.GEMINI_API_KEY,
-      };
-    default:
-      return { name: "mock", model: "mock-v1", available: true };
-  }
 }

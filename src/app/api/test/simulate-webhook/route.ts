@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
       simulationResult = {
         category: "ai_qa",
-        intent: "gemini_ai_response",
+        intent: `${aiResult.provider}_ai_response`,
         simulatedReply: aiResult.text,
         details: {
           provider: aiResult.provider,
