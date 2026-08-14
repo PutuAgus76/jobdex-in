@@ -454,6 +454,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /system_settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin() || isKoordinatorDivisi();
+    }
+
     match /{path=**}/event_members/{memberId} {
       allow read: if isSignedIn() && (
         isSuperAdmin() ||

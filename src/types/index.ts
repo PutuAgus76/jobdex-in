@@ -518,4 +518,12 @@ export type NormalizedIncomingWhatsAppMessage = {
   timestamp?: string | number;
 };
 
+export interface WhatsAppSystemSettings {
+  isTestMode: boolean;
+  testGroupId: string;
+  updatedAt?: unknown;
+  updatedBy?: string;
+  updatedByName?: string;
+}
+
 

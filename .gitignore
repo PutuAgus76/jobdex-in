@@ -28,4 +28,5 @@ _templates/
 wowdash-next/
 Wowdash-template/
 neobrutalism-components/
-neobrutalism-reference/
+neobrutalism-reference/
+environment-variable-di-vercel.txt

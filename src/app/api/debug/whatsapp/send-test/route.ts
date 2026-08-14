@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getServerAuthContext } from "@/lib/server/auth";
 import { FieldValue, getAdminDb } from "@/lib/server/firebase-admin";
 import { sendWhatsAppMessage, getWhatsAppRecipient } from "@/lib/server/whatsapp";
+import { getWhatsAppSystemSettings, DEFAULT_SANDBOX_TEST_GROUP_ID } from "@/lib/server/whatsapp-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -10,21 +11,25 @@ export async function POST(request: NextRequest) {
   try {
     const { profile } = await getServerAuthContext(request);
 
-    if (!profile || profile.role !== "super_admin") {
+    if (!profile || (profile.role !== "super_admin" && profile.role !== "koordinator_divisi")) {
       return NextResponse.json(
-        { error: "Akses ditolak. Hanya Super Admin yang diizinkan." },
+        { error: "Akses ditolak. Hanya Super Admin atau Koordinator Divisi yang diizinkan." },
         { status: 403 }
       );
     }
 
     const body = await request.json().catch(() => ({}));
-    const mode = body.mode || "personal"; // "personal" or "group"
+    const mode = body.mode || "sandbox_ping"; // "sandbox_ping", "personal", or "group"
+    const settings = await getWhatsAppSystemSettings(true);
 
-    const provider = process.env.WHATSAPP_PROVIDER || "wablas";
+    const provider = process.env.WHATSAPP_PROVIDER || "fonnte";
     let target = "";
-    let type: "phone" | "group" = "phone";
+    let type: "phone" | "group" = "group";
 
-    if (mode === "group") {
+    if (mode === "sandbox_ping") {
+      target = body.target || settings.testGroupId || DEFAULT_SANDBOX_TEST_GROUP_ID;
+      type = "group";
+    } else if (mode === "group") {
       target = getWhatsAppRecipient();
       type = "group";
     } else {
@@ -39,10 +44,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const timeString = new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "full",
+      timeStyle: "long",
+      timeZone: process.env.APP_TIMEZONE || "Asia/Jakarta",
+    }).format(new Date());
+
     const message = [
-      `[*JobdexIn* Test]`,
-      `Provider ${provider.toUpperCase()} aktif.`,
-      `Jika pesan ini masuk, integrasi WhatsApp outbound sudah berjalan.`,
+      "🤖 *JobDex.in - WhatsApp Ping Test*",
+      "",
+      `Status Sandbox: *${settings.isTestMode ? "AKTIF (Sandbox ON)" : "NONAKTIF (Production)"}*`,
+      `Provider Gateway: *${provider.toUpperCase()}*`,
+      `Target: *${target}*`,
+      `Waktu Server: ${timeString}`,
+      `Dites oleh: *${profile.name} (${profile.role})*`,
+      "",
+      "✅ Koneksi outbound bot WhatsApp berjalan dengan baik.",
     ].join("\n");
 
     const result = await sendWhatsAppMessage({
@@ -71,10 +88,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: "Pesan test WhatsApp berhasil dikirim.",
+      message: `Pesan test WhatsApp berhasil dikirim ke ${target}.`,
+      target,
+      isTestMode: settings.isTestMode,
       result,
     });
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(

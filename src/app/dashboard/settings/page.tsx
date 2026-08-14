@@ -19,6 +19,12 @@ import {
   X,
   Pencil,
   Settings,
+  MessageSquare,
+  ShieldAlert,
+  Send,
+  CheckCircle2,
+  AlertTriangle,
+  Radio,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { getMembers } from "@/lib/firebase/members";
@@ -29,6 +35,11 @@ import {
   createDivision,
   updateDivision,
 } from "@/lib/firebase/divisions";
+import {
+  getWhatsAppSystemSettingsClient,
+  updateWhatsAppSystemSettingsClient,
+  DEFAULT_SANDBOX_TEST_GROUP_ID,
+} from "@/lib/firebase/system-settings";
 import {
   parseLinksFromTextarea,
   formatLinksToTextarea,
@@ -44,12 +55,19 @@ const textareaClassName =
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Navigation Tabs state
-  const [activeTab, setActiveTab] = useState<"preferences" | "design-kit" | "divisions">("preferences");
+  const [activeTab, setActiveTab] = useState<"preferences" | "design-kit" | "divisions" | "whatsapp">("preferences");
+
+  // WhatsApp Sandbox states
+  const [waIsTestMode, setWaIsTestMode] = useState(false);
+  const [waTestGroupId, setWaTestGroupId] = useState(DEFAULT_SANDBOX_TEST_GROUP_ID);
+  const [waSettingsLoading, setWaSettingsLoading] = useState(false);
+  const [waSaving, setWaSaving] = useState(false);
+  const [waPinging, setWaPinging] = useState(false);
 
   // Division Design Kit & CRUD states
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -107,6 +125,36 @@ export default function SettingsPage() {
     return userProfile?.role === "super_admin";
   }, [userProfile]);
 
+  // Check URL query param for default tab
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (
+        tabParam === "whatsapp" ||
+        tabParam === "design-kit" ||
+        tabParam === "divisions" ||
+        tabParam === "preferences"
+      ) {
+        setActiveTab(tabParam);
+      }
+    }
+  }, []);
+
+  // Load WhatsApp Sandbox settings
+  const loadWhatsAppSettings = useCallback(async () => {
+    setWaSettingsLoading(true);
+    try {
+      const settings = await getWhatsAppSystemSettingsClient();
+      setWaIsTestMode(settings.isTestMode);
+      setWaTestGroupId(settings.testGroupId || DEFAULT_SANDBOX_TEST_GROUP_ID);
+    } catch (err) {
+      console.error("Gagal memuat setting WhatsApp Sandbox:", err);
+    } finally {
+      setWaSettingsLoading(false);
+    }
+  }, []);
+
   // Load divisi dan anggota
   const loadData = useCallback(async () => {
     setDkLoading(true);
@@ -114,6 +162,7 @@ export default function SettingsPage() {
       const [divs, allMembers] = await Promise.all([
         getDivisions(),
         getMembers().catch(() => []),
+        loadWhatsAppSettings(),
       ]);
       setDivisions(divs);
       setMembers(allMembers);
@@ -130,7 +179,65 @@ export default function SettingsPage() {
     } finally {
       setDkLoading(false);
     }
-  }, [userProfile]);
+  }, [userProfile, loadWhatsAppSettings]);
+
+  async function handleSaveWhatsAppSettings() {
+    if (!userProfile) return;
+    setWaSaving(true);
+    try {
+      await updateWhatsAppSystemSettingsClient(
+        {
+          isTestMode: waIsTestMode,
+          testGroupId: waTestGroupId.trim() || DEFAULT_SANDBOX_TEST_GROUP_ID,
+        },
+        userProfile.id,
+        userProfile.name
+      );
+      await showSuccess(
+        `Pengaturan WhatsApp Sandbox berhasil disimpan!\nStatus: ${
+          waIsTestMode ? "AKTIF (Semua pesan dialihkan ke grup test)" : "NONAKTIF (Mode Produksi Normal)"
+        }`,
+        "Pengaturan Disimpan"
+      );
+    } catch (err) {
+      console.error("Gagal menyimpan setting WhatsApp Sandbox:", err);
+      await showError("Gagal menyimpan pengaturan WhatsApp Sandbox.", "Error");
+    } finally {
+      setWaSaving(false);
+    }
+  }
+
+  async function handlePingWhatsAppTest() {
+    if (!user) return;
+    setWaPinging(true);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/debug/whatsapp/send-test", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode: "sandbox_ping",
+          target: waTestGroupId.trim() || DEFAULT_SANDBOX_TEST_GROUP_ID,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal mengirim pesan ping test");
+      }
+      await showSuccess(
+        `Pesan ping test berhasil dikirim ke grup:\n${waTestGroupId}\n\nPeriksa WhatsApp untuk memastikan pesan diterima.`,
+        "Ping Test Berhasil!"
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal mengirim pesan test.";
+      await showError(msg, "Ping Test Gagal");
+    } finally {
+      setWaPinging(false);
+    }
+  }
 
   useEffect(() => {
     if (mounted) {
@@ -337,6 +444,23 @@ export default function SettingsPage() {
             }`}
           >
             Manajemen Divisi
+          </button>
+        )}
+
+        {(isSuperAdmin || canManageDivisionKit) && (
+          <button
+            onClick={() => setActiveTab("whatsapp")}
+            className={`px-4 py-2 text-sm font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "whatsapp"
+                ? "border-amber-600 text-amber-700 dark:border-amber-400 dark:text-amber-400"
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-350"
+            }`}
+          >
+            <ShieldAlert className="size-4" />
+            <span>WhatsApp Sandbox</span>
+            {waIsTestMode && (
+              <span className="size-2 rounded-full bg-amber-500 animate-pulse inline-block" />
+            )}
           </button>
         )}
       </div>
@@ -691,6 +815,181 @@ export default function SettingsPage() {
             )}
           </div>
         </section>
+      )}
+
+      {/* Tab 4: WhatsApp Sandbox & Test Mode */}
+      {activeTab === "whatsapp" && (
+        <div className="space-y-6">
+          {/* Status Banner */}
+          <div
+            className={`p-4 sm:p-5 rounded-xl border-2 transition-all ${
+              waIsTestMode
+                ? "bg-amber-50 dark:bg-amber-950/40 border-amber-500 text-amber-950 dark:text-amber-200"
+                : "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 text-emerald-950 dark:text-emerald-200"
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`p-2.5 rounded-lg shrink-0 ${
+                    waIsTestMode
+                      ? "bg-amber-500 text-white"
+                      : "bg-emerald-600 text-white"
+                  }`}
+                >
+                  {waIsTestMode ? (
+                    <AlertTriangle className="size-6" />
+                  ) : (
+                    <CheckCircle2 className="size-6" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black">
+                      {waIsTestMode
+                        ? "SANDBOX TEST MODE AKTIF"
+                        : "MODE PRODUKSI NORMAL"}
+                    </h3>
+                    <Badge
+                      variant={waIsTestMode ? "warning" : "success"}
+                      className="text-[10px] uppercase font-bold"
+                    >
+                      {waIsTestMode ? "Sandbox ON" : "Live ON"}
+                    </Badge>
+                  </div>
+                  <p className="text-xs sm:text-sm mt-1 opacity-90 leading-relaxed">
+                    {waIsTestMode
+                      ? "SEMUA pesan notifikasi WhatsApp dari Web (Approval, update status, tugas baru, upload hasil) & Cron reminder DIALIHKAN PAKSA ke grup pengujian. Grup official Humediktif dan nomor PIC 100% aman dari pesan uji coba."
+                      : "Pesan notifikasi WhatsApp dikirim secara normal ke grup resmi masing-masing acara, divisi, dan nomor WhatsApp PIC yang bersangkutan."}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick Toggle Button in banner */}
+              <button
+                type="button"
+                onClick={() => setWaIsTestMode(!waIsTestMode)}
+                className={`px-4 py-2 rounded-lg font-black text-xs shrink-0 cursor-pointer shadow-xs transition-all border ${
+                  waIsTestMode
+                    ? "bg-white dark:bg-slate-900 border-amber-600 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950"
+                    : "bg-amber-500 hover:bg-amber-600 border-amber-600 text-white"
+                }`}
+              >
+                {waIsTestMode ? "Matikan Sandbox (Kembali ke Live)" : "Aktifkan Sandbox"}
+              </button>
+            </div>
+          </div>
+
+          {/* Configuration Card */}
+          <Card>
+            <CardHeader className="border-b border-slate-200 dark:border-slate-800 pb-4">
+              <CardTitle className="text-lg font-bold flex items-center gap-2 text-neutral-900 dark:text-white">
+                <Settings className="size-5 text-amber-600 dark:text-amber-400" />
+                Konfigurasi WhatsApp Sandbox & Target Grup
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              {/* Toggle Switch */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <div>
+                  <label className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <span>WhatsApp Sandbox / Test Mode</span>
+                    <Badge variant={waIsTestMode ? "default" : "neutral"} className="text-[10px]">
+                      {waIsTestMode ? "AKTIF" : "NONAKTIF"}
+                    </Badge>
+                  </label>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Aktifkan opsi ini saat developer atau koordinator melakukan testing fitur.
+                  </p>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={waIsTestMode}
+                    onChange={(e) => setWaIsTestMode(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+
+              {/* Target Test Group ID */}
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Target Test Group ID (WhatsApp JID)
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={waTestGroupId}
+                    onChange={(e) => setWaTestGroupId(e.target.value)}
+                    placeholder="Contoh: 120363406824082148@g.us"
+                    className="font-mono text-xs sm:text-sm flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWaTestGroupId(DEFAULT_SANDBOX_TEST_GROUP_ID)}
+                    className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap"
+                  >
+                    Reset Default ID
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Default ID Grup Uji Coba: <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded font-mono text-amber-600 dark:text-amber-400 font-bold">{DEFAULT_SANDBOX_TEST_GROUP_ID}</code>.
+                </p>
+              </div>
+
+              {/* Banner Preview Example */}
+              <div className="p-4 rounded-xl border border-dashed border-amber-300 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-300">
+                  <Radio className="size-3.5" />
+                  <span>Preview Header Pesan WhatsApp (Otomatis ditambahkan saat Sandbox ON):</span>
+                </div>
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300 leading-relaxed shadow-xs">
+                  <p className="font-bold text-amber-700 dark:text-amber-400">🧪 *[TEST / SANDBOX MODE]*</p>
+                  <p className="italic text-slate-500 dark:text-slate-400">_(Aslinya ditujukan ke: Grup Humediktif Official / Acara PKKMB)_</p>
+                  <p className="mt-2 text-slate-900 dark:text-slate-100">📌 [JobDex.in] ... (Isi pesan notifikasi normal) ...</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={waPinging}
+                  onClick={handlePingWhatsAppTest}
+                  className="w-full sm:w-auto border-slate-300 dark:border-slate-700 font-bold flex items-center justify-center gap-1.5"
+                >
+                  {waPinging ? (
+                    <Loader2 className="size-4 animate-spin text-amber-600" />
+                  ) : (
+                    <Send className="size-4 text-emerald-600 dark:text-emerald-400" />
+                  )}
+                  <span>{waPinging ? "Mengirim Ping..." : "Kirim Pesan Tes (Ping Test)"}</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={waSaving || waSettingsLoading}
+                  onClick={handleSaveWhatsAppSettings}
+                  className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  {waSaving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  <span>{waSaving ? "Menyimpan..." : "Simpan Pengaturan Sandbox"}</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Crud Modal Form */}

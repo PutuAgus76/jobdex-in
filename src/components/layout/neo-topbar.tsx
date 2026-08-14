@@ -8,8 +8,10 @@ import { logoutUser } from "@/lib/firebase/auth";
 import { showSuccess } from "@/lib/swal";
 import { useTheme } from "@/components/theme/theme-provider";
 import { USER_ROLE_LABELS } from "@/lib/roles";
-import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu } from "lucide-react";
+import { Sun, Moon, LogOut, User, Home, ChevronDown, Menu, AlertTriangle } from "lucide-react";
 import { getDivisionById } from "@/lib/firebase/divisions";
+import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
+import type { WhatsAppSystemSettings } from "@/types";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
@@ -45,12 +47,19 @@ export function NeoTopbar(props: {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [fetchedDivisionName, setFetchedDivisionName] = useState<string | null>(null);
+  const [waSettings, setWaSettings] = useState<WhatsAppSystemSettings | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
     }, 0);
-    return () => clearTimeout(timer);
+    const unsubscribe = subscribeWhatsAppSystemSettings((settings) => {
+      setWaSettings(settings);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -100,6 +109,22 @@ export function NeoTopbar(props: {
           <p className="hidden md:block text-xs font-bold text-neutral-500 dark:text-neutral-400">
             {divisionName}
           </p>
+
+          {/* Global WhatsApp Sandbox Active Indicator */}
+          {waSettings?.isTestMode && (
+            <Link
+              href="/dashboard/settings"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border-2 border-amber-500 shadow-xs hover:opacity-90 transition-all cursor-pointer"
+              title="WhatsApp Sandbox Mode sedang AKTIF! Semua notifikasi dialihkan ke grup testing. Klik untuk mengatur."
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <AlertTriangle className="size-3 text-amber-600 dark:text-amber-400" />
+              <span>WA SANDBOX ACTIVE</span>
+            </Link>
+          )}
         </div>
 
         {/* Action controls */}

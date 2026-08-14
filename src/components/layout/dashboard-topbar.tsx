@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RoleBadge } from "@/components/ui/role-badge";
@@ -11,7 +11,9 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getDashboardNavigation } from "@/lib/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { logoutUser } from "@/lib/firebase/auth";
-import { User, Home, LogOut, Menu } from "lucide-react";
+import { subscribeWhatsAppSystemSettings } from "@/lib/firebase/system-settings";
+import type { WhatsAppSystemSettings } from "@/types";
+import { User, Home, LogOut, Menu, AlertTriangle } from "lucide-react";
 
 function getPageTitle(pathname: string): string {
   if (pathname === "/dashboard") return "Ringkasan";
@@ -34,6 +36,14 @@ export function DashboardTopbar() {
   const { user, userProfile } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [waSettings, setWaSettings] = useState<WhatsAppSystemSettings | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeWhatsAppSystemSettings((settings) => {
+      setWaSettings(settings);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const navItems = getDashboardNavigation(userProfile);
   const bottomPaths = [
@@ -61,6 +71,22 @@ export function DashboardTopbar() {
               JobDex.in
             </Link>
             <Badge>{getPageTitle(pathname)}</Badge>
+
+            {/* Global WhatsApp Sandbox Active Indicator */}
+            {waSettings?.isTestMode && (
+              <Link
+                href="/dashboard/settings"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-black tracking-wide bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-500 shadow-xs hover:opacity-90 transition-all cursor-pointer"
+                title="WhatsApp Sandbox Mode sedang AKTIF! Klik untuk mengatur."
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <AlertTriangle className="size-3 text-amber-600 dark:text-amber-400" />
+                <span>WA SANDBOX ACTIVE</span>
+              </Link>
+            )}
           </div>
           <p className="hidden md:block mt-1 text-sm text-slate-500 dark:text-slate-400">
             Pantau koordinasi job desk, acara, anggota, dan referensi desain.
