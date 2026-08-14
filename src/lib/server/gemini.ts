@@ -1,6 +1,6 @@
 import "server-only";
 
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 export const GEMINI_EMPTY_ANSWER_FALLBACK =
   "Maaf, AI belum bisa menjawab pertanyaan itu. Coba tanyakan tentang progress task, acara, atau status anggota.";
 
@@ -34,45 +34,65 @@ export async function askGemini({
   systemPrompt: string;
   prompt: string;
 }) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": getGeminiApiKey(),
-      },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: systemPrompt }],
-        },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          topP: 0.9,
-        },
-      }),
-    },
-  );
-  const data = (await response.json()) as GeminiResponse;
+  const apiKey = getGeminiApiKey();
+  const modelsToTry = [
+    process.env.GEMINI_MODEL,
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-pro",
+  ].filter(Boolean) as string[];
 
-  if (!response.ok) {
-    throw new Error(
-      data.error?.message
-        ? `Gemini gagal menjawab: ${data.error.message}`
-        : `Gemini gagal menjawab (${response.status}).`,
-    );
+  const uniqueModels = [...new Set(modelsToTry)];
+  let lastError: Error | null = null;
+
+  for (const modelName of uniqueModels) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemPrompt }],
+            },
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: prompt }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.2,
+              topP: 0.9,
+            },
+          }),
+        },
+      );
+      const data = (await response.json()) as GeminiResponse;
+
+      if (!response.ok) {
+        throw new Error(
+          data.error?.message
+            ? `Gemini (${modelName}) gagal: ${data.error.message}`
+            : `Gemini (${modelName}) gagal status ${response.status}`,
+        );
+      }
+
+      const answer = data.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text ?? "")
+        .join("")
+        .trim();
+
+      return answer || GEMINI_EMPTY_ANSWER_FALLBACK;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn(`[Gemini API] Error calling model ${modelName}:`, lastError.message);
+    }
   }
 
-  const answer = data.candidates?.[0]?.content?.parts
-    ?.map((part) => part.text ?? "")
-    .join("")
-    .trim();
-
-  return answer || GEMINI_EMPTY_ANSWER_FALLBACK;
+  throw lastError || new Error("Semua model Gemini gagal menjawab.");
 }

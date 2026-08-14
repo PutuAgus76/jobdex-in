@@ -1782,39 +1782,6 @@ export async function executeWhatsAppWebhook(
       return NextResponse.json({ ok: true });
     }
 
-    // 2c. Progress Question — arahkan ke structured handler atau saran command (Fix F)
-    if (intent === "progress_question") {
-      const replyMessage = [
-        WA_LABEL.bantuan,
-        "",
-        "Untuk informasi progress, gunakan salah satu command berikut:",
-        "",
-        "📊 Deadline & Risk:",
-        "- !jobdex deadline dekat",
-        "- !jobdex tugas overdue",
-        "- !jobdex siapa yang stuck",
-        "- !jobdex siapa yang menunggu approval",
-        "",
-        "📋 Progress Ringkas:",
-        "- !jobdex briefing",
-        "- !jobdex siapa belum update",
-        "",
-        "📌 Detail Task:",
-        "- !jobdex tugas saya",
-        "- !jobdex detail task [nama task]",
-      ].join("\n");
-
-      await updateDebugIntent("task_help", "progress_question");
-      const sendResult = await sendWhatsAppMessage(replyMessage);
-      await createWhatsAppLog({ message: replyMessage, status: "sent", response: sendResult.responseText });
-      console.log("[whatsapp command] handled", {
-        commandType: "progress_question",
-        handled: true,
-        stopFurtherProcessing: true,
-      });
-      return NextResponse.json({ ok: true });
-    }
-
     // 3. Tugas Saya
     if (intent === "tugas_saya") {
       const variation = String(parsedCommand.fields.variation || "all");
@@ -2545,32 +2512,6 @@ export async function executeWhatsAppWebhook(
         stopFurtherProcessing: true,
       });
       return NextResponse.json({ ok: true });
-    }
-
-    // Intercept if it looks like a task command but fell through (parser failed or incomplete)
-    if (isTaskLike) {
-      const replyMessage = [
-        WA_LABEL.task,
-        "",
-        "Format perintah task tidak dikenali atau belum lengkap.",
-        "",
-        "Gunakan bantuan untuk melihat format yang benar:",
-        "!jobdex bantuan task"
-      ].join("\n");
-
-      await updateDebugIntent("task_help", intent || "unknown");
-
-      const sendResult = await sendWhatsAppMessage(replyMessage);
-      await createWhatsAppLog({
-        message: replyMessage,
-        status: "failed",
-        response: sendResult.responseText,
-      });
-      console.log("[whatsapp command] handled", {
-        commandType: "task_command_like_error",
-        handled: true,
-        stopFurtherProcessing: true,
-      });
       return NextResponse.json({ ok: true });
     }
 
@@ -2702,36 +2643,54 @@ export async function executeWhatsAppWebhook(
       return NextResponse.json({ ok: true });
     }
 
-    // --- Fallback: Standard Gemini AI Assistant ---
+    // --- Fallback: Standard Gemini AI Assistant with RAG Context ---
+    const rawQuestion = sanitizePinFromMessage(
+      question || incoming.message.replace(/^!jobdex/i, "").trim() || incoming.message
+    );
+    console.log("[WhatsApp AI Assistant] Processing natural question with live context:", rawQuestion);
+
     const { contextSummary } = await buildAIContext({
       profile: getBotProfile(),
     });
+
     const prompt = [
       "CONTEXT JOBDEXIN:",
       contextSummary,
       "",
       "PERTANYAAN DARI WHATSAPP:",
-      sanitizePinFromMessage(question),
+      rawQuestion,
       "",
       "Instruksi jawaban: jawab ringkas, siap dibaca di WhatsApp group, dan jangan memakai data di luar context.",
     ].join("\n");
-    const aiResult = await generateText({
-      systemPrompt: AI_SYSTEM_PROMPT,
-      prompt,
-      feature: "whatsapp_assistant",
-      modelTier: "fast",
-    });
-    const answer = aiResult.text;
+
+    let answer = "";
+    let modelUsed = "gemini-1.5-flash";
+
+    try {
+      const aiResult = await generateText({
+        systemPrompt: AI_SYSTEM_PROMPT,
+        prompt,
+        feature: "whatsapp_assistant",
+        modelTier: "fast",
+      });
+      answer = aiResult.text;
+      modelUsed = aiResult.model;
+    } catch (aiErr) {
+      console.error("[WhatsApp AI Assistant] Error generating response:", aiErr);
+      const errMsg = aiErr instanceof Error ? aiErr.message : String(aiErr);
+      answer = `Maaf, terjadi kendala saat memproses jawaban AI (${errMsg}). Silakan coba beberapa saat lagi.`;
+    }
+
     const aiLogRef = getAdminDb().collection("ai_logs").doc();
 
     await aiLogRef.set({
       id: aiLogRef.id,
       organization_id: "main_org",
       asked_by: "whatsapp_bot",
-      question: sanitizePinFromMessage(question),
+      question: rawQuestion,
       context_summary: contextSummary.slice(0, 12000),
       answer,
-      model_used: aiResult.model,
+      model_used: modelUsed,
       source: "whatsapp",
       whatsapp_sender: senderLabel,
       whatsapp_group_id: incoming.groupId || process.env.WABLAS_GROUP_ID || "",
@@ -2742,7 +2701,7 @@ export async function executeWhatsAppWebhook(
       WA_LABEL.ai,
       "",
       "Pertanyaan:",
-      sanitizePinFromMessage(question),
+      rawQuestion,
       "",
       "Jawaban:",
       answer,

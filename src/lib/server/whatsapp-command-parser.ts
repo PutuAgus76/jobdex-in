@@ -715,20 +715,6 @@ function parseWhatsAppCommandInternal(
       rawText,
       fields: {},
     };
-  } else if (
-    lowerCleaned.startsWith("siapa yang stuck") ||
-    lowerCleaned.startsWith("ringkas progress") ||
-    lowerCleaned.startsWith("deadline terdekat") ||
-    lowerCleaned.startsWith("siapa yang belum mulai") ||
-    lowerCleaned.includes("stuck") ||
-    lowerCleaned.includes("progress") ||
-    lowerCleaned.includes("deadline")
-  ) {
-    return {
-      intent: "progress_question",
-      rawText,
-      fields: {},
-    };
   }
 
   return {

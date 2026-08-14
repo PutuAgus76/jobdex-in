@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
           fallbackUsed: searchRes.fallbackUsed,
         },
       };
-    } else if (parsedCommand.intent !== "unknown" && parsedCommand.intent !== "progress_question") {
+    } else if (parsedCommand.intent !== "unknown") {
       simulationResult = {
         category: "task_command",
         intent: parsedCommand.intent,
