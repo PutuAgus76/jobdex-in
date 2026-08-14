@@ -20,6 +20,7 @@ import type { ReminderDigest } from "@/lib/server/deadline-reminders";
 import type { Task, UserProfile, Event } from "@/types";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Max execution timeout for Vercel Serverless
 
 function isCompletedTask(data: Partial<Task>) {
   return (
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
 }
 
 async function handleCron(request: Request) {
+  const startTime = Date.now();
   const { searchParams } = new URL(request.url);
   const secretQuery = searchParams.get("secret");
   const authHeader = request.headers.get("authorization");
@@ -46,22 +48,25 @@ async function handleCron(request: Request) {
     : null;
   const expectedSecret = process.env.CRON_SECRET;
 
+  // Authorization check
   if (
     !expectedSecret ||
     (secretQuery !== expectedSecret && secretHeader !== expectedSecret)
   ) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const db = getAdminDb();
-  const globalDefaultGroupId = getWhatsAppRecipient();
-
-  if (!globalDefaultGroupId) {
     return NextResponse.json(
-      { error: "WhatsApp group ID not configured." },
-      { status: 500 },
+      { ok: false, error: "Unauthorized: Invalid or missing secret." },
+      { status: 401 }
     );
   }
+
+  // Query parameter overrides for manual testing
+  const force = searchParams.get("force") === "true" || searchParams.get("force") === "1";
+  const dryRun = searchParams.get("dryRun") === "true" || searchParams.get("dryRun") === "1";
+  const skipSmart = searchParams.get("skipSmart") === "true" || searchParams.get("skipSmart") === "1";
+  const targetGroupIdParam = searchParams.get("targetGroupId")?.trim() || null;
+
+  const db = getAdminDb();
+  const globalDefaultGroupId = targetGroupIdParam || getWhatsAppRecipient();
 
   const skipped = {
     alreadyInDigestToday: 0,
@@ -109,12 +114,15 @@ async function handleCron(request: Request) {
       eventsMap.set(doc.id, doc.data() as { name?: string });
     });
 
-    const divisionsMap = new Map<string, {
-      name?: string;
-      whatsapp_group_id?: string;
-      whatsapp_group_name?: string;
-      whatsapp_group_verified?: boolean;
-    }>();
+    const divisionsMap = new Map<
+      string,
+      {
+        name?: string;
+        whatsapp_group_id?: string;
+        whatsapp_group_name?: string;
+        whatsapp_group_verified?: boolean;
+      }
+    >();
     divisionsSnapshot.forEach((doc) => {
       divisionsMap.set(doc.id, doc.data() as {
         name?: string;
@@ -130,32 +138,54 @@ async function handleCron(request: Request) {
       eventsCache.set(doc.id, { id: doc.id, ...doc.data() } as Event);
     });
 
-    // Group tasks using the new routing helper
+    // Group tasks using the routing helper
     const taskGroups = await groupTasksByTarget(activeTasks, eventsCache, divisionsMap);
 
-    // Process smart individual and escalation reminders
+    // If targetGroupId is explicitly provided in testing, redirect all groups or group all tasks into targetGroupId
+    if (targetGroupIdParam) {
+      const allActiveTasksForTest: Task[] = [];
+      for (const groupData of taskGroups.values()) {
+        allActiveTasksForTest.push(...groupData.tasks);
+      }
+      taskGroups.clear();
+      taskGroups.set(targetGroupIdParam, {
+        target: {
+          groupId: targetGroupIdParam,
+          groupType: "default_group",
+          groupName: "Test Group Override",
+        },
+        tasks: allActiveTasksForTest.length > 0 ? allActiveTasksForTest : activeTasks,
+      });
+    }
+
+    if (taskGroups.size === 0 && !globalDefaultGroupId) {
+      return NextResponse.json(
+        { ok: false, error: "No target WhatsApp groups configured and default group ID is empty." },
+        { status: 500 }
+      );
+    }
+
+    // 1. Process smart personal/escalation reminders (unless skipSmart or dryRun)
     let smartSent = 0;
     let smartFailed = 0;
     let smartErrors: { target: string; reason: string }[] = [];
 
-    try {
-      const smartResult = await processSmartFollowupReminders(sendWhatsAppMessage);
-      smartSent = smartResult.sent;
-      smartFailed = smartResult.failed;
-      smartErrors = smartResult.errors;
-    } catch (err) {
-      console.error("Failed to process smart follow-up reminders:", err);
-      const errMsg = err instanceof Error ? err.message : "unknown error";
-      smartFailed++;
-      smartErrors.push({ target: "smart-reminders-engine", reason: errMsg });
-      errors.push(`Smart Reminders: ${errMsg}`);
+    if (!skipSmart && !dryRun && !targetGroupIdParam) {
+      try {
+        const smartResult = await processSmartFollowupReminders(sendWhatsAppMessage);
+        smartSent = smartResult.sent;
+        smartFailed = smartResult.failed;
+        smartErrors = smartResult.errors;
+      } catch (err) {
+        console.error("Failed to process smart follow-up reminders:", err);
+        const errMsg = err instanceof Error ? err.message : "unknown error";
+        smartFailed++;
+        smartErrors.push({ target: "smart-reminders-engine", reason: errMsg });
+        errors.push(`Smart Reminders: ${errMsg}`);
+      }
     }
 
     const digestDateKey = getDigestDateKey();
-    let digestSent = false;
-    let digestTaskCount = 0;
-    let newTaskIdsInDigest = 0;
-    let alreadyInDigestToday = 0;
     const sentMentionedPhones = new Set<string>();
 
     const categoriesSum = {
@@ -168,10 +198,9 @@ async function handleCron(request: Request) {
       stuck: 0,
     };
 
-    let eligibleTasksCount = 0;
     const eligibleTaskIds = new Set<string>();
 
-    // Pre-calculate digests for counting and aggregation
+    // 2. Pre-calculate digests for counting and aggregation
     const groupDigests: Array<{
       targetGroupId: string;
       target: GroupRouteTarget;
@@ -184,7 +213,7 @@ async function handleCron(request: Request) {
         groupTasks,
         usersMap,
         eventsMap,
-        divisionsMap,
+        divisionsMap
       );
 
       if (digest.taskIds.length > 0) {
@@ -204,30 +233,73 @@ async function handleCron(request: Request) {
       }
     }
 
-    eligibleTasksCount = eligibleTaskIds.size;
+    const eligibleTasksCount = eligibleTaskIds.size;
+
+    // 3. Process Group Digests concurrently with Promise.allSettled
+    const groupResults: Array<{
+      targetGroupId: string;
+      groupName?: string;
+      taskCount: number;
+      newTaskCount: number;
+      status: "sent" | "failed" | "skipped" | "dry_run";
+      reason?: string;
+      messagePreview?: string;
+      fullMessage?: string;
+    }> = [];
 
     let digestSentCount = 0;
     let digestFailedCount = 0;
+    let digestTaskCount = 0;
+    let newTaskIdsInDigest = 0;
+    let alreadyInDigestToday = 0;
     const digestErrors: { target: string; reason: string }[] = [];
 
-    // Send group digests
-    for (const { targetGroupId, target, digest } of groupDigests) {
-      // Check globally across all digest types today (anti-spam)
-      const alreadySentTaskIds = await getTaskIdsAlreadyInDigestToday({
-        groupId: targetGroupId,
-        digestDateKey,
-      });
+    const groupPromises = groupDigests.map(async ({ targetGroupId, target, digest }) => {
+      // Check anti-spam: tasks already sent today in this group (unless force is true)
+      let newTaskIds = digest.taskIds;
+      if (!force && !dryRun) {
+        const alreadySentTaskIds = await getTaskIdsAlreadyInDigestToday({
+          groupId: targetGroupId,
+          digestDateKey,
+        });
+        newTaskIds = digest.taskIds.filter((taskId: string) => !alreadySentTaskIds.has(taskId));
 
-      const newTaskIds = digest.taskIds.filter((taskId: string) => !alreadySentTaskIds.has(taskId));
-
-      if (newTaskIds.length === 0) {
-        alreadyInDigestToday += digest.taskIds.length;
-        continue;
+        if (newTaskIds.length === 0) {
+          alreadyInDigestToday += digest.taskIds.length;
+          groupResults.push({
+            targetGroupId,
+            groupName: target.groupName,
+            taskCount: digest.taskIds.length,
+            newTaskCount: 0,
+            status: "skipped",
+            reason: "All tasks already in digest today. Use ?force=true to override.",
+          });
+          return;
+        }
       }
 
-      // If new tasks are present, send the full digest message for the group
       const messageContent = buildDigestReminderMessage(digest);
 
+      // Dry-Run Mode
+      if (dryRun) {
+        groupResults.push({
+          targetGroupId,
+          groupName: target.groupName,
+          taskCount: digest.taskIds.length,
+          newTaskCount: newTaskIds.length,
+          status: "dry_run",
+          messagePreview: messageContent.slice(0, 200),
+          fullMessage: messageContent,
+        });
+        digestTaskCount += digest.taskIds.length;
+        newTaskIdsInDigest += newTaskIds.length;
+        for (const phone of digest.mentionedPhones) {
+          sentMentionedPhones.add(phone);
+        }
+        return;
+      }
+
+      // Live Send
       try {
         const dispatchResult = await sendWhatsAppMessage({
           target: targetGroupId,
@@ -267,13 +339,21 @@ async function handleCron(request: Request) {
           fallback_reason: target.fallbackReason || undefined,
         });
 
-        digestSent = true;
         digestSentCount++;
         digestTaskCount += digest.taskIds.length;
         newTaskIdsInDigest += newTaskIds.length;
         for (const phone of digest.mentionedPhones) {
           sentMentionedPhones.add(phone);
         }
+
+        groupResults.push({
+          targetGroupId,
+          groupName: target.groupName,
+          taskCount: digest.taskIds.length,
+          newTaskCount: newTaskIds.length,
+          status: "sent",
+          messagePreview: messageContent.slice(0, 150),
+        });
       } catch (error: unknown) {
         let status = "failed";
         let cooldownUntil: Date | null = null;
@@ -325,44 +405,47 @@ async function handleCron(request: Request) {
           linked_division_id: target.linkedDivisionId || undefined,
           fallback_reason: target.fallbackReason || undefined,
         });
-      }
-    }
 
-    // Skip output if all checked groups were skipped and no smart messages sent
-    if (!digestSent && alreadyInDigestToday > 0 && smartSent === 0) {
-      return NextResponse.json({
-        ok: true,
-        provider: process.env.WHATSAPP_PROVIDER || "wablas",
-        sent: smartSent,
-        failed: smartFailed,
-        errors: smartErrors,
-        digestSent: false,
-        digestSkippedReason: "already_sent_today_no_new_tasks",
-        alreadyInDigestToday,
-      });
-    }
+        groupResults.push({
+          targetGroupId,
+          groupName: target.groupName,
+          taskCount: digest.taskIds.length,
+          newTaskCount: newTaskIds.length,
+          status: "failed",
+          reason: errorMessage,
+        });
+      }
+    });
+
+    await Promise.allSettled(groupPromises);
 
     skipped.alreadyInDigestToday = alreadyInDigestToday;
 
     const totalSent = smartSent + digestSentCount;
     const totalFailed = smartFailed + digestFailedCount;
     const allErrors = [...smartErrors, ...digestErrors];
+    const durationMs = Date.now() - startTime;
 
     return NextResponse.json({
-      ok: true,
-      provider: process.env.WHATSAPP_PROVIDER || "wablas",
+      ok: totalFailed === 0,
+      mode: dryRun ? "dry_run" : force ? "forced" : "normal",
+      provider: process.env.WHATSAPP_PROVIDER || "fonnte",
+      targetOverride: targetGroupIdParam,
       sent: totalSent,
       failed: totalFailed,
       errors: allErrors,
       checkedTasks,
+      activeTasks: activeTasks.length,
       eligibleTasks: eligibleTasksCount,
-      groupsChecked: Object.keys(taskGroups).length || taskGroups.size,
-      digestSent,
+      groupsChecked: taskGroups.size,
+      groups: groupResults,
+      digestSent: digestSentCount > 0 || (dryRun && eligibleTasksCount > 0),
       digestTaskCount,
       newTaskIdsInDigest,
       categories: categoriesSum,
       skipped,
       mentionedPhones: Array.from(sentMentionedPhones),
+      durationMs,
     });
   } catch (error: unknown) {
     const errorMessage =
@@ -372,21 +455,24 @@ async function handleCron(request: Request) {
     return NextResponse.json(
       {
         ok: false,
-        provider: process.env.WHATSAPP_PROVIDER || "wablas",
+        provider: process.env.WHATSAPP_PROVIDER || "fonnte",
         sent: 0,
         failed: 1,
         errors: [{ target: "cron-engine", reason: errorMessage }],
         checkedTasks: 0,
+        activeTasks: 0,
         eligibleTasks: 0,
         groupsChecked: 0,
+        groups: [],
         digestSent: false,
         digestTaskCount: 0,
         newTaskIdsInDigest: 0,
         categories: null,
         skipped,
         mentionedPhones: [],
+        durationMs: Date.now() - startTime,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

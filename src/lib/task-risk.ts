@@ -1,23 +1,47 @@
 import type { Task } from "@/types";
 
-export function getTaskDeadlineDiffDays(task: Task): number {
+function getCalendarDateParts(date: Date, timeZone = "Asia/Jakarta") {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const dateString = formatter.format(date); // YYYY-MM-DD
+    const [year, month, day] = dateString.split("-").map(Number);
+    const utcMidnight = Date.UTC(year, month - 1, day);
+    return { year, month, day, dateString, utcMidnight };
+  } catch {
+    const utcMidnight = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+      dateString: date.toISOString().slice(0, 10),
+      utcMidnight,
+    };
+  }
+}
+
+export function getTaskDeadlineDiffDays(task: Task, refDate: Date = new Date()): number {
   const deadlineDate =
     task.deadline && typeof task.deadline === "object" && "toDate" in task.deadline
       ? (task.deadline as { toDate: () => Date }).toDate()
       : task.deadline instanceof Date
       ? task.deadline
+      : typeof task.deadline === "string"
+      ? new Date(task.deadline)
       : null;
 
-  if (!deadlineDate) return Number.MAX_SAFE_INTEGER;
+  if (!deadlineDate || isNaN(deadlineDate.getTime())) return Number.MAX_SAFE_INTEGER;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const tz = (typeof process !== "undefined" && process.env?.APP_TIMEZONE) || "Asia/Jakarta";
+  const todayCal = getCalendarDateParts(refDate, tz);
+  const deadlineCal = getCalendarDateParts(deadlineDate, tz);
 
-  const deadline = new Date(deadlineDate);
-  deadline.setHours(0, 0, 0, 0);
-
-  const diffTime = deadline.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffMs = deadlineCal.utcMidnight - todayCal.utcMidnight;
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
 
 export function getRiskLevelFromTask(task: Task): "none" | "yellow" | "orange" | "red" {

@@ -21,8 +21,8 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
     }
   }
 
-  // Safeguard: Redirect group messages to test group in development or testing environment
-  if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
+  // Safeguard: Redirect group messages to test group in development or testing environment if target not explicitly provided
+  if (!payload.target && (process.env.NODE_ENV === "development" || process.env.TESTING === "true")) {
     // If test target is configured, route there, otherwise route to a default test group ID
     if (payload.type === "group" || isGroupRecipient(recipient)) {
       recipient = process.env.FONNTE_DEFAULT_GROUP_ID || process.env.WHATSAPP_DEFAULT_GROUP_ID || "120363406824082148";
@@ -47,6 +47,8 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
   let responseText = "";
   let responseOk = false;
 
+  console.info(`[FONNTE Dispatch] Sending to ${recipient} (isGroup: ${isGroup}, messageLen: ${payload.message?.length || 0})`);
+
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -65,6 +67,7 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
     responseText = await response.text();
   } catch (fetchErr: unknown) {
     const errorMsg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    console.error(`[FONNTE Dispatch Error] Network fetch failed to ${recipient}:`, errorMsg);
     throw new Error(`FONNTE network fetch error: ${errorMsg}`);
   }
 
@@ -77,8 +80,11 @@ export async function sendViaFonnte(payload: WhatsAppSendPayload): Promise<Whats
 
   if (!responseOk || (resData && resData.status === false)) {
     const errorDetail = resData?.reason || resData?.message || responseText || "Unknown error";
+    console.error(`[FONNTE Dispatch Failed] HTTP ${responseStatus} to ${recipient}:`, errorDetail);
     throw new Error(`FONNTE gagal mengirim notifikasi (${responseStatus}): ${errorDetail}`);
   }
+
+  console.info(`[FONNTE Dispatch Success] Delivered to ${recipient}`);
 
   return {
     ok: true,

@@ -25,7 +25,7 @@ import { showConfirm, showSuccess, showError } from "@/lib/swal";
 export default function EventDetailPage() {
   const params = useParams<{ eventId: string }>();
   const router = useRouter();
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [event, setEvent] = useState<Event | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [eventMembers, setEventMembers] = useState<EventMember[]>([]);
@@ -133,8 +133,31 @@ export default function EventDetailPage() {
     }
 
     try {
-      await createTask(input, userProfile.id);
+      const newTaskId = await createTask(input, userProfile.id);
       void showSuccess("Job desk berhasil ditambahkan ke acara!");
+
+      // Non-blocking asynchronous WhatsApp broadcast
+      if (newTaskId && user) {
+        void (async () => {
+          try {
+            const token = await user.getIdToken();
+            await fetch("/api/notifications/whatsapp", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                taskId: newTaskId,
+                eventType: "task_created",
+              }),
+            });
+          } catch {
+            // Notification failure doesn't block task creation
+          }
+        })();
+      }
+
       await loadDetail();
     } catch {
       void showError("Gagal menambahkan job desk.");

@@ -27,8 +27,8 @@ export async function sendViaWablas(payload: WhatsAppSendPayload): Promise<Whats
 
   const isGroup = payload.type === "group" || isGroupRecipient(recipient);
 
-  // Safeguard: Redirect group messages to test group in development or testing environment
-  if (process.env.NODE_ENV === "development" || process.env.TESTING === "true") {
+  // Safeguard: Redirect group messages to test group in development or testing environment if target not explicitly provided
+  if (!payload.target && (process.env.NODE_ENV === "development" || process.env.TESTING === "true")) {
     if (isGroup) {
       recipient = "120363406824082148";
     }

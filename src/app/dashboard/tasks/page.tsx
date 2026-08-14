@@ -29,7 +29,7 @@ import { db } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 
 export default function TasksPage() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -203,8 +203,30 @@ export default function TasksPage() {
         await updateTask(taskId, input);
         void showSuccess("Job desk berhasil diperbarui!");
       } else {
-        await createTask(input, userProfile.id);
+        const newTaskId = await createTask(input, userProfile.id);
         void showSuccess("Job desk baru berhasil ditambahkan!");
+
+        // Non-blocking asynchronous WhatsApp broadcast
+        if (newTaskId && user) {
+          void (async () => {
+            try {
+              const token = await user.getIdToken();
+              await fetch("/api/notifications/whatsapp", {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  taskId: newTaskId,
+                  eventType: "task_created",
+                }),
+              });
+            } catch {
+              // Notification failure doesn't block task creation
+            }
+          })();
+        }
       }
       await loadData();
     } catch (err) {

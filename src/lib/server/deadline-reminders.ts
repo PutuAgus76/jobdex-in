@@ -121,35 +121,29 @@ export function shouldSendDeadlineReminder(
 
   const priority = task.priority;
 
+  if (diffDays < 0) {
+    return { shouldSend: true, type: "overdue" };
+  }
+  if (diffDays === 0) {
+    return { shouldSend: true, type: "today" };
+  }
+  if (diffDays === 1) {
+    return { shouldSend: true, type: "h_1" };
+  }
+
   if (priority === "rendah" || priority === "sedang") {
-    if (diffDays === 5) {
-      // H-5: jika belum_dimulai
-      if (task.status === "belum_dimulai") {
+    if (diffDays <= 5) {
+      if (task.status === "belum_dimulai" || diffDays <= 3) {
         return { shouldSend: true, type: "h_5" };
       }
-    } else if (diffDays === 1) {
-      // H-1
-      return { shouldSend: true, type: "h_1" };
-    } else if (diffDays === 0) {
-      // Hari-H
-      return { shouldSend: true, type: "today" };
-    } else if (diffDays < 0) {
-      // Overdue
-      return { shouldSend: true, type: "overdue" };
     }
   } else if (priority === "tinggi" || priority === "kritis") {
-    if (diffDays === 7) {
-      return { shouldSend: true, type: "h_7" };
-    } else if (diffDays === 5) {
-      return { shouldSend: true, type: "h_5" };
-    } else if (diffDays === 3) {
+    if (diffDays <= 3) {
       return { shouldSend: true, type: "h_3" };
-    } else if (diffDays === 1) {
-      return { shouldSend: true, type: "h_1" };
-    } else if (diffDays === 0) {
-      return { shouldSend: true, type: "today" };
-    } else if (diffDays < 0) {
-      return { shouldSend: true, type: "overdue" };
+    } else if (diffDays <= 5) {
+      return { shouldSend: true, type: "h_5" };
+    } else if (diffDays <= 7) {
+      return { shouldSend: true, type: "h_7" };
     }
   }
 
@@ -548,9 +542,9 @@ function getTaskDigestCategories(task: Task, diffDays: number | null) {
       categories.push("today");
     } else if (diffDays === 1) {
       categories.push("h_1");
-    } else if (diffDays === 2 || diffDays === 3) {
+    } else if (diffDays >= 2 && diffDays <= 3) {
       categories.push("h_2_h_3");
-    } else if (diffDays === 5 || diffDays === 7) {
+    } else if (diffDays >= 4 && diffDays <= 7) {
       categories.push("h_5_h_7");
     }
   }
@@ -731,16 +725,20 @@ Buka dashboard untuk detail lengkap.${remainingText}`;
 }
 
 export function getDigestDateKey(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Makassar",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+  const tz = (typeof process !== "undefined" && process.env?.APP_TIMEZONE) || "Asia/Jakarta";
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
 
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-
-  return `${values.year}-${values.month}-${values.day}`;
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
 }
 
 export async function getTaskIdsAlreadyInDigestToday(data: {
