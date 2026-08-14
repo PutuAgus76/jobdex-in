@@ -725,22 +725,78 @@ function parseWhatsAppCommandInternal(
 }
 
 function parseSingleTaskCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
-  const lines = cleaned.split("\n");
   const fields: Record<string, string> = {};
+  const unbracketed = cleaned.replace(/\[([^\]]+)\]/g, "$1");
+  const lines = unbracketed.split("\n").map((l) => l.trim()).filter(Boolean);
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.toLowerCase().startsWith("tambah jobdesk")) continue;
+  // 1. If multiline format with key: val, parse lines
+  if (lines.length > 1) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (i === 0 && line.toLowerCase().startsWith("tambah jobdesk")) {
+        const afterCmd = line.replace(/^tambah\s+jobdesk\s*/i, "").trim();
+        if (afterCmd) fields.judul = afterCmd;
+        continue;
+      }
 
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex !== -1) {
-      const key = trimmed.slice(0, colonIndex).trim().toLowerCase();
-      const val = trimmed.slice(colonIndex + 1).trim();
-      if (key && val) {
-        fields[key] = val;
+      const colonIdx = line.indexOf(":");
+      if (colonIdx !== -1) {
+        const key = line.slice(0, colonIdx).trim().toLowerCase();
+        const val = line.slice(colonIdx + 1).trim();
+        if (key && val) {
+          fields[key] = val;
+        }
       }
     }
+  }
+
+  // 2. Flexible keyword segmentation (supports single-line and unformatted multiline)
+  const content = unbracketed.replace(/^tambah\s+(?:jobdesk|task|tugas)\s*/i, "").trim();
+  const keywordPattern = /\b(deadline|dl|tenggat|pic|pelaksana|oleh|divisi|div|prioritas|priority|acara|event|deskripsi|desc|catatan|ket|tipe|type|redaksi|referensi|warna|arahan\s+visual)\b\s*:?/gi;
+
+  const matches: Array<{ key: string; index: number; length: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = keywordPattern.exec(content)) !== null) {
+    let keyNorm = m[1].toLowerCase().replace(/\s+visual$/i, "_visual");
+    if (keyNorm === "dl" || keyNorm === "tenggat") keyNorm = "deadline";
+    if (keyNorm === "pelaksana" || keyNorm === "oleh") keyNorm = "pic";
+    if (keyNorm === "div") keyNorm = "divisi";
+    if (keyNorm === "priority") keyNorm = "prioritas";
+    if (keyNorm === "event") keyNorm = "acara";
+    if (keyNorm === "desc" || keyNorm === "ket") keyNorm = "deskripsi";
+    if (keyNorm === "type") keyNorm = "tipe";
+
+    matches.push({
+      key: keyNorm,
+      index: m.index,
+      length: m[0].length,
+    });
+  }
+
+  if (matches.length > 0) {
+    const titleBeforeFirstKey = content.slice(0, matches[0].index).trim();
+    if (titleBeforeFirstKey && !fields.judul) {
+      fields.judul = titleBeforeFirstKey;
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const startVal = current.index + current.length;
+      const endVal = i + 1 < matches.length ? matches[i + 1].index : content.length;
+      const val = content.slice(startVal, endVal).trim();
+      if (val && !fields[current.key]) {
+        fields[current.key] = val;
+      }
+    }
+  } else if (!fields.judul && content) {
+    fields.judul = content;
+  }
+
+  if (!fields.tipe) {
+    fields.tipe = fields.acara ? "acara" : "divisi";
+  }
+  if (!fields.prioritas) {
+    fields.prioritas = "sedang";
   }
 
   return {
@@ -751,22 +807,58 @@ function parseSingleTaskCommand(rawText: string, cleaned: string): ParsedWhatsAp
 }
 
 function parseEventCommand(rawText: string, cleaned: string): ParsedWhatsAppCommand {
-  const lines = cleaned.split("\n");
   const fields: Record<string, string> = {};
+  const unbracketed = cleaned.replace(/\[([^\]]+)\]/g, "$1");
+  const lines = unbracketed.split("\n").map((l) => l.trim()).filter(Boolean);
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed.toLowerCase().startsWith("tambah acara")) continue;
+  if (lines.length > 1) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (i === 0 && line.toLowerCase().startsWith("tambah acara")) {
+        const afterCmd = line.replace(/^tambah\s+acara\s*/i, "").trim();
+        if (afterCmd) fields.nama = afterCmd;
+        continue;
+      }
 
-    const colonIndex = trimmed.indexOf(":");
-    if (colonIndex !== -1) {
-      const key = trimmed.slice(0, colonIndex).trim().toLowerCase();
-      const val = trimmed.slice(colonIndex + 1).trim();
-      if (key && val) {
-        fields[key] = val;
+      const colonIdx = line.indexOf(":");
+      if (colonIdx !== -1) {
+        const key = line.slice(0, colonIdx).trim().toLowerCase();
+        const val = line.slice(colonIdx + 1).trim();
+        if (key && val) {
+          fields[key] = val;
+        }
       }
     }
+  }
+
+  const content = unbracketed.replace(/^tambah\s+acara\s*/i, "").trim();
+  const keywordPattern = /\b(nama|name|tanggal|date|tgl|koordinator|pic|deskripsi|desc)\b\s*:?/gi;
+  const matches: Array<{ key: string; index: number; length: number }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = keywordPattern.exec(content)) !== null) {
+    let keyNorm = m[1].toLowerCase();
+    if (keyNorm === "name") keyNorm = "nama";
+    if (keyNorm === "date" || keyNorm === "tgl") keyNorm = "tanggal";
+    if (keyNorm === "desc") keyNorm = "deskripsi";
+    matches.push({ key: keyNorm, index: m.index, length: m[0].length });
+  }
+
+  if (matches.length > 0) {
+    const nameBeforeFirstKey = content.slice(0, matches[0].index).trim();
+    if (nameBeforeFirstKey && !fields.nama) {
+      fields.nama = nameBeforeFirstKey;
+    }
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      const startVal = current.index + current.length;
+      const endVal = i + 1 < matches.length ? matches[i + 1].index : content.length;
+      const val = content.slice(startVal, endVal).trim();
+      if (val && !fields[current.key]) {
+        fields[current.key] = val;
+      }
+    }
+  } else if (!fields.nama && content) {
+    fields.nama = content;
   }
 
   return {

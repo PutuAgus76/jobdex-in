@@ -122,15 +122,8 @@ async function getVisibleEvents(profile: UserProfile) {
     ...item.data(),
   })) as Event[];
 
-  if (isSuperAdmin(profile) || isKoordinatorDivisi(profile)) {
-    return events;
-  }
-
-  if (isKoordinatorAcara(profile)) {
-    return events.filter((event) => event.coordinator_id === profile.id);
-  }
-
-  return [];
+  // Return all non-archived events so AI can answer general event questions for any role
+  return events;
 }
 
 async function getDesignReferencesSummary() {

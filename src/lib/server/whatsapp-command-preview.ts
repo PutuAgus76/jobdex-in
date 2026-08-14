@@ -421,8 +421,8 @@ export async function buildWhatsAppCommandPreview(
         if (fields.deadline) readFields.push(`- Deadline: ${fields.deadline}`);
         readFields.push(`- Prioritas: ${fields.prioritas.charAt(0).toUpperCase() + fields.prioritas.slice(1).toLowerCase()}`);
 
-        const readSection = `Sudah terbaca:\\n${readFields.join("\\n")}`;
-        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
+        const readSection = `Sudah terbaca:\n${readFields.join("\n")}`;
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah jobdesk`,
@@ -433,7 +433,7 @@ export async function buildWhatsAppCommandPreview(
           `deadline: ${fields.deadline || "..."}`,
           `prioritas: ${fields.prioritas.toLowerCase()}`,
           `deskripsi: ${fields.deskripsi || "..."}`,
-        ].filter(Boolean).join("\\n");
+        ].filter(Boolean).join("\n");
 
         const previewText = [
           `[*JobdexIn* Format Belum Lengkap]`,
@@ -447,7 +447,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\\n");
+        ].join("\n");
 
         return {
           isValid: false,
@@ -472,7 +472,7 @@ export async function buildWhatsAppCommandPreview(
           const ph = c.whatsapp_number || "";
           const masked = ph ? ph.slice(0, 5) + "xxxx" + ph.slice(-2) : "-";
           return `${i + 1}. ${c.name} — ${masked}`;
-        }).join("\\n");
+        }).join("\n");
 
         return {
           isValid: false,
@@ -484,7 +484,7 @@ export async function buildWhatsAppCommandPreview(
             listText,
             ``,
             `Ulangi command dengan nama yang lebih lengkap atau nomor WhatsApp PIC.`
-          ].join("\\n")
+          ].join("\n")
         };
       } else {
         return {
@@ -495,7 +495,7 @@ export async function buildWhatsAppCommandPreview(
             `PIC "${picRaw}" tidak ditemukan dalam database JobdexIn.`,
             ``,
             `Pastikan nama, nickname, alias, atau nomor WhatsApp PIC sudah benar, atau hubungi admin.`
-          ].join("\\n")
+          ].join("\n")
         };
       }
 
@@ -519,7 +519,7 @@ export async function buildWhatsAppCommandPreview(
 
       // Auto Checklist based on Task Type
       const checklist = getChecklistByTaskName(judul);
-      const checklistText = checklist.map((item, i) => `${i + 1}. ${item.label}`).join("\\n");
+      const checklistText = checklist.map((item, i) => `${i + 1}. ${item.label}`).join("\n");
 
       // Auto Cari Referensi untuk task desain
       let referenceSection = "";
@@ -546,7 +546,7 @@ export async function buildWhatsAppCommandPreview(
               "Referensi terdekat yang saya temukan:",
               ...topRefs.map((item, i) => `${i + 1}. ${item.ref.title} (${item.ref.year})`)
             ];
-            referenceSection = lines.join("\\n");
+            referenceSection = lines.join("\n");
           }
         } catch (err) {
           console.error("[Auto Reference Suggestion] Failed:", err);
@@ -568,7 +568,7 @@ export async function buildWhatsAppCommandPreview(
         `Checklist otomatis:`,
         checklistText,
         referenceSection,
-        referenceSection ? `\\nCatatan:\\nReferensi hanya saran. Task tetap bisa dibuat tanpa memilih referensi.` : null,
+        referenceSection ? `\nCatatan:\nReferensi hanya saran. Task tetap bisa dibuat tanpa memilih referensi.` : null,
         ``,
         `Status validasi:`,
         ...validations,
@@ -577,7 +577,7 @@ export async function buildWhatsAppCommandPreview(
         `Preview ini belum disimpan ke database.`
       ]
         .filter((line) => line !== null)
-        .join("\\n");
+        .join("\n");
 
       return { isValid, previewText };
     }
@@ -607,8 +607,8 @@ export async function buildWhatsAppCommandPreview(
         if (tanggal) readFields.push(`- Tanggal: ${tanggal}`);
         if (koordinatorRaw) readFields.push(`- Koordinator: ${koordinatorRaw}`);
 
-        const readSection = readFields.length > 0 ? `Sudah terbaca:\\n${readFields.join("\\n")}` : "Belum ada field yang terbaca.";
-        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah acara`,
@@ -616,7 +616,7 @@ export async function buildWhatsAppCommandPreview(
           `tanggal: ${tanggal || "..."}`,
           `koordinator: ${koordinatorRaw || "..."}`,
           `deskripsi: ${deskripsi || "..."}`
-        ].join("\\n");
+        ].join("\n");
 
         const previewText = [
           `[*JobdexIn* Format Belum Lengkap]`,
@@ -630,7 +630,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\\n");
+        ].join("\n");
 
         return {
           isValid: false,
@@ -648,15 +648,15 @@ export async function buildWhatsAppCommandPreview(
       if (koorResult.success && koorResult.user) {
         koorUser = koorResult.user;
       } else if (koorResult.candidates.length > 1) {
-        const listText = koorResult.candidates.map((c, i) => `${i + 1}. ${c.name}`).join("\\n");
+        const listText = koorResult.candidates.map((c, i) => `${i + 1}. ${c.name}`).join("\n");
         return {
           isValid: false,
-          previewText: `[*JobdexIn* PIC Ambigu]\\n\\nSaya menemukan beberapa anggota yang mirip dengan "${koordinatorRaw}":\\n\\n${listText}\\n\\nUlangi command dengan nama yang lebih lengkap.`
+          previewText: `[*JobdexIn* PIC Ambigu]\n\nSaya menemukan beberapa anggota yang mirip dengan "${koordinatorRaw}":\n\n${listText}\n\nUlangi command dengan nama yang lebih lengkap.`
         };
       } else {
         return {
           isValid: false,
-          previewText: `[*JobdexIn* PIC Tidak Ditemukan]\\n\\nKoordinator "${koordinatorRaw}" tidak ditemukan dalam database.`
+          previewText: `[*JobdexIn* PIC Tidak Ditemukan]\n\nKoordinator "${koordinatorRaw}" tidak ditemukan dalam database.`
         };
       }
 
@@ -681,7 +681,7 @@ export async function buildWhatsAppCommandPreview(
         getSenderWarning(),
         ``,
         `Preview ini belum disimpan ke database.`
-      ].join("\\n");
+      ].join("\n");
 
       return { isValid: true, previewText };
     }
@@ -788,7 +788,7 @@ export async function buildWhatsAppCommandPreview(
         );
       }
 
-      return { isValid, previewText: previewTextLines.join("\\n") };
+      return { isValid, previewText: previewTextLines.join("\n") };
     }
 
     case "create_reference_preview": {
@@ -851,8 +851,8 @@ export async function buildWhatsAppCommandPreview(
         if (linkDocs) readFields.push(`- Link Docs: ${linkDocs}`);
         if (linkLain) readFields.push(`- Link Lain: ${linkLain}`);
 
-        const readSection = readFields.length > 0 ? `Sudah terbaca:\\n${readFields.join("\\n")}` : "Belum ada field yang terbaca.";
-        const missingSection = `Yang masih perlu dilengkapi:\\n${missingFields.map((f) => `- ${f}`).join("\\n")}`;
+        const readSection = readFields.length > 0 ? `Sudah terbaca:\n${readFields.join("\n")}` : "Belum ada field yang terbaca.";
+        const missingSection = `Yang masih perlu dilengkapi:\n${missingFields.map((f) => `- ${f}`).join("\n")}`;
 
         const dynamicTemplate = [
           `!jobdex tambah referensi`,
@@ -869,7 +869,7 @@ export async function buildWhatsAppCommandPreview(
           fields.warna ? `warna: ${fields.warna}` : null,
           fields["arahan visual"] || fields.arahan_visual ? `arahan visual: ${fields["arahan visual"] || fields.arahan_visual}` : null,
           fields.catatan || fields.notes ? `catatan: ${fields.catatan || fields.notes}` : null,
-        ].filter(Boolean).join("\\n");
+        ].filter(Boolean).join("\n");
 
         const previewText = [
           `${WA_LABEL.ai}`,
@@ -883,7 +883,7 @@ export async function buildWhatsAppCommandPreview(
           `Silakan kirim ulang dengan format:`,
           ``,
           dynamicTemplate
-        ].join("\\n");
+        ].join("\n");
 
         return {
           isValid: false,
@@ -951,10 +951,10 @@ export async function buildWhatsAppCommandPreview(
       }
 
       // Link auto-classification & multi-link parsing
-      const driveLinks = linkDrive ? linkDrive.split(/,\\s*/).filter(Boolean) : [];
-      const canvaLinks = linkCanva ? linkCanva.split(/,\\s*/).filter(Boolean) : [];
-      const docLinks = linkDocs ? linkDocs.split(/,\\s*/).filter(Boolean) : [];
-      let otherLinks = linkLain ? linkLain.split(/,\\s*/).filter(Boolean) : [];
+      const driveLinks = linkDrive ? linkDrive.split(/,\s*/).filter(Boolean) : [];
+      const canvaLinks = linkCanva ? linkCanva.split(/,\s*/).filter(Boolean) : [];
+      const docLinks = linkDocs ? linkDocs.split(/,\s*/).filter(Boolean) : [];
+      let otherLinks = linkLain ? linkLain.split(/,\s*/).filter(Boolean) : [];
 
       const classifiedOther: string[] = [];
       for (const link of otherLinks) {
@@ -1008,7 +1008,7 @@ export async function buildWhatsAppCommandPreview(
         `Preview ini belum disimpan ke database.`
       ]
         .filter((line) => line !== null)
-        .join("\\n");
+        .join("\n");
 
       return { isValid, previewText };
     }
@@ -1016,7 +1016,7 @@ export async function buildWhatsAppCommandPreview(
     default: {
       return {
         isValid: false,
-        previewText: `${WA_LABEL.ai} Preview\\n\\nCommand tidak dikenal atau gagal diproses.`,
+        previewText: `${WA_LABEL.ai} Preview\n\nCommand tidak dikenal atau gagal diproses.`,
       };
     }
   }
